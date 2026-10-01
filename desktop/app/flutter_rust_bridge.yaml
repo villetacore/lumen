@@ -1,0 +1,7 @@
+# Конфигурация моста Flutter ⇄ Rust (используется на M2).
+# Генерация: flutter_rust_bridge_codegen generate
+rust_input: ../core/src/api.rs
+rust_root: ../core
+dart_output: lib/bridge
+c_output: windows/runner/bridge_generated.h
+dart_entrypoint_class_name: LumenCore

@@ -1,0 +1,12 @@
+# Настройки vault. Читаются сервером и десктопом.
+daily:
+  folder: 40-daily
+  subfolder: "2006"      # формат подпапки по году
+  template: _templates/daily.md
+inbox: 00-inbox
+projects: 20-projects
+views:
+  - { name: "Сегодня",   view: today }
+  - { name: "Входящие",  view: inbox }
+  - { name: "Неделя",    view: week }
+  - { name: "Просрочено", view: overdue }
