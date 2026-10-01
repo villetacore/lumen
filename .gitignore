@@ -1,0 +1,32 @@
+# Go
+/dist/
+server/lumend
+server/lumend.exe
+server/dist/
+# Вшиваемый веб-клиент собирается локально
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep
+
+# Rust
+desktop/core/target/
+
+# Flutter
+desktop/app/.dart_tool/
+desktop/app/build/
+desktop/app/windows/
+desktop/app/macos/
+desktop/app/linux/
+desktop/app/.flutter-plugins*
+desktop/app/lib/bridge/
+
+# Web
+web/node_modules/
+web/dist/
+
+# Локальные данные vault
+**/.lumen/cache/
+**/.lumen/trash/
+
+# Прочее
+.DS_Store
+*.log

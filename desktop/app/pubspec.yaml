@@ -1,0 +1,23 @@
+name: lumen_app
+description: Десктопный клиент Lumen — задачи, заметки и календарь поверх папки с Markdown.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  intl: ^0.19.0
+  # Подключается на M2, когда появится мост к lumen-core:
+  # flutter_rust_bridge: ^2.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

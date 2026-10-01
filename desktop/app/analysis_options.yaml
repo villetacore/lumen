@@ -1,0 +1,12 @@
+analyzer:
+  exclude:
+    - build/**
+    - windows/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    avoid_print: true
+    # require_trailing_commas не используем: начиная с Dart 3.7 расстановкой
+    # запятых занимается сам `dart format`, и правило с ним конфликтует.
