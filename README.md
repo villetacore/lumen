@@ -29,6 +29,10 @@
 
 ## Документация
 
+- [Направление: AI-центр управления студией](docs/plans/PRODUCT_DIRECTION.md)
+- [Как передать реализацию кодирующему агенту](docs/plans/IMPLEMENTATION_GUIDE.md)
+- [План развития единой точки: backend, web, сервисы, MCP и RAG](docs/plans/README.md)
+- [Задачи развития с приоритетами и критериями приёмки](docs/plans/BACKLOG.md)
 - [MVP: границы и пользовательские сценарии](docs/MVP.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Модель данных](docs/DATA_MODEL.md)
