@@ -1,7 +1,10 @@
-import { NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { ViewName } from "../api/types";
+import { iso, today } from "../lib/date";
+import NewNoteDialog from "./NewNoteDialog";
 
 const VIEWS: { view: ViewName; label: string; icon: string }[] = [
   { view: "today", label: "Сегодня", icon: "◎" },
@@ -11,6 +14,7 @@ const VIEWS: { view: ViewName; label: string; icon: string }[] = [
   { view: "upcoming", label: "Предстоит", icon: "→" },
   { view: "someday", label: "Без даты", icon: "∅" },
   { view: "all", label: "Все задачи", icon: "≡" },
+  { view: "done", label: "Выполнено", icon: "✓" },
 ];
 
 function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: string }) {
@@ -28,6 +32,14 @@ function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: 
 }
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [creating, setCreating] = useState<"note" | "project" | null>(null);
+  // The daily note is created on first open, the way quick capture does it.
+  const daily = useMutation({
+    mutationFn: () => api.daily(iso(today()), true),
+    onSuccess: (n) => navigate(`/note/${n.path}`),
+  });
   const { data: projects } = useQuery({
     queryKey: ["notes", { type: "project" }],
     queryFn: () => api.notes({ type: "project" }),
@@ -43,7 +55,12 @@ export default function Sidebar() {
       </div>
 
       <div className="nav-group">
-        <div className="nav-title">Проекты</div>
+        <div className="nav-title">
+          Проекты
+          <button className="nav-add" onClick={() => setCreating("project")} title="Новый проект" aria-label="Новый проект">
+            ＋
+          </button>
+        </div>
         {projects?.items.map((p) => (
           <NavLink
             key={p.path}
@@ -64,6 +81,14 @@ export default function Sidebar() {
 
       <div className="nav-group">
         <div className="nav-title">Обзор</div>
+        <button className="nav-item" onClick={() => daily.mutate()} disabled={daily.isPending}>
+          <span className="icon">☀</span>
+          Дневная заметка
+        </button>
+        <button className="nav-item" onClick={() => setCreating("note")}>
+          <span className="icon">＋</span>
+          Новая заметка
+        </button>
         <NavLink to="/calendar" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon">▩</span>
           Календарь
@@ -88,7 +113,10 @@ export default function Sidebar() {
           <NavLink
             key={t.tag}
             to={`/notes?tag=${encodeURIComponent(t.tag)}`}
-            className="nav-item"
+            // NavLink compares paths only; the tag lives in the query string.
+            className={({ isActive }) =>
+              "nav-item" + (isActive && params.get("tag") === t.tag ? " active" : "")
+            }
           >
             <span className="icon">#</span>
             {t.tag}
@@ -96,6 +124,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </div>
+      {creating && <NewNoteDialog type={creating} onClose={() => setCreating(null)} />}
     </nav>
   );
 }

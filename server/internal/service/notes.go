@@ -58,6 +58,12 @@ type CreateInput struct {
 
 // Create writes a new note, refusing to overwrite an existing file.
 func (s *Notes) Create(ctx context.Context, in CreateInput) (*domain.Note, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
+	return s.create(ctx, in)
+}
+
+func (s *Notes) create(ctx context.Context, in CreateInput) (*domain.Note, error) {
 	rel := strings.TrimPrefix(strings.TrimSpace(in.Path), "/")
 	if rel == "" {
 		return nil, errors.New("path is required")
@@ -112,6 +118,8 @@ func ErrAlreadyExists() error { return errAlreadyExists }
 
 // ReplaceBody rewrites the body of a note, keeping its frontmatter intact.
 func (s *Notes) ReplaceBody(ctx context.Context, idOrPath, body string, revision int64) (*domain.Note, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	n, err := s.store.Note(ctx, idOrPath)
 	if err != nil {
 		return nil, err
@@ -142,6 +150,8 @@ func (s *Notes) ReplaceBody(ctx context.Context, idOrPath, body string, revision
 
 // SetFrontmatter updates scalar frontmatter keys, preserving unknown ones.
 func (s *Notes) SetFrontmatter(ctx context.Context, idOrPath string, kv map[string]string, revision int64) (*domain.Note, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	n, err := s.store.Note(ctx, idOrPath)
 	if err != nil {
 		return nil, err
@@ -169,6 +179,8 @@ func (s *Notes) SetFrontmatter(ctx context.Context, idOrPath string, kv map[stri
 
 // Delete moves a note to the vault trash.
 func (s *Notes) Delete(ctx context.Context, idOrPath string) error {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	n, err := s.store.Note(ctx, idOrPath)
 	if err != nil {
 		return err
@@ -182,6 +194,9 @@ func (s *Notes) Delete(ctx context.Context, idOrPath string) error {
 
 // Daily returns the note for a given day, creating it if needed.
 func (s *Notes) Daily(ctx context.Context, d domain.Date, create bool) (*domain.Note, error) {
+	// Check and create under one lock, or two first captures of the day race.
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	rel := path.Join("40-daily", d.T.Format("2006"), d.T.Format("2006-01-02")+".md")
 	if n, err := s.store.Note(ctx, rel); err == nil {
 		return n, nil
@@ -189,7 +204,7 @@ func (s *Notes) Daily(ctx context.Context, d domain.Date, create bool) (*domain.
 	if !create {
 		return nil, index.ErrNotFound
 	}
-	return s.Create(ctx, CreateInput{
+	return s.create(ctx, CreateInput{
 		Path:  rel,
 		Title: d.T.Format("2006-01-02"),
 		Type:  domain.TypeDaily,

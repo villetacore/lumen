@@ -151,9 +151,16 @@ func (m *Memory) Note(_ context.Context, idOrPath string) (*domain.Note, error) 
 	if n, ok := m.byPath[idOrPath+".md"]; ok {
 		return n, nil
 	}
-	// Last resort: match by file name, the way a wikilink resolves.
+	// Last resort: match by file name, the way a wikilink resolves, then by
+	// frontmatter title — the same names Backlinks accepts for a target.
+	name := strings.TrimSuffix(idOrPath, ".md")
 	for _, n := range m.byPath {
-		if strings.EqualFold(markdown.TitleFromPath(n.Path), idOrPath) {
+		if strings.EqualFold(markdown.TitleFromPath(n.Path), name) {
+			return n, nil
+		}
+	}
+	for _, n := range m.byPath {
+		if strings.EqualFold(n.Title, name) {
 			return n, nil
 		}
 	}

@@ -26,7 +26,9 @@ src/
 ├── api/types.ts         DTO, зеркалящие server/internal/domain
 ├── hooks/               live-обновления
 ├── lib/date.ts          форматирование дат и недель
-├── components/          TopBar, Sidebar, TaskRow, QuickAdd, AsidePanel
+├── lib/errors.ts        понятные тексты ошибок API, 409/404
+├── components/          TopBar, Sidebar, TaskRow (+редактор), QuickAdd, AsidePanel,
+│                        Markdown (безопасный рендер), NewNoteDialog, CrashScreen
 └── pages/               Tasks, Calendar, Notes, Note, Search
 ```
 
@@ -34,8 +36,8 @@ src/
 (`/api/v1/events`) и инвалидируют кэш, поэтому правка в Obsidian видна без
 перезагрузки.
 
-## Что дальше (M1)
+## Что дальше
 
-- Редактор на CodeMirror 6 вместо textarea: автодополнение `[[`, клик по чекбоксу в тексте.
+- Редактор на CodeMirror 6 вместо textarea: подсветка, автодополнение `[[` (LUM-026).
 - Командная палитра на `Ctrl+K` (сейчас — только фокус в поиск).
 - Kanban-доска и недельное представление календаря.

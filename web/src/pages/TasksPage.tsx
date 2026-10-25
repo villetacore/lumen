@@ -5,6 +5,7 @@ import type { Task, ViewName } from "../api/types";
 import TaskRow from "../components/TaskRow";
 import QuickAdd from "../components/QuickAdd";
 import { isOverdue, isToday, longDate, today } from "../lib/date";
+import { errorText } from "../lib/errors";
 
 const TITLES: Record<string, string> = {
   today: "Сегодня",
@@ -42,10 +43,12 @@ function groupTasks(tasks: Task[], view: string): Group[] {
     { key: "none", label: "Без даты", tasks: [] },
   ];
   for (const t of tasks) {
-    const d = t.due ?? t.scheduled;
-    if (!d) groups[3].tasks.push(t);
-    else if (isOverdue(d)) groups[0].tasks.push(t);
-    else if (isToday(d)) groups[1].tasks.push(t);
+    // Overdue is about the deadline; "today" is about the plan, so a task
+    // scheduled for today with a later deadline still belongs to today.
+    const plan = t.scheduled ?? t.due;
+    if (!plan) groups[3].tasks.push(t);
+    else if (t.due ? isOverdue(t.due) : isOverdue(plan)) groups[0].tasks.push(t);
+    else if (isToday(plan) || isOverdue(plan)) groups[1].tasks.push(t);
     else groups[2].tasks.push(t);
   }
   return groups.filter((g) => g.tasks.length > 0);
@@ -70,7 +73,7 @@ export default function TasksPage() {
         </span>
       </div>
 
-      {error && <div className="error">Не удалось загрузить задачи: {String(error)}</div>}
+      {error && <div className="error">Не удалось загрузить задачи: {errorText(error)}</div>}
       {isLoading && <div className="spinner">Загрузка…</div>}
 
       {!isLoading && tasks.length === 0 && (
@@ -88,7 +91,11 @@ export default function TasksPage() {
         </section>
       ))}
 
-      <QuickAdd />
+      {view === "inbox" ? (
+        <QuickAdd note="00-inbox/inbox.md" placeholder="Во входящие… (!A приоритет, @пт срок)" />
+      ) : (
+        <QuickAdd scheduled={view === "today" || view === "week" ? "today" : undefined} />
+      )}
     </>
   );
 }

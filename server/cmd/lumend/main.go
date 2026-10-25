@@ -10,11 +10,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -109,6 +111,13 @@ func serve(args []string, log *slog.Logger) error {
 	}
 
 	v, err := vault.Open(cfg.VaultPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		// First run against a new folder: lay out the folders the views expect.
+		if err = initVault(cfg.VaultPath); err == nil {
+			log.Info("created new vault", "path", cfg.VaultPath)
+			v, err = vault.Open(cfg.VaultPath)
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("open vault: %w", err)
 	}
@@ -282,4 +291,16 @@ func hasFlag(args []string, name string) bool {
 		}
 	}
 	return false
+}
+
+// initVault creates an empty vault with the folders the built-in views use:
+// the inbox view reads 00-inbox/, projects live in 20-projects/ and quick
+// capture writes daily notes to 40-daily/.
+func initVault(root string) error {
+	for _, dir := range []string{"00-inbox", "10-notes", "20-projects", "40-daily"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
 }

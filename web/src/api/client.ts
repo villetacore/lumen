@@ -97,19 +97,39 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  createTask: (input: { note?: string; text: string; section?: string; due?: string }) =>
+  createTask: (input: {
+    note?: string;
+    text: string;
+    section?: string;
+    due?: string;
+    scheduled?: string;
+    priority?: string;
+    project?: string;
+  }) =>
     request<Task>("/tasks", { method: "POST", body: JSON.stringify(input) }),
   deleteTask: (id: string) =>
     request<void>(`/tasks/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  notes: (params: { type?: string; tag?: string[]; prefix?: string; q?: string } = {}) =>
+  notes: (params: { type?: string; tag?: string[]; prefix?: string; q?: string; limit?: number } = {}) =>
     request<ListResponse<NoteSummary>>("/notes" + query(params)),
-  note: (idOrPath: string) => request<Note>(`/notes/${encodePath(idOrPath)}`),
+  note: (idOrPath: string) => request<Note>(`/notes/${encodePath(idOrPath)}`).then(normNote),
   putNoteBody: (idOrPath: string, body: string, revision: number) =>
     request<Note>(`/notes/${encodePath(idOrPath)}`, {
       method: "PUT",
       body: JSON.stringify({ body, revision }),
-    }),
+    }).then(normNote),
+  createNote: (input: { path: string; title?: string; type?: string; tags?: string[]; body?: string }) =>
+    request<Note>("/notes", { method: "POST", body: JSON.stringify(input) }).then(normNote),
+  patchNote: (
+    idOrPath: string,
+    patch: { title?: string; type?: string; tags?: string[]; revision?: number },
+  ) =>
+    request<Note>(`/notes/${encodePath(idOrPath)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }).then(normNote),
+  deleteNote: (idOrPath: string) =>
+    request<void>(`/notes/${encodePath(idOrPath)}`, { method: "DELETE" }),
   backlinks: (idOrPath: string) =>
     request<ListResponse<NoteSummary>>(`/backlinks/${encodePath(idOrPath)}`),
 
@@ -173,8 +193,13 @@ export const api = {
     request<ListResponse<SearchHit>>("/search" + query({ q, limit })),
   tags: () => request<ListResponse<TagCount>>("/tags"),
   daily: (date: string, create = false) =>
-    request<Note>(`/daily/${date}` + query({ create })),
+    request<Note>(`/daily/${date}` + query({ create })).then(normNote),
 };
+
+// The server sends null for an empty list on a single note; the UI expects arrays.
+function normNote(n: Note): Note {
+  return { ...n, tags: n.tags ?? [], tasks: n.tasks ?? [], links: n.links ?? [] };
+}
 
 // Note paths contain slashes; keep them readable but escape each segment.
 function encodePath(p: string): string {

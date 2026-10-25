@@ -50,7 +50,8 @@ func Handler() http.Handler {
 		if _, err := fs.Stat(assets, clean); err != nil {
 			// Unknown path: a deep link belongs to the router, a missing asset
 			// should stay a 404 rather than silently return HTML.
-			if path.Ext(clean) != "" {
+			// Note routes end in ".md" (/note/20-projects/x.md) but are routes too.
+			if path.Ext(clean) != "" && !strings.HasPrefix(clean, "note/") {
 				http.NotFound(w, r)
 				return
 			}
