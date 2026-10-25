@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import TaskRow from "../components/TaskRow";
 
 export default function SearchPage() {
   const [params] = useSearchParams();
@@ -12,6 +13,12 @@ export default function SearchPage() {
     enabled: q.length > 0,
   });
 
+  const { data: tasks } = useQuery({
+    queryKey: ["tasks", "search", q],
+    queryFn: () => api.tasks({ q, status: ["todo", "doing"], limit: 50 }),
+    enabled: q.length > 0,
+  });
+
   return (
     <>
       <div className="page-head">
@@ -20,6 +27,16 @@ export default function SearchPage() {
           «{q}» — {data?.total ?? 0} совпадений
         </span>
       </div>
+
+      {tasks && tasks.items.length > 0 && (
+        <section>
+          <div className="section-head">Открытые задачи {tasks.total}</div>
+          {tasks.items.map((t) => (
+            <TaskRow key={t.id} task={t} />
+          ))}
+          <div className="section-head">Заметки</div>
+        </section>
+      )}
 
       {isLoading && <div className="spinner">Ищем…</div>}
       {!isLoading && data?.items.length === 0 && <div className="empty">Ничего не найдено</div>}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
@@ -20,6 +21,12 @@ var (
 	ErrConflict  = errors.New("revision mismatch")
 	ErrNoteEmpty = errors.New("note has no content")
 )
+
+// vaultWrites serialises every read-modify-write of a vault file made through
+// Notes and Tasks. Without it two requests that touch the same note (two quick
+// adds into today's daily note, say) both read the old file and the second
+// write silently drops the first one's change.
+var vaultWrites sync.Mutex
 
 // Tasks implements the task use cases. Every write goes through
 // markdown.ApplyTaskPatch so only the task's own line is rewritten (ADR-0003).
@@ -59,6 +66,8 @@ func (s *Tasks) Query(ctx context.Context, q domain.TaskQuery) ([]*domain.Task, 
 
 // Update rewrites one task line in its note and reindexes the file.
 func (s *Tasks) Update(ctx context.Context, id string, up TaskUpdate) (*domain.Task, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	t, err := s.store.Task(ctx, id)
 	if err != nil {
 		return nil, err
@@ -150,6 +159,8 @@ func (s *Tasks) Update(ctx context.Context, id string, up TaskUpdate) (*domain.T
 
 // Create appends a task to a note, optionally under a "## Section" heading.
 func (s *Tasks) Create(ctx context.Context, notePath, text, section string, up TaskUpdate) (*domain.Task, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	if strings.TrimSpace(text) == "" {
 		return nil, errors.New("empty task text")
 	}
@@ -203,6 +214,8 @@ func (s *Tasks) Create(ctx context.Context, notePath, text, section string, up T
 
 // Delete removes a task's line from its note.
 func (s *Tasks) Delete(ctx context.Context, id string) error {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
 	t, err := s.store.Task(ctx, id)
 	if err != nil {
 		return err
@@ -221,7 +234,11 @@ func (s *Tasks) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	s.ix.Forget(t.NotePath)
-	return s.ix.ReindexPath(ctx, t.NotePath)
+	if err := s.ix.ReindexPath(ctx, t.NotePath); err != nil {
+		return err
+	}
+	s.bus.Publish(Event{Type: "task.changed", ID: t.ID, Path: t.NotePath})
+	return nil
 }
 
 // locateTask finds the task's line, tolerating edits made to the file elsewhere
@@ -297,7 +314,7 @@ func splitLines(data []byte) (eol string, lines []string) {
 }
 
 func parseDateInput(v string) (domain.Date, error) {
-	if d, ok := domain.Relative(v, nowFunc()); ok {
+	if d, ok := domain.RelativeInput(v, nowFunc()); ok {
 		return d, nil
 	}
 	return domain.ParseDate(v)

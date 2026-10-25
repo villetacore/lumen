@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/alexpyslar/lumen/server/internal/domain"
@@ -122,5 +123,40 @@ func TestDailyNoteIsCreatedOnDemand(t *testing.T) {
 	}
 	if n.Type != domain.TypeDaily {
 		t.Errorf("type = %q", n.Type)
+	}
+}
+
+// TestConcurrentQuickCaptureKeepsEveryTask is two people (or two fast Enter
+// presses) adding to today's daily note at once: no task may be lost.
+func TestConcurrentQuickCaptureKeepsEveryTask(t *testing.T) {
+	tasks, notes, _, dir := newTestVault(t, nil)
+	ctx := context.Background()
+	day, _ := domain.ParseDate("2026-10-25")
+
+	const n = 20
+	errs := make(chan error, n)
+	for i := range n {
+		go func() {
+			note, err := notes.Daily(ctx, day, true)
+			if err == nil {
+				_, err = tasks.Create(ctx, note.Path, "задача "+string(rune('A'+i)), "Задачи", TaskUpdate{})
+			}
+			errs <- err
+		}()
+	}
+	for range n {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "40-daily", "2026", "2026-10-25.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range n {
+		if want := "- [ ] задача " + string(rune('A'+i)); !strings.Contains(string(data), want) {
+			t.Errorf("missing %q in:\n%s", want, data)
+		}
 	}
 }

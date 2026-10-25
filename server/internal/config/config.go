@@ -88,7 +88,8 @@ func Load(args []string) (*Config, error) {
 		return nil, err
 	}
 	c.VaultPath = abs
-	if st, err := os.Stat(abs); err != nil || !st.IsDir() {
+	// A missing folder is fine: serve creates a new vault there.
+	if st, err := os.Stat(abs); (err != nil && !os.IsNotExist(err)) || (err == nil && !st.IsDir()) {
 		return nil, fmt.Errorf("vault %q is not a readable directory", abs)
 	}
 

@@ -130,6 +130,9 @@ func (a *API) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Note = n.Path
+		if req.Section == "" {
+			req.Section = "Задачи"
+		}
 	}
 	t, err := a.tasks.Create(r.Context(), req.Note, req.Text, req.Section, service.TaskUpdate{
 		Due: req.Due, Scheduled: req.Scheduled, Priority: req.Priority, Project: req.Project,

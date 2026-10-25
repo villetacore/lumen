@@ -96,7 +96,7 @@ func dateParam(r *http.Request, name string) domain.Date {
 	if v == "" {
 		return domain.Date{}
 	}
-	if d, ok := domain.Relative(v, time.Now()); ok {
+	if d, ok := domain.RelativeInput(v, time.Now()); ok {
 		return d
 	}
 	d, err := domain.ParseDate(v)
