@@ -42,6 +42,7 @@
 - [Шифрование vault](docs/ENCRYPTION.md)
 - [Секреты и менеджеры паролей](docs/SECRETS.md)
 - [Вход через Keycloak](docs/AUTH.md)
+- [Сборка, контейнер и выкатка](docs/DEPLOY.md)
 - [Пароли в интерфейсе](docs/PASSWORDS.md)
 - [UI-макет MVP](docs/UI_MOCKUP.md)
 - [Дорожная карта](docs/ROADMAP.md)
@@ -131,6 +132,17 @@ cd web && npm install && npm run dev                        # UI на :5173
 ```bash
 lumend --addr 0.0.0.0:8787 --token "$(openssl rand -hex 16)" --vault /srv/vault
 ```
+
+### Контейнер
+
+```bash
+make image                                   # или: docker build -t lumen:dev .
+docker run -p 8787:8787 -v lumen-vault:/vault -e LUMEN_TOKEN="$(openssl rand -hex 16)" lumen:dev
+```
+
+Образ — один статический `lumend` поверх distroless, без root; vault — том
+`/vault`. Как выкатывать в Kubernetes и как устроена приватная копия с
+пайплайном — [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Сервер за Keycloak
 
