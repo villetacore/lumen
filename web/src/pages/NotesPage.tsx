@@ -1,3 +1,4 @@
+import Icon from "../components/Icon";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ export default function NotesPage() {
         )}
         <div className="head-actions">
           <button className="btn primary" onClick={() => setCreating(true)}>
-            ＋ Новая заметка
+            <Icon name="plus" size={16} /> Новая заметка
           </button>
         </div>
       </div>
@@ -96,7 +97,7 @@ export default function NotesPage() {
 function NoteRow({ note: n, showPath = false }: { note: NoteSummary; showPath?: boolean }) {
   return (
     <div className="note-row">
-      <span style={{ color: "var(--text-faint)" }}>{n.type === "project" ? "◆" : "▭"}</span>
+      <span className="note-icon"><Icon name={n.type === "project" ? "folder" : "file"} size={19} /></span>
       <Link to={`/note/${n.path}`}>{n.title}</Link>
       {n.open_tasks > 0 && <span className="chip">{n.open_tasks} задач</span>}
       {n.tags.slice(0, 3).map((t) => (

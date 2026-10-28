@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="dot" />
+        <span className="brand-mark"><Icon name="spark" size={22} /></span>
         Lumen
       </div>
 
@@ -44,7 +45,7 @@ export default function TopBar() {
           if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
         }}
       >
-        <span>⌕</span>
+        <Icon name="search" size={17} />
         <input
           ref={input}
           value={q}
@@ -73,7 +74,7 @@ export default function TopBar() {
             </a>
           ))}
         {stats?.encrypted && (
-          <span title="Vault зашифрован на диске">🔒</span>
+          <span title="Vault зашифрован на диске"><Icon name="lock" size={16} /></span>
         )}
         {stats && (
           <span title={stats.vault_path}>
@@ -81,12 +82,13 @@ export default function TopBar() {
           </span>
         )}
         <button
-          className="btn"
+          className="btn icon-button"
+          aria-label="Обновить данные"
           onClick={() => reindex.mutate()}
           disabled={reindex.isPending}
           title="Переиндексировать vault"
         >
-          {reindex.isPending ? "…" : "⟳"}
+          <Icon name="refresh" className={reindex.isPending ? "spinning" : ""} />
         </button>
       </div>
     </header>

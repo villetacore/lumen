@@ -1,3 +1,4 @@
+import Icon from "../components/Icon";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -77,7 +78,7 @@ export default function TasksPage() {
       {isLoading && <div className="spinner">Загрузка…</div>}
 
       {!isLoading && tasks.length === 0 && (
-        <div className="empty">Здесь пусто. Добавьте задачу ниже.</div>
+        <div className="empty"><span className="empty-icon"><Icon name="check" size={28} /></span><strong>Место для новых планов</strong><span>Добавьте задачу ниже — и начните с самого важного.</span></div>
       )}
 
       {groups.map((g) => (

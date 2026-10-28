@@ -1,3 +1,4 @@
+import Icon, { type IconName } from "./Icon";
 import { useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -6,25 +7,25 @@ import type { ViewName } from "../api/types";
 import { iso, today } from "../lib/date";
 import NewNoteDialog from "./NewNoteDialog";
 
-const VIEWS: { view: ViewName; label: string; icon: string }[] = [
-  { view: "today", label: "Сегодня", icon: "◎" },
-  { view: "inbox", label: "Входящие", icon: "▤" },
-  { view: "week", label: "Неделя", icon: "▦" },
-  { view: "overdue", label: "Просрочено", icon: "!" },
-  { view: "upcoming", label: "Предстоит", icon: "→" },
-  { view: "someday", label: "Без даты", icon: "∅" },
-  { view: "all", label: "Все задачи", icon: "≡" },
-  { view: "done", label: "Выполнено", icon: "✓" },
+const VIEWS: { view: ViewName; label: string; icon: IconName }[] = [
+  { view: "today", label: "Сегодня", icon: "sun" },
+  { view: "inbox", label: "Входящие", icon: "inbox" },
+  { view: "week", label: "Неделя", icon: "calendar" },
+  { view: "overdue", label: "Просрочено", icon: "alert" },
+  { view: "upcoming", label: "Предстоит", icon: "arrow" },
+  { view: "someday", label: "Без даты", icon: "clock" },
+  { view: "all", label: "Все задачи", icon: "list" },
+  { view: "done", label: "Выполнено", icon: "check" },
 ];
 
-function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: string }) {
+function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: IconName }) {
   const { data } = useQuery({
     queryKey: ["tasks", "count", view],
     queryFn: () => api.tasks({ view, limit: 1 }),
   });
   return (
     <NavLink to={`/view/${view}`} className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-      <span className="icon">{icon}</span>
+      <span className="icon"><Icon name={icon} /></span>
       {label}
       {data && data.total > 0 && <span className="count">{data.total}</span>}
     </NavLink>
@@ -47,7 +48,9 @@ export default function Sidebar() {
   const { data: tags } = useQuery({ queryKey: ["tags"], queryFn: api.tags });
 
   return (
-    <nav className="sidebar">
+    <nav className="sidebar" aria-label="Основная навигация">
+      <div className="workspace-label"><span className="workspace-mark"><Icon name="spark" size={17} /></span><div>Рабочее пространство<small>Всё важное — рядом</small></div></div>
+      <div className="nav-title">Задачи</div>
       <div className="nav-group">
         {VIEWS.map((v) => (
           <ViewLink key={v.view} {...v} />
@@ -58,7 +61,7 @@ export default function Sidebar() {
         <div className="nav-title">
           Проекты
           <button className="nav-add" onClick={() => setCreating("project")} title="Новый проект" aria-label="Новый проект">
-            ＋
+            <Icon name="plus" size={16} />
           </button>
         </div>
         {projects?.items.map((p) => (
@@ -67,7 +70,7 @@ export default function Sidebar() {
             to={`/note/${p.path}`}
             className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
           >
-            <span className="icon">•</span>
+            <span className="icon"><Icon name="folder" /></span>
             {p.title}
             {p.open_tasks > 0 && <span className="count">{p.open_tasks}</span>}
           </NavLink>
@@ -82,27 +85,27 @@ export default function Sidebar() {
       <div className="nav-group">
         <div className="nav-title">Обзор</div>
         <button className="nav-item" onClick={() => daily.mutate()} disabled={daily.isPending}>
-          <span className="icon">☀</span>
+          <span className="icon"><Icon name="sun" /></span>
           Дневная заметка
         </button>
         <button className="nav-item" onClick={() => setCreating("note")}>
-          <span className="icon">＋</span>
+          <span className="icon"><Icon name="plus" /></span>
           Новая заметка
         </button>
         <NavLink to="/calendar" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon">▩</span>
+          <span className="icon"><Icon name="calendar" /></span>
           Календарь
         </NavLink>
         <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon">▭</span>
+          <span className="icon"><Icon name="file" /></span>
           Все заметки
         </NavLink>
         <NavLink to="/integrations" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon">⇄</span>
+          <span className="icon"><Icon name="plug" /></span>
           Интеграции
         </NavLink>
         <NavLink to="/passwords" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon">🔑</span>
+          <span className="icon"><Icon name="key" /></span>
           Пароли
         </NavLink>
       </div>
@@ -118,7 +121,7 @@ export default function Sidebar() {
               "nav-item" + (isActive && params.get("tag") === t.tag ? " active" : "")
             }
           >
-            <span className="icon">#</span>
+            <span className="icon"><Icon name="hash" /></span>
             {t.tag}
             <span className="count">{t.count}</span>
           </NavLink>

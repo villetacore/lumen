@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -69,7 +70,7 @@ export default function QuickAdd({
         }
       }}
     >
-      <span style={{ color: "var(--text-faint)" }}>＋</span>
+      <span className="quick-add-icon"><Icon name="plus" /></span>
       <input
         value={value}
         onChange={(e) => {
