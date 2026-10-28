@@ -1,9 +1,10 @@
-.PHONY: help server web app test build fmt clean
+.PHONY: help server web app test check image build fmt clean
 
 VAULT   ?= ./vault-example
 ADDR    ?= 127.0.0.1:8787
 VERSION ?= 0.1.0-dev
 UI_DIST := server/internal/webui/dist
+IMAGE   ?= lumen:dev
 
 help:
 	@echo "make app      — собрать один бинарник dist/lumend со вшитым веб-интерфейсом"
@@ -11,6 +12,8 @@ help:
 	@echo "make server   — запустить lumend на $(ADDR) с vault $(VAULT)"
 	@echo "make web      — запустить веб-клиент в режиме разработки"
 	@echo "make test     — тесты Go и Rust"
+	@echo "make check    — проверки как в CI: Go (fmt, vet, test) и веб (typecheck, test)"
+	@echo "make image    — собрать контейнер $(IMAGE)"
 	@echo "make fmt      — форматирование"
 	@echo "make clean    — убрать артефакты сборки"
 
@@ -41,6 +44,14 @@ test:
 	cd desktop/core && cargo test
 	cd web && npx tsc -b --noEmit
 	powershell -NoProfile -File ./scripts/desktop.ps1 -Test
+
+# Проверки открытого CI (.github/workflows/ci.yml) без desktop.
+check:
+	cd server && test -z "$$(gofmt -l .)" && go vet ./... && go test ./...
+	cd web && npm run typecheck && npm run test --if-present
+
+image:
+	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
 
 build:
 	cd server && go build -o ../dist/lumend ./cmd/lumend

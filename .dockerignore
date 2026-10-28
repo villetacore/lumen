@@ -1,0 +1,13 @@
+.git
+.github
+desktop
+docs
+dist
+scripts
+vault-example
+**/node_modules
+web/dist
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep
+**/.DS_Store
+**/*.log
