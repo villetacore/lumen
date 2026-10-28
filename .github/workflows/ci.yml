@@ -65,6 +65,34 @@ jobs:
           docker logs lumen
           exit 1
 
+  # Образ для всех: ghcr.io/villetacore/lumen:<12 символов SHA> и :main.
+  # Выкатку в homelab этот CI не делает — тег выбирает приватная копия (docs/DEPLOY.md).
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [image, public-only]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: build and push
+        run: |
+          img=ghcr.io/${GITHUB_REPOSITORY,,}
+          tag=${GITHUB_SHA::12}
+          docker build --build-arg VERSION="$tag" \
+            --label org.opencontainers.image.source="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            --label org.opencontainers.image.licenses="$(head -1 LICENSE | grep -o -E 'MIT|Apache|GPL|AGPL|BSD' | head -1)" \
+            -t "$img:$tag" -t "$img:main" .
+          docker push "$img:$tag"
+          docker push "$img:main"
+
   # Файлы приватной копии (пайплайн выкатки) в открытый репозиторий не попадают.
   public-only:
     runs-on: ubuntu-latest
