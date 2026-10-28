@@ -12,6 +12,9 @@
 | Проверка живости | `GET /healthz` — без авторизации |
 | Версия | `--build-arg VERSION=…` → `lumend version` |
 
+Готовый образ — `ghcr.io/villetacore/lumen`: тег `main` и тег из 12 символов
+SHA каждого коммита в `main` (задача `publish` открытого CI).
+
 Остальные настройки — те же переменные `LUMEN_*`, что и у бинарника
 ([config.go](../server/internal/config/config.go)). Сервер в контейнере слушает
 сеть, поэтому нужен `LUMEN_TOKEN` или OIDC ([AUTH.md](AUTH.md)).
@@ -32,10 +35,10 @@ PVC на `/vault`, Service на 8787 и Ingress. Для OIDC за внутрен
 открытой ровно на один каталог с пайплайном:
 
 ```
-GitHub  villetacore/lumen            исходники, открытый CI (проверки, сборка образа без публикации)
+GitHub  villetacore/lumen            исходники, открытый CI: проверки и образ ghcr.io/villetacore/lumen
    │  синхронизация по расписанию (merge github/main → main)
    ▼
-GitLab  приватная копия              + .gitlab-ci.yml: тесты → образ в Registry → MR с тегом
+GitLab  приватная копия              + .gitlab-ci.yml: тесты → MR с тегом образа
    │                                    в репозиторий инфраструктуры
    ▼
 Argo CD                              выкатывает новый тег из репозитория инфраструктуры
