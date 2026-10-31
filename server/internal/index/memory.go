@@ -2,6 +2,7 @@ package index
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -118,8 +119,8 @@ func (m *Memory) NoteBySource(_ context.Context, owner, externalID string) (*dom
 		if asString(n.Frontmatter["source_id"]) != externalID {
 			continue
 		}
-		if asString(n.Frontmatter["source_integration"]) == owner ||
-			asString(n.Frontmatter["source_connector"]) == owner {
+		storedOwner := asString(n.Frontmatter["source_integration"])
+		if storedOwner == owner || (storedOwner == "" && asString(n.Frontmatter["source_connector"]) == owner) {
 			return n, nil
 		}
 	}
@@ -127,8 +128,10 @@ func (m *Memory) NoteBySource(_ context.Context, owner, externalID string) (*dom
 }
 
 func asString(v any) string {
-	s, _ := v.(string)
-	return s
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
 }
 
 // NextRevision hands out the next global revision number.

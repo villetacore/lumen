@@ -23,6 +23,7 @@ type fakeConnector struct {
 	items []integrations.ExternalItem
 	err   error
 	calls int
+	sync  func(integrations.SyncInput) (integrations.SyncOutput, error)
 }
 
 func (*fakeConnector) Kind() string  { return "fake" }
@@ -34,8 +35,11 @@ func (*fakeConnector) ConfigSchema() []integrations.ConfigField {
 
 func (*fakeConnector) Validate(integrations.Config) error { return nil }
 
-func (f *fakeConnector) Sync(_ context.Context, _ integrations.SyncInput) (integrations.SyncOutput, error) {
+func (f *fakeConnector) Sync(_ context.Context, in integrations.SyncInput) (integrations.SyncOutput, error) {
 	f.calls++
+	if f.sync != nil {
+		return f.sync(in)
+	}
 	if f.err != nil {
 		return integrations.SyncOutput{}, f.err
 	}
