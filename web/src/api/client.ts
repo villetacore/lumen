@@ -110,7 +110,7 @@ export const api = {
   deleteTask: (id: string) =>
     request<void>(`/tasks/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  notes: (params: { type?: string; tag?: string[]; prefix?: string; q?: string; limit?: number } = {}) =>
+  notes: (params: { parent?: string; content_kind?: string; type?: string; tag?: string[]; prefix?: string; q?: string; limit?: number } = {}) =>
     request<ListResponse<NoteSummary>>("/notes" + query(params)),
   note: (idOrPath: string) => request<Note>(`/notes/${encodePath(idOrPath)}`).then(normNote),
   putNoteBody: (idOrPath: string, body: string, revision: number) =>
@@ -118,7 +118,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ body, revision }),
     }).then(normNote),
-  createNote: (input: { path: string; title?: string; type?: string; tags?: string[]; body?: string }) =>
+  createNote: (input: { path?: string; parent?: string; content_kind?: string; title?: string; type?: string; tags?: string[]; body?: string }) =>
     request<Note>("/notes", { method: "POST", body: JSON.stringify(input) }).then(normNote),
   patchNote: (
     idOrPath: string,

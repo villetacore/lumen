@@ -28,6 +28,8 @@ export interface Task {
 }
 
 export interface NoteSummary {
+  parent?: string;
+  content_kind?: string;
   id: string;
   path: string;
   title: string;

@@ -12,9 +12,9 @@ export function isNotFound(err: unknown): boolean {
 /** errorText turns an API failure into a sentence for the person, not a status code. */
 export function errorText(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 409 && /already exists/.test(err.message)) return "Файл с таким именем уже существует.";
-    if (err.status === 409) return "Файл изменился, пока вы редактировали. Обновите и повторите.";
-    if (err.status === 404) return "Не найдено — возможно, файл удалён или переименован.";
+    if (err.status === 409 && /already exists/.test(err.message)) return "Такой материал уже существует.";
+    if (err.status === 409) return "Материал изменился, пока вы редактировали. Обновите и повторите.";
+    if (err.status === 404) return "Не найдено — возможно, материал удалён или перемещён.";
     if (err.status === 401 || err.status === 403) return "Нет доступа — войдите заново.";
     return err.message;
   }

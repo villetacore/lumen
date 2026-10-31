@@ -86,19 +86,20 @@ export default function Sidebar() {
         <div className="nav-title">Обзор</div>
         <button className="nav-item" onClick={() => daily.mutate()} disabled={daily.isPending}>
           <span className="icon"><Icon name="sun" /></span>
-          Дневная заметка
+          Мой день
         </button>
         <button className="nav-item" onClick={() => setCreating("note")}>
           <span className="icon"><Icon name="plus" /></span>
-          Новая заметка
+          Новый документ
         </button>
         <NavLink to="/calendar" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="calendar" /></span>
           Календарь
         </NavLink>
+        <NavLink to="/notes?section=documents" className={"nav-item" + (params.get("section") === "documents" ? " active" : "")}><span className="icon"><Icon name="book" /></span>Документация</NavLink>
         <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="file" /></span>
-          Все заметки
+          Материалы
         </NavLink>
         <NavLink to="/integrations" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="plug" /></span>

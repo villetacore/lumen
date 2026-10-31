@@ -175,6 +175,12 @@ func (m *Memory) Notes(_ context.Context, q domain.NoteQuery) ([]*domain.Note, i
 	defer m.mu.RUnlock()
 	var out []*domain.Note
 	for _, n := range m.byPath {
+		if q.Parent != "" && n.Frontmatter["parent"] != q.Parent {
+			continue
+		}
+		if q.ContentKind != "" && n.Frontmatter["content_kind"] != q.ContentKind {
+			continue
+		}
 		if q.Type != "" && n.Type != q.Type {
 			continue
 		}

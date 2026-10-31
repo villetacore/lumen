@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { Task, TaskPatch, TaskStatus } from "../api/types";
@@ -31,7 +31,11 @@ function nextStatus(s: TaskStatus): TaskStatus {
 
 export default function TaskRow({ task, showNote = true }: { task: Task; showNote?: boolean }) {
   const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
+  const navigate = useNavigate();
+  const open = useMutation({
+    mutationFn: () => task.block_id ? Promise.resolve(task) : api.patchTask(task.id, {}),
+    onSuccess: (saved) => { qc.invalidateQueries(); navigate(`/task/${encodeURIComponent(saved.id)}`); },
+  });
 
   const patch = useMutation({
     mutationFn: (status: TaskStatus) => api.patchTask(task.id, { status }),
@@ -41,7 +45,6 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
   const due = task.due ?? task.scheduled;
   const dueClass = due ? (isOverdue(due) ? "due-overdue" : isToday(due) ? "due-today" : "") : "";
 
-  if (editing) return <TaskEditor task={task} onClose={() => setEditing(false)} />;
 
   return (
     <div className={`task-row is-${task.status}`}>
@@ -56,7 +59,7 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
       </button>
 
       <div className="task-body">
-        <button className="task-text" onClick={() => setEditing(true)} title="Редактировать задачу">
+        <button className="task-text" onClick={() => open.mutate()} disabled={open.isPending} title="Открыть задачу">
           {task.text}
         </button>
         <div className="task-meta">
@@ -64,11 +67,8 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
           {due && <span className={`chip ${dueClass}`}>{relativeDue(due)}</span>}
           {task.estimate && <span className="chip">{task.estimate}</span>}
           {task.project && <span className="chip">◆ {task.project}</span>}
-          {showNote && (
-            <Link className="chip" to={`/note/${task.note_path}`} title={task.note_path}>
-              {task.note_path.split("/").pop()}
-            </Link>
-          )}
+          {showNote && <Link className="chip" to={`/note/${task.note_path}`}>К проекту или записи</Link>}
+          {open.isError && <span className="error">{errorText(open.error)}</span>}
           {patch.isError && <span style={{ color: "var(--overdue)" }}>{errorText(patch.error)}</span>}
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
 }
 
 /** TaskEditor edits one task in place; only the fields that changed are sent. */
-function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
+export function TaskEditor({ task, onClose, onDirty }: { task: Task; onClose: () => void; onDirty?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     text: task.text,
@@ -88,6 +88,12 @@ function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
     estimate: task.estimate ?? "",
     project: task.project ?? "",
   });
+
+  const dirty = form.text !== task.text || form.status !== task.status || form.due !== dateOnly(task.due) ||
+    form.scheduled !== dateOnly(task.scheduled) || form.priority !== (task.priority ?? "") ||
+    form.estimate !== (task.estimate ?? "") || form.project !== (task.project ?? "");
+  useEffect(() => { onDirty?.(dirty); }, [dirty, onDirty]);
+  const close = () => { if (!dirty || window.confirm("Отменить изменения задачи?")) onClose(); };
 
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -124,9 +130,10 @@ function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
         if (form.text.trim()) save.mutate();
       }}
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === "Escape" && !save.isPending) close();
       }}
     >
+      <fieldset className="task-fields" disabled={save.isPending || remove.isPending}>
       <input
         className="input task-editor-text"
         value={form.text}
@@ -176,24 +183,22 @@ function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
         <button className="btn primary" type="submit" disabled={save.isPending || !form.text.trim()}>
           Сохранить
         </button>
-        <button className="btn" type="button" onClick={onClose}>
+        <button className="btn" type="button" onClick={close}>
           Отмена
         </button>
-        <span className="hint">
-          в файле <Link to={`/note/${task.note_path}`}>{task.note_path}</Link>
-        </span>
         <button
           className="btn danger"
           type="button"
           style={{ marginLeft: "auto" }}
           disabled={remove.isPending}
           onClick={() => {
-            if (window.confirm(`Удалить задачу «${task.text}» из ${task.note_path}?`)) remove.mutate();
+            if (window.confirm(`Удалить задачу «${task.text}»?`)) remove.mutate();
           }}
         >
           Удалить
         </button>
       </div>
+      </fieldset>
       {(save.isError || remove.isError) && (
         <div className="error" style={{ marginTop: 8 }}>
           {errorText(save.error ?? remove.error)}

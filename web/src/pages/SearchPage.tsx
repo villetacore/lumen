@@ -34,7 +34,7 @@ export default function SearchPage() {
           {tasks.items.map((t) => (
             <TaskRow key={t.id} task={t} />
           ))}
-          <div className="section-head">Заметки</div>
+          <div className="section-head">Материалы</div>
         </section>
       )}
 
@@ -46,9 +46,6 @@ export default function SearchPage() {
           <Link to={`/note/${hit.path}`} style={{ fontWeight: 550 }}>
             {hit.title}
           </Link>
-          <span className="path" style={{ marginLeft: 8, color: "var(--text-faint)", fontSize: 11.5 }}>
-            {hit.path}
-          </span>
           <div style={{ color: "var(--text-dim)", fontFamily: "var(--mono)", fontSize: 12 }}>
             {hit.snippet}
           </div>

@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -46,11 +48,13 @@ func (s *Notes) Backlinks(ctx context.Context, idOrPath string) ([]*domain.Note,
 
 // CreateInput describes a new note.
 type CreateInput struct {
-	Path  string
-	Title string
-	Type  domain.NoteType
-	Tags  []string
-	Body  string
+	Parent      string
+	ContentKind string
+	Path        string
+	Title       string
+	Type        domain.NoteType
+	Tags        []string
+	Body        string
 	// Extra adds scalar frontmatter keys. Integrations use it for the
 	// source_* markers that make their notes idempotent.
 	Extra map[string]string
@@ -64,6 +68,61 @@ func (s *Notes) Create(ctx context.Context, in CreateInput) (*domain.Note, error
 }
 
 func (s *Notes) create(ctx context.Context, in CreateInput) (*domain.Note, error) {
+	if in.ContentKind != "" && in.ContentKind != "document" && in.ContentKind != "entry" && in.ContentKind != "description" {
+		return nil, errors.New("unsupported content kind")
+	}
+	if in.Parent != "" {
+		kind, id, ok := strings.Cut(in.Parent, ":")
+		if !ok || id == "" {
+			return nil, errors.New("invalid parent")
+		}
+		switch kind {
+		case "note":
+			parent, err := s.store.Note(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			in.Parent = "note:" + parent.ID
+		case "task":
+			task, err := s.store.Task(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if task.BlockID == "" {
+				return nil, errors.New("task requires a stable ID")
+			}
+			in.Parent = "task:" + task.ID
+		default:
+			return nil, errors.New("invalid parent kind")
+		}
+	}
+	if in.ContentKind == "description" && in.Parent == "" {
+		return nil, errors.New("description requires a parent")
+	}
+	if in.ContentKind == "description" && in.Path != "" {
+		return nil, errors.New("description path is assigned automatically")
+	}
+	if in.Path == "" {
+		folder := "60-documents"
+		if in.Type == domain.TypeProject {
+			folder = "20-projects"
+		}
+		in.Path = path.Join(folder, newBlockID()+".md")
+		if in.ContentKind == "description" {
+			// Deterministic destination makes repeated/concurrent creation conflict,
+			// rather than leave multiple descriptions for one resource.
+			sum := sha256.Sum256([]byte(in.Parent))
+			in.Path = fmt.Sprintf("60-documents/descriptions/%x.md", sum[:16])
+		}
+	}
+	if in.Parent != "" || in.ContentKind != "" {
+		extra := make(map[string]string, len(in.Extra)+2)
+		for k, v := range in.Extra {
+			extra[k] = v
+		}
+		extra["parent"], extra["content_kind"] = in.Parent, in.ContentKind
+		in.Extra = extra
+	}
 	rel := strings.TrimPrefix(strings.TrimSpace(in.Path), "/")
 	if rel == "" {
 		return nil, errors.New("path is required")
@@ -223,11 +282,8 @@ func sortedKeys(m map[string]string) []string {
 
 // yamlScalar quotes a value when YAML would otherwise misread it.
 func yamlScalar(s string) string {
-	if s == "" {
-		return `""`
-	}
-	if strings.ContainsAny(s, ":#[]{}&*!|>'\"%@`,") || strings.TrimSpace(s) != s {
-		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
-	}
-	return s
+	// JSON strings are valid YAML scalars and preserve numeric-looking IDs,
+	// booleans, newlines and backslashes without changing their type.
+	encoded, _ := json.Marshal(s)
+	return string(encoded)
 }

@@ -12,6 +12,7 @@ type Sort = "folder" | "updated";
 export default function NotesPage() {
   const [params, setParams] = useSearchParams();
   const tag = params.get("tag") ?? undefined;
+  const documentsOnly = params.get("section") === "documents";
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<Sort>("folder");
   const [creating, setCreating] = useState(false);
@@ -22,14 +23,15 @@ export default function NotesPage() {
   });
 
   const needle = filter.trim().toLowerCase();
-  const items = (data?.items ?? []).filter(
-    (n) => !needle || n.title.toLowerCase().includes(needle) || n.path.toLowerCase().includes(needle),
+  const items = (data?.items ?? []).filter((n) =>
+    n.content_kind !== "description" && (!documentsOnly || n.content_kind === "document") &&
+    (!needle || n.title.toLowerCase().includes(needle))
   );
 
   return (
     <>
       <div className="page-head">
-        <h1>{tag ? `#${tag}` : "Все заметки"}</h1>
+        <h1>{tag ? `#${tag}` : documentsOnly ? "Документация" : "Материалы"}</h1>
         <span className="sub">{items.length}</span>
         {tag && (
           <button className="link" onClick={() => setParams({})}>
@@ -38,7 +40,7 @@ export default function NotesPage() {
         )}
         <div className="head-actions">
           <button className="btn primary" onClick={() => setCreating(true)}>
-            <Icon name="plus" size={16} /> Новая заметка
+            <Icon name="plus" size={16} /> Новый документ
           </button>
         </div>
       </div>
@@ -48,21 +50,21 @@ export default function NotesPage() {
           className="input"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Фильтр по названию и пути"
-          aria-label="Фильтр заметок"
+          placeholder="Найти по названию"
+          aria-label="Поиск материалов"
           style={{ flex: 1 }}
         />
         <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Порядок">
-          <option value="folder">по папкам</option>
+          <option value="folder">по разделам</option>
           <option value="updated">недавно изменённые</option>
         </select>
       </div>
 
       {isLoading && <div className="spinner">Загрузка…</div>}
-      {error && <div className="error">Не удалось загрузить заметки: {errorText(error)}</div>}
+      {error && <div className="error">Не удалось загрузить материалы: {errorText(error)}</div>}
       {!isLoading && items.length === 0 && (
         <div className="empty">
-          {needle || tag ? "Ничего не найдено." : "Заметок пока нет — создайте первую."}
+          {needle || tag ? "Ничего не найдено." : "Здесь будет ваша документация и рабочие материалы."}
         </div>
       )}
 
@@ -71,14 +73,14 @@ export default function NotesPage() {
           {[...items]
             .sort((a, b) => (b.updated ?? "").localeCompare(a.updated ?? ""))
             .map((n) => (
-              <NoteRow key={n.path} note={n} showPath />
+              <NoteRow key={n.path} note={n} />
             ))}
         </div>
       ) : (
         groupByFolder(items).map(([folder, notes]) => (
           <section key={folder}>
             <div className="section-head">
-              {folder || "корень"} <span style={{ opacity: 0.7 }}>{notes.length}</span>
+              {folder} <span style={{ opacity: 0.7 }}>{notes.length}</span>
             </div>
             <div className="note-list">
               {notes.map((n) => (
@@ -94,7 +96,7 @@ export default function NotesPage() {
   );
 }
 
-function NoteRow({ note: n, showPath = false }: { note: NoteSummary; showPath?: boolean }) {
+function NoteRow({ note: n }: { note: NoteSummary }) {
   return (
     <div className="note-row">
       <span className="note-icon"><Icon name={n.type === "project" ? "folder" : "file"} size={19} /></span>
@@ -105,7 +107,7 @@ function NoteRow({ note: n, showPath = false }: { note: NoteSummary; showPath?: 
           #{t}
         </Link>
       ))}
-      <span className="path">{showPath ? n.path : n.updated ? n.updated.slice(0, 10) : ""}</span>
+      <span className="path">{n.updated ? n.updated.slice(0, 10) : ""}</span>
     </div>
   );
 }
@@ -113,7 +115,7 @@ function NoteRow({ note: n, showPath = false }: { note: NoteSummary; showPath?: 
 function groupByFolder(notes: NoteSummary[]): [string, NoteSummary[]][] {
   const groups = new Map<string, NoteSummary[]>();
   for (const n of notes) {
-    const folder = n.path.split("/").slice(0, -1).join("/");
+    const folder = n.type === "project" ? "Проекты" : n.content_kind === "document" ? "Документация" : n.content_kind === "entry" ? "Рабочие записи" : "Другие материалы";
     const list = groups.get(folder) ?? [];
     list.push(n);
     groups.set(folder, list);

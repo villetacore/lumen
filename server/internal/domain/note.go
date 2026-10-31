@@ -57,6 +57,8 @@ type Note struct {
 func (n *Note) IsEvent() bool { return !n.Start.IsZero() }
 
 type NoteQuery struct {
+	Parent        string
+	ContentKind   string
 	Type          NoteType
 	Tags          []string
 	PathPrefix    string

@@ -50,7 +50,7 @@ export default function TopBar() {
           ref={input}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Поиск по заметкам и задачам"
+          placeholder="Поиск по проектам, задачам и документам"
           aria-label="Поиск"
         />
         <kbd>Ctrl K</kbd>
@@ -74,11 +74,11 @@ export default function TopBar() {
             </a>
           ))}
         {stats?.encrypted && (
-          <span title="Vault зашифрован на диске"><Icon name="lock" size={16} /></span>
+          <span title="Данные зашифрованы"><Icon name="lock" size={16} /></span>
         )}
         {stats && (
-          <span title={stats.vault_path}>
-            {stats.notes} заметок · {stats.open_tasks} открытых
+          <span>
+            {stats.open_tasks} открытых задач
           </span>
         )}
         <button
@@ -86,7 +86,7 @@ export default function TopBar() {
           aria-label="Обновить данные"
           onClick={() => reindex.mutate()}
           disabled={reindex.isPending}
-          title="Переиндексировать vault"
+          title="Обновить данные"
         >
           <Icon name="refresh" className={reindex.isPending ? "spinning" : ""} />
         </button>

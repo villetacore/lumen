@@ -5,6 +5,7 @@ import AsidePanel from "./components/AsidePanel";
 import TasksPage from "./pages/TasksPage";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
+import TaskPage from "./pages/TaskPage";
 import NotePage from "./pages/NotePage";
 import SearchPage from "./pages/SearchPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/view/:view" element={<TasksPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/notes" element={<NotesPage />} />
+          <Route path="/task/:id" element={<TaskPage />} />
           <Route path="/note/*" element={<NotePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />

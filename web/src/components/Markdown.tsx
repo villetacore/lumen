@@ -20,7 +20,9 @@ export default function Markdown({
   tasks?: Task[];
   onToggleTask?: (task: Task) => void;
 }) {
-  const lines = body.replace(/\r\n/g, "\n").split("\n");
+  const lines = body.replace(/\r\n/g, "\n").split("\n").map((line) =>
+    /^<!-- lumen:source:(begin|end) -->$/.test(line.trim()) ? "" : line,
+  );
   const taskAt = matchTasks(lines, tasks);
   return <div className="md">{renderBlocks(lines, taskAt, onToggleTask)}</div>;
 }

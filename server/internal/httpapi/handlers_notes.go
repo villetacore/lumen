@@ -10,15 +10,17 @@ import (
 
 // noteSummary is the list representation: everything but the body.
 type noteSummary struct {
-	ID       string          `json:"id"`
-	Path     string          `json:"path"`
-	Title    string          `json:"title"`
-	Type     domain.NoteType `json:"type"`
-	Tags     []string        `json:"tags"`
-	Tasks    int             `json:"tasks"`
-	Open     int             `json:"open_tasks"`
-	Revision int64           `json:"revision"`
-	Updated  string          `json:"updated,omitempty"`
+	Parent      string          `json:"parent,omitempty"`
+	ContentKind string          `json:"content_kind,omitempty"`
+	ID          string          `json:"id"`
+	Path        string          `json:"path"`
+	Title       string          `json:"title"`
+	Type        domain.NoteType `json:"type"`
+	Tags        []string        `json:"tags"`
+	Tasks       int             `json:"tasks"`
+	Open        int             `json:"open_tasks"`
+	Revision    int64           `json:"revision"`
+	Updated     string          `json:"updated,omitempty"`
 }
 
 func summarize(n *domain.Note) noteSummary {
@@ -32,6 +34,8 @@ func summarize(n *domain.Note) noteSummary {
 		ID: n.ID, Path: n.Path, Title: n.Title, Type: n.Type, Tags: n.Tags,
 		Tasks: len(n.Tasks), Open: open, Revision: n.Revision,
 	}
+	s.Parent, _ = n.Frontmatter["parent"].(string)
+	s.ContentKind, _ = n.Frontmatter["content_kind"].(string)
 	if !n.Updated.IsZero() {
 		s.Updated = n.Updated.Format("2006-01-02T15:04:05Z07:00")
 	}
@@ -43,12 +47,14 @@ func summarize(n *domain.Note) noteSummary {
 
 func (a *API) handleListNotes(w http.ResponseWriter, r *http.Request) {
 	q := domain.NoteQuery{
-		Type:       domain.NoteType(r.URL.Query().Get("type")),
-		Tags:       csvParam(r, "tag"),
-		PathPrefix: r.URL.Query().Get("prefix"),
-		Text:       r.URL.Query().Get("q"),
-		Limit:      intParam(r, "limit", 200),
-		Offset:     intParam(r, "offset", 0),
+		Parent:      r.URL.Query().Get("parent"),
+		ContentKind: r.URL.Query().Get("content_kind"),
+		Type:        domain.NoteType(r.URL.Query().Get("type")),
+		Tags:        csvParam(r, "tag"),
+		PathPrefix:  r.URL.Query().Get("prefix"),
+		Text:        r.URL.Query().Get("q"),
+		Limit:       intParam(r, "limit", 200),
+		Offset:      intParam(r, "offset", 0),
 	}
 	notes, total, err := a.notes.List(r.Context(), q)
 	if err != nil {
@@ -85,11 +91,13 @@ func (a *API) handleBacklinks(w http.ResponseWriter, r *http.Request) {
 }
 
 type createNoteReq struct {
-	Path  string          `json:"path"`
-	Title string          `json:"title"`
-	Type  domain.NoteType `json:"type"`
-	Tags  []string        `json:"tags"`
-	Body  string          `json:"body"`
+	Parent      string          `json:"parent"`
+	ContentKind string          `json:"content_kind"`
+	Path        string          `json:"path"`
+	Title       string          `json:"title"`
+	Type        domain.NoteType `json:"type"`
+	Tags        []string        `json:"tags"`
+	Body        string          `json:"body"`
 }
 
 func (a *API) handleCreateNote(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +107,7 @@ func (a *API) handleCreateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n, err := a.notes.Create(r.Context(), service.CreateInput{
+		Parent: req.Parent, ContentKind: req.ContentKind,
 		Path: req.Path, Title: req.Title, Type: req.Type, Tags: req.Tags, Body: req.Body,
 	})
 	if err != nil {

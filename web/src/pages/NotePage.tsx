@@ -3,6 +3,8 @@ import { Link, useBeforeUnload, useBlocker, useLocation, useNavigate } from "rea
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { Note, NoteType, Task } from "../api/types";
+import ParentLink from "../components/ParentLink";
+import RelatedContent from "../components/RelatedContent";
 import TaskRow from "../components/TaskRow";
 import QuickAdd from "../components/QuickAdd";
 import Markdown from "../components/Markdown";
@@ -63,7 +65,7 @@ export default function NotePage() {
   );
   useEffect(() => {
     if (blocker.state !== "blocked") return;
-    if (window.confirm("В заметке есть несохранённые изменения. Уйти и потерять их?")) blocker.proceed();
+    if (window.confirm("Есть несохранённые изменения. Уйти и потерять их?")) blocker.proceed();
     else blocker.reset();
   }, [blocker.state]);
 
@@ -71,12 +73,16 @@ export default function NotePage() {
 
   const save = useMutation({
     // overwrite=true saves on top of whatever is on disk now.
-    mutationFn: ({ overwrite }: { overwrite: boolean }) => {
-      if (deletedOnDisk) return api.createNote({ path, title: note?.title, body: edit!.draft });
-      return api.putNoteBody(path, edit!.draft, overwrite ? note!.revision : edit!.baseRevision);
+    mutationFn: ({ overwrite, draft }: { overwrite: boolean; draft: string }) => {
+      if (deletedOnDisk) return api.createNote({ path, title: note?.title, body: draft });
+      return api.putNoteBody(path, draft, overwrite ? note!.revision : edit!.baseRevision);
     },
-    onSuccess: (saved) => {
-      setEdit(null);
+    onSuccess: (saved, submitted) => {
+      // Typing can continue while the request is in flight. Only close the
+      // editor if it still contains exactly the submitted text.
+      setEdit((current) => current && current.draft !== submitted.draft
+        ? { ...current, baseRevision: saved.revision, baseBody: saved.body }
+        : null);
       qc.setQueryData(["note", path], saved);
       qc.invalidateQueries();
     },
@@ -102,7 +108,7 @@ export default function NotePage() {
   const onEditorKey = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
-      if (!save.isPending && !changedOnDisk) save.mutate({ overwrite: false });
+      if (!save.isPending && !changedOnDisk) save.mutate({ overwrite: false, draft: edit!.draft });
     } else if (e.key === "Escape" && !dirty) {
       setEdit(null);
     }
@@ -111,23 +117,24 @@ export default function NotePage() {
   if (isLoading) return <div className="spinner">Загрузка…</div>;
   if (!note && !edit) {
     if (isNotFound(error)) return <MissingNote path={path} />;
-    return <div className="error">Не удалось открыть заметку: {errorText(error)}</div>;
+    return <div className="error">Не удалось открыть материал: {errorText(error)}</div>;
   }
 
   const title = note?.title ?? path;
 
   return (
     <div className="note-view">
+      <ParentLink parent={note?.frontmatter?.parent} />
       <div className="page-head">
         <h1>{title}</h1>
-        <span className="sub">{note?.path ?? path}</span>
+        <span className="sub">{note?.type === "project" ? "Проект" : note?.frontmatter?.content_kind === "entry" ? "Запись" : "Документ"}</span>
         <div className="head-actions">
           {edit ? (
             <>
               <span className="hint">{dirty ? "изменено · Ctrl S — сохранить" : "без изменений"}</span>
               <button
                 className="btn primary"
-                onClick={() => save.mutate({ overwrite: false })}
+                onClick={() => save.mutate({ overwrite: false, draft: edit!.draft })}
                 disabled={save.isPending || changedOnDisk || !dirty}
               >
                 {deletedOnDisk ? "Создать заново" : "Сохранить"}
@@ -150,7 +157,7 @@ export default function NotePage() {
                 className="btn danger"
                 disabled={remove.isPending}
                 onClick={() => {
-                  if (window.confirm(`Переместить «${title}» в корзину vault (.lumen/trash)?`)) remove.mutate();
+                  if (window.confirm(`Переместить «${title}» в корзину?`)) remove.mutate();
                 }}
                 title="Переместить в корзину"
               >
@@ -163,14 +170,14 @@ export default function NotePage() {
 
       {deletedOnDisk && (
         <div className="warn">
-          Файл удалён или переименован на диске. Ваш текст сохранён здесь — его можно создать заново
+          Материал удалён или перемещён. Ваш текст сохранён здесь — его можно восстановить
           или скопировать.
         </div>
       )}
 
       {changedOnDisk && note && (
         <div className="warn">
-          Заметка изменилась на диске, пока вы редактировали (ревизия {edit!.baseRevision} → {note.revision}).
+          Материал изменился в другом окне, пока вы редактировали.
           Ваш текст не потерян.
           <div className="warn-actions">
             <button className="btn" onClick={() => navigator.clipboard?.writeText(edit!.draft)}>
@@ -179,12 +186,12 @@ export default function NotePage() {
             <button
               className="btn"
               onClick={() => {
-                if (window.confirm("Заменить ваш текст версией с диска?")) startEdit(note);
+                if (window.confirm("Заменить ваш текст актуальной версией?")) startEdit(note);
               }}
             >
-              Взять версию с диска
+              Загрузить актуальную версию
             </button>
-            <button className="btn primary" onClick={() => save.mutate({ overwrite: true })}>
+            <button className="btn primary" disabled={save.isPending} onClick={() => save.mutate({ overwrite: true, draft: edit!.draft })}>
               Сохранить мою версию поверх
             </button>
           </div>
@@ -206,7 +213,7 @@ export default function NotePage() {
           onKeyDown={onEditorKey}
           spellCheck={false}
           autoFocus
-          aria-label="Текст заметки"
+          aria-label="Текст документа"
         />
       ) : (
         note && (
@@ -224,7 +231,7 @@ export default function NotePage() {
             )}
             <QuickAdd note={note.path} section={hasHeading(note.body, "Задачи") ? "Задачи" : undefined} />
 
-            <div className="section-head">Содержимое</div>
+            <div className="section-head">{note.type === "project" ? "Описание проекта" : "Содержание"}</div>
             {note.body.trim() ? (
               <div onDoubleClick={() => startEdit(note)}>
                 <Markdown body={note.body} tasks={note.tasks} onToggleTask={(t) => toggleTask.mutate(t)} />
@@ -235,19 +242,20 @@ export default function NotePage() {
               </div>
             )}
 
-            <Properties note={note} />
+            <RelatedContent parent={`note:${note.id}`} />
+            <details className="technical-details"><summary>Дополнительные свойства</summary><Properties note={note} /></details>
           </>
         )
       )}
 
       {backlinks && backlinks.items.length > 0 && !edit && (
         <>
-          <div className="section-head">Обратные ссылки {backlinks.total}</div>
+          <div className="section-head">Связанные материалы {backlinks.total}</div>
           {backlinks.items.map((b) => (
             <div key={b.path} className="note-row">
               <span style={{ color: "var(--text-faint)" }}>←</span>
               <Link to={`/note/${b.path}`}>{b.title}</Link>
-              <span className="path">{b.path}</span>
+
             </div>
           ))}
         </>
@@ -351,7 +359,7 @@ function Properties({ note }: { note: Note }) {
               </td>
             </tr>
             {Object.entries(note.frontmatter ?? {})
-              .filter(([k]) => !["title", "type", "tags", "id"].includes(k))
+              .filter(([k]) => !["title", "type", "tags", "id", "parent", "content_kind"].includes(k))
               .map(([k, v]) => (
                 <tr key={k}>
                   <td>{k}</td>
@@ -383,9 +391,9 @@ function MissingNote({ path }: { path: string }) {
   });
   return (
     <div className="empty">
-      <p>Заметки «{path}» пока нет.</p>
+      <p>Материал пока не найден.</p>
       <button className="btn primary" onClick={() => create.mutate()} disabled={create.isPending}>
-        Создать {target.endsWith(".md") ? target : target + ".md"}
+        Создать документ
       </button>
       {create.isError && <div className="error" style={{ marginTop: 10 }}>{errorText(create.error)}</div>}
     </div>
