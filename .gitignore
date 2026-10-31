@@ -30,3 +30,6 @@ web/dist/
 # Прочее
 .DS_Store
 *.log
+
+# make dev
+/.dev-vault/

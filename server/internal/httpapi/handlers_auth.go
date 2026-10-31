@@ -60,6 +60,11 @@ func (a *API) handleMe(w http.ResponseWriter, r *http.Request) {
 			id.Email = claims.Email
 			id.Username = claims.Username
 			id.Roles = claims.Roles(a.oidc.Config().ClientID)
+		} else if a.tokenMatches(r) {
+			// Запасной статический токен: API его пускает (withAuth), значит и
+			// веб-клиент не должен отправлять такого пользователя на вход.
+			id.Authenticated = true
+			id.Name = "доступ по токену"
 		}
 	}
 	writeJSON(w, http.StatusOK, id)

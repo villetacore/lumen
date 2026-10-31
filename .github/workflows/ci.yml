@@ -1,5 +1,5 @@
-# Открытый CI: проверки на каждый push и pull request. Деплоя здесь нет —
-# сборку и выкатку делает приватная копия репозитория (docs/DEPLOY.md).
+# Открытый CI: проверки на каждый push и pull request, с main — образ в ghcr.io.
+# Деплоя здесь нет: тег подхватывает пайплайн зеркала (docs/DEPLOY.md).
 name: ci
 
 on:
@@ -66,7 +66,7 @@ jobs:
           exit 1
 
   # Образ для всех: ghcr.io/villetacore/lumen:<12 символов SHA> и :main.
-  # Выкатку в homelab этот CI не делает — тег выбирает приватная копия (docs/DEPLOY.md).
+  # Выкатку этот CI не делает — тег подхватывает пайплайн зеркала (docs/DEPLOY.md).
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -93,7 +93,7 @@ jobs:
           docker push "$img:$tag"
           docker push "$img:main"
 
-  # Файлы приватной копии (пайплайн выкатки) в открытый репозиторий не попадают.
+  # Файлы пайплайна выкатки в открытый репозиторий не попадают.
   public-only:
     runs-on: ubuntu-latest
     steps:
@@ -102,7 +102,7 @@ jobs:
         run: |
           for f in .gitlab-ci.yml .gitlab deploy; do
             if [ -e "$f" ]; then
-              echo "::error::$f принадлежит приватной копии, см. docs/DEPLOY.md"
+              echo "::error::$f — файл пайплайна выкатки, ему здесь не место (docs/DEPLOY.md)"
               exit 1
             fi
           done

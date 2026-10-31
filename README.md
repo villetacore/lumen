@@ -141,7 +141,7 @@ docker run -p 8787:8787 -v lumen-vault:/vault -e LUMEN_TOKEN="$(openssl rand -he
 ```
 
 Образ — один статический `lumend` поверх distroless, без root; vault — том
-`/vault`. Как выкатывать в Kubernetes и как устроена приватная копия с
+`/vault`. Как выкатывать в Kubernetes и как устроено зеркало с
 пайплайном — [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Сервер за Keycloak
