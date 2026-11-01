@@ -1,179 +1,119 @@
-# Lumen
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Lumen — проекты, задачи и знания. Ваши файлы, ваше пространство." width="100%">
+</p>
 
-Локальный, файловый таск-трекер и база знаний: Markdown как источник правды,
-календарь, заметки, задачи и интеграции.
+<p align="center">
+  <a href="https://github.com/villetacore/lumen/actions/workflows/ci.yml"><img src="https://github.com/villetacore/lumen/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-B8EF65?labelColor=171B24" alt="MIT License"></a>
+  <a href="server/go.mod"><img src="https://img.shields.io/badge/Go-1.26-8B7CF6?labelColor=171B24" alt="Go 1.26"></a>
+  <a href="web/package.json"><img src="https://img.shields.io/badge/React-19-8B7CF6?labelColor=171B24" alt="React 19"></a>
+</p>
 
-> Obsidian-подобный vault (папка `.md` файлов) + сервер синхронизации + веб-клиент + десктоп.
+<p align="center">
+  <a href="#быстрый-старт">Быстрый старт</a> ·
+  <a href="docs/README.md">Документация</a> ·
+  <a href="docs/plans/PROGRESS.md">Статус проекта</a> ·
+  <a href="CONTRIBUTING.md">Участие в разработке</a>
+</p>
 
-## Принципы
+**Lumen — открытое рабочее пространство для проектов, задач и знаний.**
+Заметки и задачи живут в обычных Markdown-файлах. Веб-интерфейс связывает их
+с календарём, документами и внешними сервисами, а один Go-бинарник запускает
+всё приложение на вашем компьютере или сервере.
 
-1. **Файлы — источник правды.** Всё содержимое живёт в обычных `.md` файлах в папке
-   (vault). Сервер и клиенты — это индекс + UI поверх файлов, а не «база с экспортом».
-   При желании содержимое файлов шифруется — папка остаётся папкой.
-2. **Local-first.** Десктоп работает полностью офлайн; сервер нужен только для
-   синхронизации, веба и интеграций.
-3. **Совместимость с Obsidian.** YAML frontmatter, `[[wikilinks]]`, `#tags`,
-   `- [ ]` чекбоксы, `^block-id`. Vault Lumen открывается в Obsidian и наоборот.
-4. **Одна спецификация формата, две реализации парсера** (Go и Rust), сверяемые
-   общими golden-фикстурами в [`spec/testdata`](spec/testdata).
+![Экран «Сегодня» в светлой теме](docs/screenshots/today-light.png)
 
-## Стек
+<details>
+<summary>Тёмная тема</summary>
 
-| Компонент | Технологии | Каталог |
-|---|---|---|
-| Сервер | Go 1.26, stdlib `net/http`, SQLite (позже), zero-dep MVP | [`server/`](server) |
-| Веб-клиент | React 19 + TypeScript + Vite + TanStack Query | [`web/`](web) |
-| Десктоп: ядро | Rust (парсер, индекс, watcher, sync-клиент) | [`desktop/core/`](desktop/core) |
-| Десктоп: UI | Flutter, через `flutter_rust_bridge` | [`desktop/app/`](desktop/app) |
-| Формат данных | Markdown + YAML frontmatter | [`spec/`](spec) |
+![Экран «Сегодня» в тёмной теме](docs/screenshots/today-dark.png)
 
-## Документация
+</details>
 
-- [Направление: AI-центр управления студией](docs/plans/PRODUCT_DIRECTION.md)
-- [Как передать реализацию кодирующему агенту](docs/plans/IMPLEMENTATION_GUIDE.md)
-- [План развития единой точки: backend, web, сервисы, MCP и RAG](docs/plans/README.md)
-- [Задачи развития с приоритетами и критериями приёмки](docs/plans/BACKLOG.md)
-- [MVP: границы и пользовательские сценарии](docs/MVP.md)
-- [Архитектура](docs/ARCHITECTURE.md)
-- [Модель данных](docs/DATA_MODEL.md)
-- [HTTP API](docs/API.md)
-- [Синхронизация](docs/SYNC.md)
-- [Интеграции](docs/INTEGRATIONS.md)
-- [Шифрование vault](docs/ENCRYPTION.md)
-- [Секреты и менеджеры паролей](docs/SECRETS.md)
-- [Вход через Keycloak](docs/AUTH.md)
-- [Сборка, контейнер и выкатка](docs/DEPLOY.md)
-- [Пароли в интерфейсе](docs/PASSWORDS.md)
-- [UI-макет MVP](docs/UI_MOCKUP.md)
-- [Дорожная карта](docs/ROADMAP.md)
-- [Спецификация формата файлов](spec/FORMAT.md)
-- [ADR (принятые решения)](docs/adr)
+Скриншоты сняты на демонстрационном хранилище. Интерфейс использует дизайн-систему
+Velessoft RIOT: Manrope, JetBrains Mono, графит, лайм и фиолетовый; шрифты поставляются локально.
+
+## Возможности
+
+- **Задачи на каждый день.** Сегодня, неделя, входящие, просроченное; быстрый ввод
+  `Подготовить макет !A @завтра`, сроки, приоритеты и подробные описания.
+- **Проекты и знания вместе.** Проектные документы, вложенные материалы, Markdown,
+  `[[wikilinks]]`, теги, обратные ссылки и поиск.
+- **Редактирование с защитой черновика.** Внешние правки и конфликты версий
+  показываются в редакторе; несохранённый текст остаётся доступен.
+- **Календарь и интеграции.** ICS, CalDAV, Nextcloud Notes, GitHub и Gitea.
+  Импортированные материалы сохраняют локальные дополнения вне блока источника.
+- **Своё хранилище.** Обычная папка файлов, совместимый Markdown, опциональное
+  шифрование содержимого. Заметки можно редактировать вне Lumen.
+- **Самостоятельное размещение.** Встроенный веб-клиент, контейнер, Bearer-токен
+  или OIDC/Keycloak. Чтение паролей из Bitwarden/Vaultwarden/KeePass через CLI.
 
 ## Быстрый старт
 
-### Одно приложение
-
-Собирает веб-клиент, вшивает его в бинарник и запускает — ни Node, ни отдельного
-фронтенда для работы не нужно.
+Для сборки нужны **Go 1.26**, **Node.js 24+**, npm, Git и Make.
+На Windows используйте [PowerShell-инструкцию](docs/GETTING_STARTED.md#сборка-на-windows).
 
 ```bash
-make app                                    # или: ./scripts/build.ps1
-./dist/lumend --vault ./vault-example --open
-```
-
-Откроется `http://127.0.0.1:8787`: задачи, календарь, заметки, поиск.
-
-### Начать работать со своим vault
-
-```bash
+git clone https://github.com/villetacore/lumen.git
+cd lumen
+npm ci --prefix web
 make app
-./dist/lumend --vault ~/Lumen --open
+./dist/lumend --vault ./my-vault --open
 ```
 
-Если папки нет, `lumend` создаст её со структурой `00-inbox/`, `10-notes/`,
-`20-projects/`, `40-daily/`. Можно указать и существующий vault Obsidian.
-Сервер слушает только `127.0.0.1`; для доступа из сети нужен `--token` или OIDC.
+Откроется **http://127.0.0.1:8787**. Отсутствующая папка `my-vault` создастся
+автоматически. После сборки Node.js не нужен: веб-клиент встроен в `lumend`.
 
-Ежедневная работа в вебе:
+Для разработки с hot reload запустите `make dev`: интерфейс будет доступен
+на **http://localhost:5173**, данные — в отдельной `.dev-vault`.
 
-- **Быстрый ввод** внизу списка: `Купить кофе !A @пт` — приоритет и срок.
-  Даты: `@сегодня`, `@завтра`, `@послезавтра`, `@пн`…`@вс`, `@неделя`,
-  `@+3d`, `@+2w`, `@+1m`, `@2026-11-01`. Из «Сегодня» задача без срока
-  планируется на сегодня, из «Входящих» попадает в `00-inbox/inbox.md`.
-- **Щелчок по задаче** открывает редактор: текст, статус, срок, план,
-  приоритет, оценка, проект, удаление. Меняется только строка задачи в файле.
-- **Заметки и проекты**: «＋ Новая заметка» / «＋» у проектов, шаблоны для
-  проекта и встречи. Текст показывается как Markdown с `[[wikilinks]]`,
-  `#тегами` и кликабельными чекбоксами; двойной щелчок — редактирование,
-  `Ctrl/Cmd+S` — сохранить. Ссылка на несуществующую заметку предлагает её создать.
-- **Черновик не теряется**: если файл изменился (например, в Obsidian) или удалён,
-  пока вы пишете, текст остаётся в редакторе и можно выбрать, какую версию
-  сохранить; уход со страницы с несохранёнными правками требует подтверждения.
-- Удалённые заметки уходят в `.lumen/trash/` внутри vault.
-
-### Зашифрованное локальное хранилище
+### Docker
 
 ```bash
-./dist/lumend crypt init --vault ./notes          # спросит парольную фразу
-LUMEN_PASSPHRASE='…' ./dist/lumend --vault ./notes --open
+docker run -d --name lumen \
+  -p 127.0.0.1:8787:8787 \
+  -v lumen-vault:/vault \
+  ghcr.io/villetacore/lumen:main
 ```
 
-Фразу можно не вводить руками, а взять из менеджера паролей:
+Этот пример доступен только локально. Для сервера настройте HTTPS и
+[авторизацию](docs/AUTH.md); для воспроизводимой установки закрепите тег коммита.
+Обновление, резервное копирование и откат описаны в [инструкции эксплуатации](docs/OPERATIONS.md).
 
-```bash
-./dist/lumend --vault ./notes --passphrase-from bitwarden:lumen-vault
-./dist/lumend --vault ./notes --passphrase-from "keepass:D:/keys/db.kdbx#Lumen/vault?password=env:KDBX_PASSWORD"
-```
+## Документация
 
-Содержимое каждой заметки на диске — AES-256-GCM контейнер; ключ данных лежит
-обёрнутым в `.lumen/crypt.json`. Что именно скрыто, а что нет —
-[docs/ENCRYPTION.md](docs/ENCRYPTION.md). Вернуться к обычному markdown можно
-всегда: `lumend crypt decrypt`.
+| Я хочу… | Куда перейти |
+|---|---|
+| Запустить Lumen и создать первые записи | [Начало работы](docs/GETTING_STARTED.md) |
+| Разобраться с задачами, проектами и документами | [Руководство пользователя](docs/USER_GUIDE.md) |
+| Подключить календарь или трекер | [Интеграции](docs/INTEGRATIONS.md) |
+| Разместить на своём сервере | [Сборка и доставка](docs/DEPLOY.md) · [Эксплуатация](docs/OPERATIONS.md) |
+| Изменить код | [Разработка](docs/DEVELOPMENT.md) · [Архитектура](docs/ARCHITECTURE.md) |
+| Работать через API или с файлами | [HTTP API](docs/API.md) · [Формат Markdown](spec/FORMAT.md) |
+| Найти остальные инструкции | [Каталог документации](docs/README.md) |
 
-### Десктопное приложение
+## Состояние и направление
 
-```powershell
-./scripts/desktop.ps1 -Run       # соберёт и запустит; нужен работающий lumend
-```
+Lumen активно развивается. Текущая рабочая область — **Go-сервер и React-клиент**.
+Один экземпляр `lumend` обслуживает один vault; все допущенные пользователи имеют
+доступ ко всему хранилищу. Индекс и внешние календарные события находятся в памяти;
+после перезапуска календарь загружается из источников повторно.
 
-Требуются Flutter (stable) и Visual Studio с рабочей нагрузкой C++.
-Если сборка падает с `MSB8066` и кодом 255 — это известная проблема окружения,
-а не проекта: разбор и лечение в [desktop/app/README.md](desktop/app/README.md).
+Следующее направление — [AI-центр управления студией](docs/plans/PRODUCT_DIRECTION.md):
+поручения, агенты, проверяемые результаты и общие права доступа. **Агентный runtime,
+RAG, MCP и проектные ACL пока не реализованы.** Порядок работ — в
+[плане реализации](docs/plans/IMPLEMENTATION_GUIDE.md), фактические результаты — в
+[журнале](docs/plans/PROGRESS.md). Исторический Flutter/Rust-клиент остаётся в
+`desktop/` и не входит в текущий цикл проверки backend/web.
 
-### Режим разработки
+## Участие
 
-```bash
-cd server && go run ./cmd/lumend --vault ../vault-example   # API на :8787
-cd web && npm install && npm run dev                        # UI на :5173
-```
+Баги и предложения принимаются в [Issues](https://github.com/villetacore/lumen/issues).
+Для pull request начните с [CONTRIBUTING.md](CONTRIBUTING.md): там описаны локальные
+проверки, границы изменений и требования к сохранности данных.
+Об уязвимостях — [SECURITY.md](SECURITY.md).
 
-### Сервер для нескольких устройств
+## Лицензия
 
-```bash
-lumend --addr 0.0.0.0:8787 --token "$(openssl rand -hex 16)" --vault /srv/vault
-```
-
-### Контейнер
-
-```bash
-make image                                   # или: docker build -t lumen:dev .
-docker run -p 8787:8787 -v lumen-vault:/vault -e LUMEN_TOKEN="$(openssl rand -hex 16)" lumen:dev
-```
-
-Образ — один статический `lumend` поверх distroless, без root; vault — том
-`/vault`. Как выкатывать в Kubernetes и как устроено зеркало с
-пайплайном — [docs/DEPLOY.md](docs/DEPLOY.md).
-
-### Сервер за Keycloak
-
-Если на сервере уже стоит single sign-on, Lumen встраивается туда же и своих
-паролей не заводит:
-
-```bash
-lumend --vault /srv/vault --addr 0.0.0.0:8787   --public-url https://lumen.example.com   --oidc-issuer https://keycloak.example.com/realms/main   --oidc-client-id lumen --oidc-roles lumen-user
-```
-
-Подробности — [docs/AUTH.md](docs/AUTH.md).
-
-### Пароли
-
-Раздел **Пароли** показывает записи из Bitwarden, Vaultwarden или KeePass —
-только чтение, значения запрашиваются по одному и никуда не сохраняются.
-См. [docs/PASSWORDS.md](docs/PASSWORDS.md).
-
-### Интеграции
-
-Календари и трекеры подключаются в разделе **Интеграции**: ICS-подписка
-(Google, Outlook, Яндекс), CalDAV (Nextcloud, Radicale, Baikal),
-Nextcloud Notes и GitHub/Gitea — issues превращаются в задачи. Токены в настройках не хранятся:
-указывается ссылка вида `bitwarden:github-token`.
-Подробности — [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
-
-## Статус
-
-Работают: индексация vault, задачи и календарь, поиск, точечная запись в `.md`,
-слежение за файлами через fsnotify, шифрование, секреты из менеджеров паролей,
-вход через Keycloak, чтение паролей из Bitwarden/Vaultwarden/KeePass,
-интеграции ICS / CalDAV / Nextcloud / GitHub, единый бинарник со встроенным UI
-и десктопное приложение с тем же набором экранов.
-См. [ROADMAP](docs/ROADMAP.md) — идёт этап M1–M3.
+Код распространяется по [MIT](LICENSE). Manrope и JetBrains Mono — по
+[SIL Open Font License](web/public/fonts/). Создано в **velessoft**.

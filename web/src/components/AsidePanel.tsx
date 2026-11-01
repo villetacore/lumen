@@ -51,7 +51,7 @@ export default function AsidePanel() {
   const todayEvents = (agenda?.events ?? []).filter((e) => e.start.slice(0, 10) === iso(now));
 
   return (
-    <aside className="aside">
+    <aside className="aside card">
       <div className="section-head" style={{ marginTop: 0 }}>
         {monthTitle(now)}
       </div>
@@ -72,23 +72,6 @@ export default function AsidePanel() {
         </div>
       ))}
 
-      <div className="section-head">Подсказки</div>
-      <div style={{ color: "var(--text-dim)", fontSize: 12, lineHeight: 1.8 }}>
-        <div>
-          <kbd>Ctrl K</kbd> поиск
-        </div>
-        <div>
-          <code>!A</code> приоритет в быстром вводе
-        </div>
-        <div>
-          <code>@завтра</code> <code>@пт</code> <code>@+3d</code> срок в быстром вводе
-        </div>
-        <div>Щелчок по задаче — редактирование</div>
-        <div>
-          Двойной щелчок по тексту документа или <kbd>Ctrl S</kbd> в редакторе
-        </div>
-        <div>Перетащите задачу в календаре, чтобы перенести её</div>
-      </div>
     </aside>
   );
 }

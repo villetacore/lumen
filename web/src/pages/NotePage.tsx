@@ -1,3 +1,4 @@
+import Icon from "../components/Icon";
 import { useEffect, useRef, useState } from "react";
 import { Link, useBeforeUnload, useBlocker, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -151,7 +152,7 @@ export default function NotePage() {
           ) : (
             <>
               <button className="btn" onClick={() => note && startEdit(note)}>
-                ✎ Редактировать
+                <Icon name="edit" size={16} /> Редактировать
               </button>
               <button
                 className="btn danger"

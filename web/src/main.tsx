@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import CrashScreen from "./components/CrashScreen";
 import "./styles.css";
+import { applyTheme, getTheme } from "./lib/theme";
+applyTheme(getTheme());
 
 const queryClient = new QueryClient({
   defaultOptions: {

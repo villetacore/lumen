@@ -23,7 +23,7 @@ async function setup() {
     { path: "/notes", element: <div>Все заметки</div> },
   ], { initialEntries: ["/note/test.md"] });
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByText("✎ Редактировать"));
+  fireEvent.click(await screen.findByRole("button", { name: "Редактировать" }));
   const editor = screen.getByRole("textbox", { name: "Текст документа" }) as HTMLTextAreaElement;
   fireEvent.change(editor, { target: { value: "Мой текст" } });
   return { client, router, editor };

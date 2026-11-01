@@ -1,5 +1,8 @@
 # Сборка, контейнер и выкатка
 
+Инструкции backup, восстановления и отката — в [OPERATIONS.md](OPERATIONS.md).
+Первый локальный запуск — в [GETTING_STARTED.md](GETTING_STARTED.md).
+
 ## Разработка
 
 ```bash

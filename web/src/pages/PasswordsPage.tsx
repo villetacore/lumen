@@ -62,7 +62,7 @@ function Secret({
           fontSize: 12.5,
           background: "var(--bg-sunken)",
           border: "1px solid var(--border)",
-          borderRadius: 4,
+          borderRadius: "var(--radius)",
           padding: "2px 8px",
           overflowWrap: "anywhere",
           minHeight: 22,

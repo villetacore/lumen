@@ -1,3 +1,8 @@
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import WorkspaceOverview from "../components/WorkspaceOverview";
+import AsidePanel from "../components/AsidePanel";
+import NewNoteDialog from "../components/NewNoteDialog";
 import Icon from "../components/Icon";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -57,6 +62,8 @@ function groupTasks(tasks: Task[], view: string): Group[] {
 
 export default function TasksPage() {
   const { view = "today" } = useParams();
+  const addInput = useRef<HTMLInputElement>(null);
+  const [creating, setCreating] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["tasks", view],
     queryFn: () => api.tasks({ view: view as ViewName, limit: 500 }),
@@ -66,19 +73,22 @@ export default function TasksPage() {
   const groups = groupTasks(tasks, view);
 
   return (
-    <>
-      <div className="page-head">
+    <div className="page">
+      {view === "today" ? <WorkspaceOverview onAdd={() => addInput.current?.focus()} onDocument={() => setCreating(true)} /> : <div className="page-head">
         <h1>{TITLES[view] ?? view}</h1>
         <span className="sub">
           {view === "today" ? longDate(today()) : `${data?.total ?? 0} задач`}
         </span>
-      </div>
-
+      </div>}
+      <div className={view === "today" ? "dashboard-split" : "task-content"}>
+      <div className="task-content">
+      {view === "today" && <div className="section-title"><h2>Задачи на сегодня</h2><Link to="/view/all">Все задачи <Icon name="chevron" size={16} /></Link></div>}
+      <QuickAdd inputRef={addInput} note={view === "inbox" ? "00-inbox/inbox.md" : undefined} scheduled={view === "today" || view === "week" ? "today" : undefined} />
       {error && <div className="error">Не удалось загрузить задачи: {errorText(error)}</div>}
       {isLoading && <div className="spinner">Загрузка…</div>}
 
-      {!isLoading && tasks.length === 0 && (
-        <div className="empty"><span className="empty-icon"><Icon name="check" size={28} /></span><strong>Место для новых планов</strong><span>Добавьте задачу ниже — и начните с самого важного.</span></div>
+      {!isLoading && !error && tasks.length === 0 && (
+        <div className="empty"><span className="empty-icon"><Icon name="check" size={28} /></span><strong>Место для новых планов</strong><span>Добавьте задачу и начните с самого важного.</span></div>
       )}
 
       {groups.map((g) => (
@@ -92,11 +102,17 @@ export default function TasksPage() {
         </section>
       ))}
 
-      {view === "inbox" ? (
-        <QuickAdd note="00-inbox/inbox.md" placeholder="Во входящие… (!A приоритет, @пт срок)" />
-      ) : (
-        <QuickAdd scheduled={view === "today" || view === "week" ? "today" : undefined} />
-      )}
-    </>
+      </div>
+      {view === "today" && <div className="dashboard-aside">
+        <section><h2>Быстрые действия</h2><div className="card quick-links">
+          <button onClick={() => setCreating(true)}><span className="quick-icon"><Icon name="file" /></span><span><strong>Новый документ</strong><small>Сохранить идею или решение</small></span><Icon name="chevron" /></button>
+          <Link to="/notes?section=documents"><span className="quick-icon"><Icon name="book" /></span><span><strong>Документация</strong><small>Знания и материалы команды</small></span><Icon name="chevron" /></Link>
+          <Link to="/integrations"><span className="quick-icon"><Icon name="plug" /></span><span><strong>Интеграции</strong><small>Подключённые сервисы</small></span><Icon name="chevron" /></Link>
+        </div></section>
+        <AsidePanel />
+      </div>}
+      </div>
+      {creating && <NewNoteDialog onClose={() => setCreating(false)} />}
+    </div>
   );
 }

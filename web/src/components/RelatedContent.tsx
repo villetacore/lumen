@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -14,8 +15,8 @@ export default function RelatedContent({ parent }: { parent: string }) {
   return <section className="related-content">
     <div className="section-head">Материалы
       <div className="head-actions">
-        <button className="btn" onClick={() => setCreating("entry")}>＋ Запись</button>
-        <button className="btn" onClick={() => setCreating("document")}>＋ Документ</button>
+        <button className="btn" onClick={() => setCreating("entry")}><Icon name="plus" size={16} /> Запись</button>
+        <button className="btn" onClick={() => setCreating("document")}><Icon name="plus" size={16} /> Документ</button>
       </div>
     </div>
     {isLoading && <div className="spinner">Загрузка…</div>}

@@ -1,7 +1,9 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import Brand from "./components/Brand";
+import Icon from "./components/Icon";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import TopBar from "./components/TopBar";
 import Sidebar from "./components/Sidebar";
-import AsidePanel from "./components/AsidePanel";
 import TasksPage from "./pages/TasksPage";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
@@ -14,12 +16,47 @@ import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
   useLiveUpdates();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  const closeMenu = () => setMenuOpen(false);
+  useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location]);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 961px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+  useEffect(() => {
+    if (!menuOpen) {
+      if (wasOpen.current && !document.querySelector('[role="dialog"]')) menuButton.current?.focus();
+      wasOpen.current = false;
+      return;
+    }
+    wasOpen.current = true;
+    const nav = document.getElementById("workspace-navigation");
+    const frame = requestAnimationFrame(() => nav?.querySelector<HTMLButtonElement>("button")?.focus());
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key !== "Tab") return;
+      const items = Array.from(nav?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input, select, textarea') ?? []).filter(el => el.getClientRects().length);
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("keydown", onKey); };
+  }, [menuOpen]);
 
   return (
     <div className="app">
-      <TopBar />
-      <Sidebar />
+      <Sidebar open={menuOpen} onClose={closeMenu} />
+      {menuOpen && <button className="scrim" onClick={closeMenu} aria-label="Закрыть навигацию" tabIndex={-1} />}
+      <div className="workspace" inert={menuOpen}>
+      <header className="mobilebar"><button ref={menuButton} className="btn icon-button" aria-label="Открыть меню" aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(true)}><Icon name="menu" /></button><Brand /></header>
       <main className="main">
+      <TopBar />
         <Routes>
           <Route path="/" element={<Navigate to="/view/today" replace />} />
           <Route path="/view/:view" element={<TasksPage />} />
@@ -33,7 +70,7 @@ export default function App() {
           <Route path="*" element={<div className="empty">Страница не найдена</div>} />
         </Routes>
       </main>
-      <AsidePanel />
+      </div>
     </div>
   );
 }

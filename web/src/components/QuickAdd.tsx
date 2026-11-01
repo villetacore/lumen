@@ -1,5 +1,5 @@
 import Icon from "./Icon";
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { errorText } from "../lib/errors";
@@ -27,11 +27,13 @@ function parse(input: string): { text: string; due?: string; priority?: string }
 }
 
 export default function QuickAdd({
+  inputRef,
   note,
   section,
   scheduled,
   placeholder,
 }: {
+  inputRef?: Ref<HTMLInputElement>;
   note?: string;
   section?: string;
   /** Scheduled date for tasks typed without a due date, so they stay in the current view. */
@@ -72,6 +74,7 @@ export default function QuickAdd({
     >
       <span className="quick-add-icon"><Icon name="plus" /></span>
       <input
+        ref={inputRef}
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
@@ -85,6 +88,7 @@ export default function QuickAdd({
         }
         aria-label="Новая задача"
       />
+      <button className="btn primary" type="submit" disabled={!parse(value).text}>Добавить</button>
       {create.isError && <span style={{ color: "var(--overdue)" }}>{errorText(create.error)}</span>}
     </form>
   );

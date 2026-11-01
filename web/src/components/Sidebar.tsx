@@ -1,3 +1,6 @@
+import { createPortal } from "react-dom";
+import Brand, { Signature } from "./Brand";
+import ThemeSwitch from "./ThemeSwitch";
 import Icon, { type IconName } from "./Icon";
 import { useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
@@ -32,7 +35,7 @@ function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: 
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [creating, setCreating] = useState<"note" | "project" | null>(null);
@@ -48,8 +51,9 @@ export default function Sidebar() {
   const { data: tags } = useQuery({ queryKey: ["tags"], queryFn: api.tags });
 
   return (
-    <nav className="sidebar" aria-label="Основная навигация">
-      <div className="workspace-label"><span className="workspace-mark"><Icon name="spark" size={17} /></span><div>Рабочее пространство<small>Всё важное — рядом</small></div></div>
+    <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
+      <div className="sidebar-brand"><Brand /><button className="btn icon-button mobile-only" onClick={onClose} aria-label="Закрыть меню"><Icon name="close" /></button></div>
+      <div className="sidebar-scroll">
       <div className="nav-title">Задачи</div>
       <div className="nav-group">
         {VIEWS.map((v) => (
@@ -60,7 +64,7 @@ export default function Sidebar() {
       <div className="nav-group">
         <div className="nav-title">
           Проекты
-          <button className="nav-add" onClick={() => setCreating("project")} title="Новый проект" aria-label="Новый проект">
+          <button className="nav-add" onClick={() => { setCreating("project"); if (open) onClose(); }} title="Новый проект" aria-label="Новый проект">
             <Icon name="plus" size={16} />
           </button>
         </div>
@@ -88,7 +92,7 @@ export default function Sidebar() {
           <span className="icon"><Icon name="sun" /></span>
           Мой день
         </button>
-        <button className="nav-item" onClick={() => setCreating("note")}>
+        <button className="nav-item" onClick={() => { setCreating("note"); if (open) onClose(); }}>
           <span className="icon"><Icon name="plus" /></span>
           Новый документ
         </button>
@@ -97,7 +101,7 @@ export default function Sidebar() {
           Календарь
         </NavLink>
         <NavLink to="/notes?section=documents" className={"nav-item" + (params.get("section") === "documents" ? " active" : "")}><span className="icon"><Icon name="book" /></span>Документация</NavLink>
-        <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+        <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive && !params.get("section") && !params.get("tag") ? " active" : "")}>
           <span className="icon"><Icon name="file" /></span>
           Материалы
         </NavLink>
@@ -128,7 +132,9 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </div>
-      {creating && <NewNoteDialog type={creating} onClose={() => setCreating(null)} />}
+      </div>
+      <div className="sidebar-foot"><ThemeSwitch /><Signature /></div>
+      {creating && createPortal(<NewNoteDialog type={creating} onClose={() => setCreating(null)} />, document.body)}
     </nav>
   );
 }

@@ -57,7 +57,8 @@ lumend version
 ## Сборка одного приложения
 
 ```bash
-make app              # из корня репозитория
+npm ci --prefix web   # из корня репозитория
+make app
 ./scripts/build.ps1   # то же на Windows
 ```
 
@@ -97,12 +98,13 @@ go test ./...
 Пакет `domain` не знает ни про HTTP, ни про файлы; `vault.Codec` — единственный
 шов, за которым живёт шифрование. Подробнее — [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
-## Что дальше
+## Развитие
 
-- SQLite + FTS5 вместо in-memory индекса (интерфейс `index.Store` уже готов).
-- Эндпоинты `/sync/*`.
-- WebSocket рядом с SSE — когда десктопу понадобится двусторонний канал.
-- Коннекторы Telegram и входящих webhooks.
+Порядок реализации задают [IMPLEMENTATION_GUIDE](../docs/plans/IMPLEMENTATION_GUIDE.md)
+и [BACKLOG](../docs/plans/BACKLOG.md). SQL persistence, sync API и агентный runtime
+пока не реализованы. Текущие ограничения и приёмка — в
+[PROGRESS](../docs/plans/PROGRESS.md). Эксплуатация и backup — в
+[OPERATIONS](../docs/OPERATIONS.md).
 
 ## Восстановление интеграций
 

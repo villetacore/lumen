@@ -12,7 +12,9 @@ bitwarden:lumen-vault
 keepass:D:/keys/personal.kdbx#Lumen/vault?password=env:KDBX_PASSWORD
 ```
 
-Такие строки безопасно лежат в `.lumen/integrations.yaml`, в git и в скриншотах.
+Такие ссылки хранятся в `.lumen/integrations.yaml` вместо значений секретов.
+Перед публикацией всё равно проверьте их: пути, внутренние адреса и имена записей
+могут быть конфиденциальными; `literal:` содержит сам секрет.
 
 ## Провайдеры
 

@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "graphite": "#171B24",
+    "paper": "#F7F8F5",
+    "lime": "#B8EF65",
+    "violet": "#8B7CF6"
+  },
+  "light": {
+    "bg": "#F7F8F5",
+    "surface": "#FFFFFF",
+    "text": "#171B24",
+    "muted": "#545C6B",
+    "border": "#767E8B",
+    "primary": "#B8EF65",
+    "onPrimary": "#171B24",
+    "link": "#5845B8",
+    "success": "#25633A",
+    "error": "#B42332",
+    "warning": "#855000"
+  },
+  "dark": {
+    "bg": "#171B24",
+    "surface": "#222834",
+    "text": "#F7F8F5",
+    "muted": "#B8C0CD",
+    "border": "#778190",
+    "primary": "#B8EF65",
+    "onPrimary": "#171B24",
+    "link": "#B6AAFF",
+    "success": "#9DE1AE",
+    "error": "#FF9CA7",
+    "warning": "#F4CA80"
+  },
+  "space": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    48,
+    64,
+    96
+  ],
+  "radius": {
+    "control": 0,
+    "card": 0,
+    "pill": 0
+  },
+  "type": {
+    "family": "Manrope",
+    "mono": "JetBrains Mono",
+    "body": 16,
+    "small": 14,
+    "h1": 64,
+    "h2": 40,
+    "h3": 24
+  },
+  "motion": {
+    "fast": "120ms",
+    "normal": "180ms"
+  },
+  "identity": {
+    "name": "RIOT / OPEN / BUILD / REPEAT",
+    "displayCase": "uppercase, short headlines only",
+    "marketingShadow": "3px 3px 0",
+    "productShadow": "none",
+    "stickerRotation": "-3deg to 3deg",
+    "editorial": {
+      "displayWeight": 800,
+      "displayLineHeight": 0.9,
+      "displayTracking": "-0.075em",
+      "stickerRotation": "-4deg to 8deg",
+      "productRotation": "0deg"
+    }
+  }
+}

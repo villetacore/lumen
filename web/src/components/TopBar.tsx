@@ -33,11 +33,6 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="brand">
-        <span className="brand-mark"><Icon name="spark" size={22} /></span>
-        Lumen
-      </div>
-
       <form
         className="search-box"
         onSubmit={(e) => {
@@ -78,7 +73,7 @@ export default function TopBar() {
         )}
         {stats && (
           <span>
-            {stats.open_tasks} открытых задач
+            Открыто задач: {stats.open_tasks}
           </span>
         )}
         <button
