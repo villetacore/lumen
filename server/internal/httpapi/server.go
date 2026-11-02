@@ -11,6 +11,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
 	"github.com/alexpyslar/lumen/server/internal/service"
+	"github.com/alexpyslar/lumen/server/internal/state"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 	"github.com/alexpyslar/lumen/server/internal/webui"
 )
@@ -28,6 +29,7 @@ type API struct {
 	bus    *service.Bus
 	log    *slog.Logger
 
+	state        *state.Store
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -50,11 +52,23 @@ func New(
 	}
 }
 
+// WithState attaches the operational store (ADR-0011).
+func (a *API) WithState(st *state.Store) *API {
+	a.state = st
+	return a
+}
+
 // Handler builds the router with its middleware chain.
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if a.state != nil {
+			if err := a.state.Ping(r.Context()); err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "state": err.Error()})
+				return
+			}
+		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 

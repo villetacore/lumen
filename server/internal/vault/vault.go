@@ -57,6 +57,10 @@ func (v *Vault) SetCodec(c Codec) { v.codec = c }
 // Encrypted reports whether contents are transformed on disk.
 func (v *Vault) Encrypted() bool { return v.codec != nil }
 
+// Codec is the vault's cipher, or nil for a plain vault. The operational
+// store seals content-bearing values with it (ADR-0011).
+func (v *Vault) Codec() Codec { return v.codec }
+
 // FileInfo is one entry produced by Walk.
 type FileInfo struct {
 	Path    string // relative, slash-separated

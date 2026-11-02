@@ -12,8 +12,11 @@ import (
 )
 
 type Config struct {
-	Addr         string
-	VaultPath    string
+	Addr      string
+	VaultPath string
+	// StateDir holds the operational database (ADR-0011). It must be outside
+	// the vault: the vault is synced and indexed, the database is not.
+	StateDir     string
 	Token        string
 	CORSOrigins  []string
 	WatchEnabled bool
@@ -54,6 +57,7 @@ func Load(args []string) (*Config, error) {
 
 	fs.StringVar(&c.Addr, "addr", env("LUMEN_ADDR", "127.0.0.1:8787"), "listen address")
 	fs.StringVar(&c.VaultPath, "vault", env("LUMEN_VAULT", "./vault"), "path to the vault directory")
+	fs.StringVar(&c.StateDir, "state", env("LUMEN_STATE", ""), "operational state directory; default: lumen-state next to the vault")
 	fs.StringVar(&c.Token, "token", env("LUMEN_TOKEN", ""), "bearer token; empty disables auth (local use only)")
 	fs.StringVar(&origins, "cors", env("LUMEN_CORS", "http://localhost:5173"), "comma separated allowed origins, or *")
 	fs.BoolVar(&c.WatchEnabled, "watch", envBool("LUMEN_WATCH", true), "keep the index in sync with the filesystem")
@@ -91,6 +95,15 @@ func Load(args []string) (*Config, error) {
 	// A missing folder is fine: serve creates a new vault there.
 	if st, err := os.Stat(abs); (err != nil && !os.IsNotExist(err)) || (err == nil && !st.IsDir()) {
 		return nil, fmt.Errorf("vault %q is not a readable directory", abs)
+	}
+	if c.StateDir == "" {
+		c.StateDir = filepath.Join(filepath.Dir(abs), "lumen-state")
+	}
+	if c.StateDir, err = filepath.Abs(c.StateDir); err != nil {
+		return nil, err
+	}
+	if rel, err := filepath.Rel(abs, c.StateDir); err == nil && (rel == "." || !strings.HasPrefix(rel, "..")) {
+		return nil, fmt.Errorf("state directory %q must be outside the vault %q", c.StateDir, abs)
 	}
 
 	for _, o := range strings.Split(origins, ",") {

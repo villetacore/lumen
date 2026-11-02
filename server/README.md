@@ -17,6 +17,7 @@ go run ./cmd/lumend --vault ../vault-example            # разработка
 |---|---|---|---|
 | `--addr` | `LUMEN_ADDR` | `127.0.0.1:8787` | Адрес прослушивания |
 | `--vault` | `LUMEN_VAULT` | `./vault` | Папка vault |
+| `--state` | `LUMEN_STATE` | `lumen-state` рядом с vault | Операционная БД, вне vault ([ADR-0011](../docs/adr/0011-operational-state.md)); `lumend state status\|backup\|restore` |
 | `--token` | `LUMEN_TOKEN` | пусто | Bearer-токен для `/api`; пусто = без авторизации |
 | `--cors` | `LUMEN_CORS` | `http://localhost:5173` | Разрешённые origin, `*` для всех |
 | `--ui` | `LUMEN_UI` | `true` | Отдавать вшитый веб-клиент на `/` |

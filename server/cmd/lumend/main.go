@@ -29,6 +29,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/passwords"
 	"github.com/alexpyslar/lumen/server/internal/secrets"
 	"github.com/alexpyslar/lumen/server/internal/service"
+	"github.com/alexpyslar/lumen/server/internal/state"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 	"github.com/alexpyslar/lumen/server/internal/webui"
 )
@@ -41,10 +42,13 @@ const usage = `lumend — сервер и приложение Lumen
 Использование:
   lumend [serve] [флаги]     запустить (команда по умолчанию)
   lumend crypt <команда>     шифрование vault, см. lumend crypt help
+  lumend state <команда>     операционная БД: status, backup, restore
   lumend version
 
 Основные флаги:
   --vault <путь>        папка vault           (LUMEN_VAULT, по умолчанию ./vault)
+  --state <путь>        операционная БД, вне vault (LUMEN_STATE,
+                        по умолчанию lumen-state рядом с vault)
   --addr <host:port>    адрес                 (LUMEN_ADDR, 127.0.0.1:8787)
   --token <строка>      требовать Bearer-токен для /api (LUMEN_TOKEN)
   --ui=false            не отдавать встроенный веб-клиент
@@ -83,6 +87,8 @@ func run(args []string) error {
 			return serve(args[1:], log)
 		case "crypt":
 			return runCrypt(args[1:], log)
+		case "state":
+			return runState(args[1:])
 		case "version":
 			fmt.Println("lumend", version)
 			return nil
@@ -130,6 +136,17 @@ func serve(args []string, log *slog.Logger) error {
 		return fmt.Errorf("unlock vault: %w", err)
 	}
 
+	// Operational state lives outside the vault and is backed up on its own
+	// (ADR-0011). Opening it migrates the schema, copying the old one first.
+	st, err := state.Open(context.Background(), cfg.StateDir, v.Codec())
+	if err != nil {
+		return fmt.Errorf("операционная БД: %w", err)
+	}
+	defer st.Close()
+	if b := st.MigrationBackup(); b != "" {
+		log.Info("state migrated", "schema", st.Version(), "backup", b)
+	}
+
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
@@ -164,7 +181,7 @@ func serve(args []string, log *slog.Logger) error {
 	}
 	defer pwManager.LockAll()
 
-	api := httpapi.New(cfg, store, v, ix, bus, integrationsSvc, oidcProvider, pwManager, log)
+	api := httpapi.New(cfg, store, v, ix, bus, integrationsSvc, oidcProvider, pwManager, log).WithState(st)
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Handler(),
@@ -251,6 +268,7 @@ func banner(cfg *config.Config, v *vault.Vault, log *slog.Logger) {
 	log.Info("lumen готов",
 		"версия", version,
 		"vault", v.Root,
+		"состояние", cfg.StateDir,
 		"шифрование", v.Encrypted(),
 		"api", cfg.BaseURL()+"/api/v1",
 		"интерфейс", ui,
