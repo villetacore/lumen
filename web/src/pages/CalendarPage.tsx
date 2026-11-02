@@ -46,8 +46,11 @@ export default function CalendarPage() {
   return (
     <>
       <div className="page-head">
-        <h1>Календарь</h1>
-        <span className="sub">задачи и события рядом, а не в разных приложениях</span>
+        <div>
+          <span className="kicker">План</span>
+          <h1>Календарь</h1>
+          <span className="sub">Задачи и события рядом, а не в разных приложениях.</span>
+        </div>
       </div>
 
       <div className="cal-toolbar">

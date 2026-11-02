@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { errorText, isConflict } from "../lib/errors";
 import Markdown from "./Markdown";
+import { Alert, Button, Spinner } from "@villetacore/velessoft-ui";
 
 export default function TaskDescription({ parent, externalDirty = false }: { parent: string; externalDirty?: boolean }) {
   const qc = useQueryClient();
@@ -29,29 +30,33 @@ export default function TaskDescription({ parent, externalDirty = false }: { par
     onError: () => { qc.invalidateQueries({ queryKey: ["notes"] }); qc.invalidateQueries({ queryKey: ["note"] }); },
   });
   const changed = !!edit && !!content.data && (edit.revision !== content.data.revision || edit.path !== content.data.path);
-  if (!edit && (list.isLoading || (summary && content.isLoading))) return <div className="spinner">Загрузка описания…</div>;
-  if (!edit && (list.error || content.error)) return <div className="error">{errorText(list.error ?? content.error)}</div>;
+  if (!edit && (list.isLoading || (summary && content.isLoading))) return <Spinner label="Загрузка описания" />;
+  if (!edit && (list.error || content.error)) return <Alert tone="error" title="Описание не загрузилось">{errorText(list.error ?? content.error)}</Alert>;
+  const conflict = changed || isConflict(save.error);
   return <section>
-    <div className="section-head">Описание</div>
+    <div className="section-head">Описание
+      {!edit && <div className="head-actions">
+        <Button size="sm" onClick={() => setEdit({ body: content.data?.body ?? "", base: content.data?.body ?? "", revision: content.data?.revision ?? 0, path: content.data?.path })}>
+          {summary ? "Изменить описание" : "Добавить описание"}
+        </Button>
+      </div>}
+    </div>
     {edit ? <>
-      <textarea className="note-editor" aria-label="Описание задачи" value={edit.body} disabled={save.isPending}
-        onChange={(e) => setEdit({ ...edit, body: e.target.value })} />
-      {(changed || isConflict(save.error)) && <p className="warn">Описание изменилось в другом окне. Ваш текст сохранён здесь. Скопируйте его перед загрузкой актуальной версии.</p>}
-      {save.isError && <p className="error">{errorText(save.error)}</p>}
+      <textarea className="note-editor short" aria-label="Описание задачи" value={edit.body} disabled={save.isPending}
+        onChange={(e) => setEdit({ ...edit, body: e.target.value })} autoFocus />
+      {conflict && <Alert tone="warning" title="Описание изменилось в другом окне">Ваш текст сохранён здесь. Скопируйте его перед загрузкой актуальной версии.</Alert>}
+      {save.isError && !isConflict(save.error) && <Alert tone="error" title="Не удалось сохранить">{errorText(save.error)}</Alert>}
       <div className="modal-actions">
-        {(changed || isConflict(save.error)) && <button className="btn" onClick={() => {
+        {conflict && <Button onClick={() => {
           if (window.confirm("Загрузить актуальное описание вместо вашего текста?")) { setEdit(null); save.reset(); }
-        }}>Загрузить актуальную версию</button>}
-        <button className="btn" disabled={save.isPending} onClick={() => {
+        }}>Загрузить актуальную версию</Button>}
+        <Button disabled={save.isPending} onClick={() => {
           if (!dirty || window.confirm("Отменить изменения описания?")) { setEdit(null); save.reset(); }
-        }}>Отмена</button>
-        <button className="btn primary" disabled={save.isPending || changed || !dirty} onClick={() => save.mutate()}>Сохранить описание</button>
+        }}>Отмена</Button>
+        <Button variant="primary" loading={save.isPending} disabled={changed || !dirty} onClick={() => save.mutate()}>Сохранить описание</Button>
       </div>
-    </> : <>
-      {content.data?.body.trim() ? <Markdown body={content.data.body} /> : <p className="hint">Контекст, требования, ссылки и ожидаемый результат.</p>}
-      <button className="btn" onClick={() => setEdit({ body: content.data?.body ?? "", base: content.data?.body ?? "", revision: content.data?.revision ?? 0, path: content.data?.path })}>
-        {summary ? "Изменить описание" : "Добавить описание"}
-      </button>
-    </>}
+    </> : content.data?.body.trim()
+      ? <div className="card" style={{ padding: 16 }}><Markdown body={content.data.body} /></div>
+      : <p className="hint">Контекст, требования, ссылки и ожидаемый результат.</p>}
   </section>;
 }

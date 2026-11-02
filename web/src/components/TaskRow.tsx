@@ -5,6 +5,8 @@ import { api } from "../api/client";
 import type { Task, TaskPatch, TaskStatus } from "../api/types";
 import { isOverdue, isToday, relativeDue } from "../lib/date";
 import { errorText } from "../lib/errors";
+import { Alert, Badge, Button, Input, Select } from "@villetacore/velessoft-ui";
+import type { Tone } from "@villetacore/velessoft-ui";
 
 const MARK: Record<TaskStatus, string> = {
   todo: "",
@@ -14,7 +16,7 @@ const MARK: Record<TaskStatus, string> = {
   deferred: ">",
 };
 
-const STATUS_LABEL: Record<TaskStatus, string> = {
+export const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "к выполнению",
   doing: "в работе",
   done: "выполнено",
@@ -23,13 +25,21 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 /** nextStatus cycles the checkbox: todo → doing → done → todo. */
-function nextStatus(s: TaskStatus): TaskStatus {
+export function nextStatus(s: TaskStatus): TaskStatus {
   if (s === "todo") return "doing";
   if (s === "doing") return "done";
   return "todo";
 }
 
-export default function TaskRow({ task, showNote = true }: { task: Task; showNote?: boolean }) {
+export const PRIORITY_TONE: Record<string, Tone> = { A: "error", B: "warning", C: "info", D: "neutral" };
+
+/** dueTone colours a date badge: overdue is an error, today is the accent. */
+export function dueTone(date: string): Tone {
+  return isOverdue(date) ? "error" : isToday(date) ? "info" : "neutral";
+}
+
+/** TaskRow is one line of a task list. noteTitle links back to the note that holds the task. */
+export default function TaskRow({ task, noteTitle }: { task: Task; noteTitle?: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const open = useMutation({
@@ -43,8 +53,6 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
   });
 
   const due = task.due ?? task.scheduled;
-  const dueClass = due ? (isOverdue(due) ? "due-overdue" : isToday(due) ? "due-today" : "") : "";
-
 
   return (
     <div className={`task-row is-${task.status}`}>
@@ -53,7 +61,7 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
         title={`${STATUS_LABEL[task.status]} — щелчок меняет статус`}
         onClick={() => patch.mutate(nextStatus(task.status))}
         disabled={patch.isPending}
-        aria-label="Изменить статус"
+        aria-label={`Статус: ${STATUS_LABEL[task.status]}. Изменить`}
       >
         {MARK[task.status]}
       </button>
@@ -63,13 +71,14 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
           {task.text}
         </button>
         <div className="task-meta">
-          {task.priority && <span className={`chip prio-${task.priority}`}>{task.priority}</span>}
-          {due && <span className={`chip ${dueClass}`}>{relativeDue(due)}</span>}
-          {task.estimate && <span className="chip">{task.estimate}</span>}
-          {task.project && <span className="chip">◆ {task.project}</span>}
-          {showNote && <Link className="chip" to={`/note/${task.note_path}`}>К проекту или записи</Link>}
-          {open.isError && <span className="error">{errorText(open.error)}</span>}
-          {patch.isError && <span style={{ color: "var(--overdue)" }}>{errorText(patch.error)}</span>}
+          {task.status === "doing" && <Badge tone="warning" dot>в работе</Badge>}
+          {task.priority && <Badge tone={PRIORITY_TONE[task.priority]}>!{task.priority}</Badge>}
+          {due && <Badge tone={dueTone(due)}>{relativeDue(due)}</Badge>}
+          {task.estimate && <Badge>{task.estimate}</Badge>}
+          {task.project && <Badge tone="info">{task.project}</Badge>}
+          {noteTitle && <Link className="vs-badge vs-neutral" to={`/note/${task.note_path}`} title="Открыть запись с задачей">{noteTitle}</Link>}
+          {open.isError && <span className="hint" role="alert">{errorText(open.error)}</span>}
+          {patch.isError && <span className="hint" role="alert">{errorText(patch.error)}</span>}
         </div>
       </div>
     </div>
@@ -77,7 +86,7 @@ export default function TaskRow({ task, showNote = true }: { task: Task; showNot
 }
 
 /** TaskEditor edits one task in place; only the fields that changed are sent. */
-export function TaskEditor({ task, onClose, onDirty }: { task: Task; onClose: () => void; onDirty?: (dirty: boolean) => void }) {
+export function TaskEditor({ task, onClose, onDirty, onDeleted }: { task: Task; onClose: () => void; onDirty?: (dirty: boolean) => void; onDeleted?: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     text: task.text,
@@ -119,7 +128,11 @@ export function TaskEditor({ task, onClose, onDirty }: { task: Task; onClose: ()
 
   const remove = useMutation({
     mutationFn: () => api.deleteTask(task.id),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      onDirty?.(false);
+      onDeleted?.();
+      qc.invalidateQueries();
+    },
   });
 
   return (
@@ -134,75 +147,42 @@ export function TaskEditor({ task, onClose, onDirty }: { task: Task; onClose: ()
       }}
     >
       <fieldset className="task-fields" disabled={save.isPending || remove.isPending}>
-      <input
-        className="input task-editor-text"
-        value={form.text}
-        onChange={set("text")}
-        autoFocus
-        aria-label="Текст задачи"
-      />
-      <div className="task-editor-fields">
-        <label>
-          Статус
-          <select className="input" value={form.status} onChange={set("status")}>
+        <Input label="Текст задачи" value={form.text} onChange={set("text")} autoFocus required />
+        <div className="task-editor-fields">
+          <Select label="Статус" value={form.status} onChange={set("status")}>
             {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
+              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
-          </select>
-        </label>
-        <label>
-          Срок
-          <input className="input" type="date" value={form.due} onChange={set("due")} />
-        </label>
-        <label>
-          Запланировано
-          <input className="input" type="date" value={form.scheduled} onChange={set("scheduled")} />
-        </label>
-        <label>
-          Приоритет
-          <select className="input" value={form.priority} onChange={set("priority")}>
+          </Select>
+          <Input label="Срок" type="date" value={form.due} onChange={set("due")} />
+          <Input label="Запланировано" type="date" value={form.scheduled} onChange={set("scheduled")} />
+          <Select label="Приоритет" value={form.priority} onChange={set("priority")}>
             <option value="">—</option>
             <option value="A">A — высокий</option>
             <option value="B">B</option>
             <option value="C">C</option>
             <option value="D">D — низкий</option>
-          </select>
-        </label>
-        <label>
-          Оценка
-          <input className="input" value={form.estimate} onChange={set("estimate")} placeholder="2h" size={6} />
-        </label>
-        <label>
-          Проект
-          <input className="input" value={form.project} onChange={set("project")} placeholder="—" />
-        </label>
-      </div>
-      <div className="task-editor-actions">
-        <button className="btn primary" type="submit" disabled={save.isPending || !form.text.trim()}>
-          Сохранить
-        </button>
-        <button className="btn" type="button" onClick={close}>
-          Отмена
-        </button>
-        <button
-          className="btn danger"
-          type="button"
-          style={{ marginLeft: "auto" }}
-          disabled={remove.isPending}
-          onClick={() => {
-            if (window.confirm(`Удалить задачу «${task.text}»?`)) remove.mutate();
-          }}
-        >
-          Удалить
-        </button>
-      </div>
+          </Select>
+          <Input label="Оценка" value={form.estimate} onChange={set("estimate")} placeholder="2h" />
+          <Input label="Проект" value={form.project} onChange={set("project")} placeholder="—" />
+        </div>
+        <div className="task-editor-actions">
+          <Button variant="primary" type="submit" loading={save.isPending} disabled={!form.text.trim()}>Сохранить</Button>
+          <Button onClick={close}>Отмена</Button>
+          <Button
+            className="push"
+            variant="danger"
+            loading={remove.isPending}
+            onClick={() => {
+              if (window.confirm(`Удалить задачу «${task.text}»?`)) remove.mutate();
+            }}
+          >
+            Удалить
+          </Button>
+        </div>
       </fieldset>
       {(save.isError || remove.isError) && (
-        <div className="error" style={{ marginTop: 8 }}>
-          {errorText(save.error ?? remove.error)}
-        </div>
+        <Alert tone="error" title="Не удалось сохранить">{errorText(save.error ?? remove.error)}</Alert>
       )}
     </form>
   );

@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.5",
+    "@villetacore/velessoft-tokens": "file:vendor/villetacore-velessoft-tokens-0.2.0.tgz",
+    "@villetacore/velessoft-ui": "file:vendor/villetacore-velessoft-ui-0.2.0.tgz",
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

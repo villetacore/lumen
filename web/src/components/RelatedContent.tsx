@@ -2,31 +2,38 @@ import Icon from "./Icon";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Alert, Badge, Button, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import { errorText } from "../lib/errors";
 import NewNoteDialog from "./NewNoteDialog";
 
+/** RelatedContent lists documents and working entries attached to a project, note or task. */
 export default function RelatedContent({ parent }: { parent: string }) {
   const [creating, setCreating] = useState<"entry" | "document" | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["notes", { parent }], queryFn: () => api.notes({ parent, limit: 2000 }),
   });
-  const entries = data?.items.filter((n) => n.content_kind !== "description") ?? [];
+  const entries = (data?.items.filter((n) => n.content_kind !== "description") ?? [])
+    .sort((a, b) => (a.content_kind === b.content_kind ? a.title.localeCompare(b.title, "ru") : a.content_kind === "document" ? -1 : 1));
   return <section className="related-content">
-    <div className="section-head">Материалы
+    <div className="section-head">Документы и записи {entries.length > 0 && <span>{entries.length}</span>}
       <div className="head-actions">
-        <button className="btn" onClick={() => setCreating("entry")}><Icon name="plus" size={16} /> Запись</button>
-        <button className="btn" onClick={() => setCreating("document")}><Icon name="plus" size={16} /> Документ</button>
+        <Button size="sm" onClick={() => setCreating("document")}><Icon name="plus" size={14} />Документ</Button>
+        <Button size="sm" onClick={() => setCreating("entry")}><Icon name="plus" size={14} />Запись</Button>
       </div>
     </div>
-    {isLoading && <div className="spinner">Загрузка…</div>}
-    {error && <div className="error">{errorText(error)}</div>}
-    {!isLoading && !error && !entries.length && <p className="hint">Добавьте подробности, рабочие записи или документацию.</p>}
-    {entries.map((n) => <div className="note-row" key={n.id}>
-      <span>{n.content_kind === "document" ? "▤" : "▭"}</span>
-      <Link to={`/note/${n.path}`}>{n.title}</Link>
-      <span className="chip">{n.content_kind === "document" ? "Документ" : "Запись"}</span>
-    </div>)}
+    {isLoading && <Spinner label="Загрузка материалов" />}
+    {error && <Alert tone="error" title="Материалы не загрузились">{errorText(error)}</Alert>}
+    {!isLoading && !error && !entries.length && <p className="hint">Здесь будут технические документы, решения и рабочие записи по этой теме.</p>}
+    {entries.length > 0 && <div className="note-list">
+      {entries.map((n) => <div className="note-row" key={n.id}>
+        <Icon name={n.content_kind === "document" ? "book" : "file"} size={16} />
+        <Link to={`/note/${n.path}`}>{n.title}</Link>
+        <Badge tone={n.content_kind === "document" ? "info" : "neutral"}>{n.content_kind === "document" ? "документ" : "запись"}</Badge>
+        {n.open_tasks > 0 && <Badge>{n.open_tasks} задач</Badge>}
+        <span className="path">{n.updated?.slice(0, 10)}</span>
+      </div>)}
+    </div>}
     {creating && <NewNoteDialog parent={parent} contentKind={creating} onClose={() => setCreating(null)} />}
   </section>;
 }

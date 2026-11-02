@@ -7,6 +7,8 @@ import Sidebar from "./components/Sidebar";
 import TasksPage from "./pages/TasksPage";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
+import DocsPage from "./pages/DocsPage";
+import { EmptyState, IconButton } from "@villetacore/velessoft-ui";
 import TaskPage from "./pages/TaskPage";
 import NotePage from "./pages/NotePage";
 import SearchPage from "./pages/SearchPage";
@@ -54,7 +56,7 @@ export default function App() {
       <Sidebar open={menuOpen} onClose={closeMenu} />
       {menuOpen && <button className="scrim" onClick={closeMenu} aria-label="Закрыть навигацию" tabIndex={-1} />}
       <div className="workspace" inert={menuOpen}>
-      <header className="mobilebar"><button ref={menuButton} className="btn icon-button" aria-label="Открыть меню" aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(true)}><Icon name="menu" /></button><Brand /></header>
+      <header className="mobilebar"><IconButton ref={menuButton} variant="ghost" label="Открыть меню" aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(true)}><Icon name="menu" size={18} /></IconButton><Brand /></header>
       <main className="main">
       <TopBar />
         <Routes>
@@ -62,12 +64,13 @@ export default function App() {
           <Route path="/view/:view" element={<TasksPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/notes" element={<NotesPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/task/:id" element={<TaskPage />} />
           <Route path="/note/*" element={<NotePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/passwords" element={<PasswordsPage />} />
-          <Route path="*" element={<div className="empty">Страница не найдена</div>} />
+          <Route path="*" element={<EmptyState title="Страница не найдена" description="Проверьте адрес или вернитесь к задачам." />} />
         </Routes>
       </main>
       </div>

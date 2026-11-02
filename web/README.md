@@ -35,7 +35,7 @@ refetch, конфликте и уходе. Полный браузерный E2E
 - `src/components/` — оболочка, Markdown, редакторы, диалоги и материалы.
 - `src/lib/` — даты, ошибки, темы и вспомогательная логика.
 - `src/styles.css` — общие токены и компоненты.
-- `src/design/` — исходные RIOT-токены и описание переноса.
+- `src/design/` — как Lumen использует Velessoft UI; `vendor/` — архивы `@villetacore/velessoft-ui` и `-tokens`.
 - `public/fonts/` — локальные Manrope и JetBrains Mono с OFL-лицензиями.
 
 Светлая, тёмная и системная темы применяются до рендера. На узком экране sidebar

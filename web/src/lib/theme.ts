@@ -7,8 +7,8 @@ export function getTheme(): Theme {
   return "system";
 }
 export function applyTheme(theme: Theme) {
-  if (theme === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
+  // Velessoft tokens switch on data-theme; "auto" follows the system setting.
+  document.documentElement.dataset.theme = theme === "system" ? "auto" : theme;
 }
 export function saveTheme(theme: Theme) {
   applyTheme(theme);

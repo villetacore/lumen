@@ -70,7 +70,7 @@ curl -fsS http://127.0.0.1:8788/healthz
 | `server/internal/integrations` | Коннекторы и состояние подключений |
 | `web/src/api`, `hooks` | API-клиент, запросы и live-обновления |
 | `web/src/pages`, `components` | Экраны и общие компоненты |
-| `web/src/design`, `web/public/fonts` | RIOT-токены, шрифты и лицензии |
+| `web/src/design`, `web/vendor`, `web/public/fonts` | правила Velessoft UI, архивы пакетов, шрифты и лицензии |
 | `spec/testdata` | Golden-фикстуры формата |
 
 API и типы клиента поддерживаются вручную; при изменении контракта обновите

@@ -2,6 +2,7 @@ import Icon from "./Icon";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { IconButton, Input, Kbd } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 
 export default function TopBar() {
@@ -34,21 +35,23 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <form
-        className="search-box"
+        className="search hide-label"
+        role="search"
         onSubmit={(e) => {
           e.preventDefault();
           if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
         }}
       >
-        <Icon name="search" size={17} />
-        <input
+        <Input
           ref={input}
+          label="Поиск"
+          type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Поиск по проектам, задачам и документам"
-          aria-label="Поиск"
+          placeholder="Проекты, задачи, документы"
+          startAddon={<Icon name="search" size={16} />}
+          endAddon={<Kbd>Ctrl K</Kbd>}
         />
-        <kbd>Ctrl K</kbd>
       </form>
 
       <div className="topbar-right">
@@ -56,35 +59,20 @@ export default function TopBar() {
           (me.authenticated ? (
             <>
               <span title={me.roles?.join(", ")}>{me.name}</span>
-              <a className="btn" href={me.logout_url}>
-                Выйти
-              </a>
+              <a className="btn" href={me.logout_url}>Выйти</a>
             </>
           ) : (
-            <a
-              className="btn primary"
-              href={`${me.login_url}?return_to=${encodeURIComponent(location.pathname)}`}
-            >
+            <a className="btn primary" href={`${me.login_url}?return_to=${encodeURIComponent(location.pathname)}`}>
               Войти
             </a>
           ))}
         {stats?.encrypted && (
           <span title="Данные зашифрованы"><Icon name="lock" size={16} /></span>
         )}
-        {stats && (
-          <span>
-            Открыто задач: {stats.open_tasks}
-          </span>
-        )}
-        <button
-          className="btn icon-button"
-          aria-label="Обновить данные"
-          onClick={() => reindex.mutate()}
-          disabled={reindex.isPending}
-          title="Обновить данные"
-        >
-          <Icon name="refresh" className={reindex.isPending ? "spinning" : ""} />
-        </button>
+        {stats && <span>открыто: {stats.open_tasks}</span>}
+        <IconButton label="Обновить данные" variant="ghost" onClick={() => reindex.mutate()} disabled={reindex.isPending}>
+          <Icon name="refresh" size={16} className={reindex.isPending ? "spinning" : ""} />
+        </IconButton>
       </div>
     </header>
   );
