@@ -214,6 +214,10 @@ h3 { font-size: 15px; line-height: 1.3; }
 .md code { padding: 0 4px; font: 12.5px var(--vs-font-mono); background: var(--vs-surface-muted); border: 1px solid var(--vs-border); }
 .md-code { margin: .6em 0; padding: 12px; overflow-x: auto; background: var(--vs-surface-muted); border: 1px solid var(--vs-border); }
 .md-code code { padding: 0; border: 0; background: none; }
+.md-mermaid { margin: .6em 0; padding: 12px; overflow-x: auto; border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.md-mermaid svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.md-mermaid--error { border-color: var(--vs-error); }
+.md-mermaid__error { margin: 0 0 8px; color: var(--vs-error); font-size: .875em; }
 .md blockquote { margin: .6em 0; padding: 2px 12px; border-left: 3px solid var(--vs-accent); color: var(--vs-muted); }
 .md hr { margin: 1.2em 0; border: 0; border-top: 1px solid var(--vs-border); }
 .md mark { padding: 0 2px; background: color-mix(in srgb, var(--vs-primary) 55%, transparent); color: inherit; }

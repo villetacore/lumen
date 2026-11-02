@@ -93,7 +93,12 @@ func (f *Frontmatter) Strings(key string) []string {
 	case []any:
 		out := make([]string, 0, len(t))
 		for _, e := range t {
-			if s := strings.TrimSpace(strings.TrimPrefix(sprint(e), "#")); s != "" {
+			str, isStr := e.(string)
+			if !isStr {
+				// Encoding a string would quote values such as "true".
+				str = sprint(e)
+			}
+			if s := strings.TrimSpace(strings.TrimPrefix(str, "#")); s != "" {
 				out = append(out, s)
 			}
 		}

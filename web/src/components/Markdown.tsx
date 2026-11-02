@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Task } from "../api/types";
 import { isOverdue, isToday, relativeDue } from "../lib/date";
+import MermaidBlock from "./MermaidBlock";
 
 /**
  * Markdown renders a note body for reading. It builds React elements only —
  * never HTML strings — so whatever the file contains cannot inject markup or
  * script. Supported: headings, paragraphs, lists, task checkboxes, quotes,
- * fenced code, tables, rules and the Obsidian inline syntax ([[wikilinks]],
+ * fenced code (```mermaid draws a diagram, see MermaidBlock), tables, rules and the Obsidian inline syntax ([[wikilinks]],
  * #tags, ==highlight==, [key:: value] fields, ^block-ids).
  */
 export default function Markdown({
@@ -87,6 +88,10 @@ function renderBlocks(
       i++;
       while (i < lines.length && !lines[i].trimStart().startsWith(fence[1])) code.push(lines[i++]);
       i++; // closing fence
+      if (/^mermaid\b/i.test(line.trim().slice(fence[1].length).trim())) {
+        out.push(<MermaidBlock key={out.length} code={code.join("\n")} />);
+        continue;
+      }
       out.push(
         <pre key={out.length} className="md-code">
           <code>{code.join("\n")}</code>

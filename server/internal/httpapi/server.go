@@ -17,15 +17,16 @@ import (
 
 // API bundles everything the handlers need.
 type API struct {
-	cfg   *config.Config
-	store index.Store
-	vault *vault.Vault
-	notes *service.Notes
-	tasks *service.Tasks
-	views *service.Views
-	ix    *service.Indexer
-	bus   *service.Bus
-	log   *slog.Logger
+	cfg    *config.Config
+	store  index.Store
+	vault  *vault.Vault
+	notes  *service.Notes
+	tasks  *service.Tasks
+	issues *service.Issues
+	views  *service.Views
+	ix     *service.Indexer
+	bus    *service.Bus
+	log    *slog.Logger
 
 	integrations *service.Integrations
 	oidc         *auth.Provider
@@ -41,6 +42,7 @@ func New(
 		cfg: cfg, store: st, vault: v, ix: ix, bus: bus, log: log,
 		notes:        service.NewNotes(v, st, ix, bus, log),
 		tasks:        service.NewTasks(v, st, ix, bus, log),
+		issues:       service.NewIssues(v, st, ix, bus, log),
 		views:        service.NewViews(st),
 		integrations: integrations,
 		oidc:         oidc,
@@ -79,6 +81,17 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tasks/{id}", a.handleGetTask)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", a.handlePatchTask)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", a.handleDeleteTask)
+
+	mux.HandleFunc("GET /api/v1/tracker/projects", a.handleListTrackerProjects)
+	mux.HandleFunc("POST /api/v1/tracker/projects", a.handleCreateTrackerProject)
+	mux.HandleFunc("GET /api/v1/tracker/projects/{key}", a.handleGetTrackerProject)
+	mux.HandleFunc("GET /api/v1/issues", a.handleListIssues)
+	mux.HandleFunc("POST /api/v1/issues", a.handleCreateIssue)
+	mux.HandleFunc("GET /api/v1/issues/{key}", a.handleGetIssue)
+	mux.HandleFunc("PATCH /api/v1/issues/{key}", a.handlePatchIssue)
+	mux.HandleFunc("DELETE /api/v1/issues/{key}", a.handleDeleteIssue)
+	mux.HandleFunc("POST /api/v1/issues/{key}/move", a.handleMoveIssue)
+	mux.HandleFunc("POST /api/v1/issues/{key}/comments", a.handleAddComment)
 
 	mux.HandleFunc("GET /api/v1/calendar", a.handleCalendar)
 	mux.HandleFunc("POST /api/v1/calendar/move", a.handleCalendarMove)

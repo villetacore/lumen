@@ -78,6 +78,28 @@
 `PATCH` меняет только целевую строку в файле и возвращает обновлённую задачу
 и новую `revision` заметки.
 
+## Трекер
+
+Проекты и тикеты — Markdown-файлы ([формат](../spec/FORMAT.md#7-трекер-проект-тикет-спринт),
+[ADR-0010](adr/0010-issue-files.md)).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/v1/tracker/projects` | Проекты с ключом: `{key, title, path, workflow, issue_types, transitions, issue_seq}` |
+| `POST` | `/api/v1/tracker/projects` | `{key, title}` — новый проект; `{key, note}` — включить трекер у существующей заметки-проекта |
+| `GET` | `/api/v1/tracker/projects/{key}` | Один проект |
+| `GET` | `/api/v1/issues` | Список в порядке доски, без описания и комментариев. Параметры: `project`, `status` (csv), `category` (`todo\|in_progress\|done`), `assignee` (`none` — без исполнителя), `type`, `label` (csv), `sprint`, `epic`, `q`, `limit`, `offset` |
+| `POST` | `/api/v1/issues` | `{project, title, issue_type?, status?, priority?, assignee?, labels?, epic?, parent?, sprint?, start?, due?, estimate?, points?, description?}`; ключ выдаёт сервер, `reporter` — вошедший пользователь |
+| `GET` | `/api/v1/issues/{key}` | Тикет с `description`, `checklist`, `comments` |
+| `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
+| `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, revision?}` — перенос на доске: `before`/`after` — ключи соседей сверху/снизу |
+| `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |
+| `DELETE` | `/api/v1/issues/{key}` | Переместить файл тикета в корзину vault; номер не переиспользуется |
+
+Ошибки: недопустимый переход workflow — `409 bad_transition`; устаревшая
+`revision` — `409 conflict`; неизвестный статус/тип или пустой заголовок —
+`422 unprocessable`.
+
 ## Календарь
 
 | Метод | Путь | Описание |
@@ -124,6 +146,8 @@
 {"type":"note.changed","path":"40-daily/2026/2026-09-08.md","revision":12}
 {"type":"note.deleted","path":"00-inbox/tmp.md"}
 {"type":"task.changed","id":"k5q9v3","status":"done"}
+{"type":"issue.changed","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
+{"type":"issue.deleted","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
 {"type":"sync.progress","done":120,"total":340}
 {"type":"reindex.finished","notes":512,"tasks":1840,"took_ms":410}
 ```

@@ -11,6 +11,8 @@ const (
 	TypeDaily   NoteType = "daily"
 	TypeMeeting NoteType = "meeting"
 	TypeEvent   NoteType = "event"
+	TypeIssue   NoteType = "issue"
+	TypeSprint  NoteType = "sprint"
 )
 
 type LinkKind string
