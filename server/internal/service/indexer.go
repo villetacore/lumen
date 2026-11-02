@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
 	"github.com/alexpyslar/lumen/server/internal/vault"
@@ -25,6 +26,36 @@ type Indexer struct {
 	// an unchanged file cost nothing and publish nothing.
 	mu   sync.Mutex
 	seen map[string]fileStamp
+
+	observer Observer // optional: issue history (LUM-068)
+}
+
+// Observer hears about every new version of a file and every removal, from
+// Lumen's own writes (ctx carries the principal) and from the watcher alike.
+type Observer interface {
+	Observe(ctx context.Context, n *domain.Note, baseline bool) error
+	Removed(ctx context.Context, path string) error
+}
+
+// SetObserver attaches the history journal before the first index.
+func (ix *Indexer) SetObserver(o Observer) { ix.observer = o }
+
+func (ix *Indexer) observe(ctx context.Context, n *domain.Note, baseline bool) {
+	if ix.observer == nil {
+		return
+	}
+	if err := ix.observer.Observe(ctx, n, baseline); err != nil {
+		ix.log.Warn("история не записана", "path", n.Path, "err", err)
+	}
+}
+
+func (ix *Indexer) removed(ctx context.Context, path string) {
+	if ix.observer == nil {
+		return
+	}
+	if err := ix.observer.Removed(ctx, path); err != nil {
+		ix.log.Warn("история удаления не записана", "path", path, "err", err)
+	}
 }
 
 type fileStamp struct {
@@ -48,7 +79,9 @@ func (ix *Indexer) ReindexAll(ctx context.Context) (notes int, err error) {
 	ix.mu.Unlock()
 
 	err = ix.vault.Walk(func(fi vault.FileInfo) error {
-		if _, e := ix.indexFile(ctx, fi.Path, fi.Size, fi.ModTime); e != nil {
+		// The startup sweep takes unknown issues as they are (baseline) and
+		// records what changed while lumend was not running.
+		if _, e := ix.indexFile(ctx, fi.Path, fi.Size, fi.ModTime, true); e != nil {
 			ix.log.Warn("index file failed", "path", fi.Path, "err", e)
 			return nil
 		}
@@ -64,7 +97,7 @@ func (ix *Indexer) ReindexAll(ctx context.Context) (notes int, err error) {
 
 // indexFile parses one file into the index and reports whether its content
 // actually differs from what was indexed before.
-func (ix *Indexer) indexFile(ctx context.Context, rel string, size int64, mod time.Time) (bool, error) {
+func (ix *Indexer) indexFile(ctx context.Context, rel string, size int64, mod time.Time, baseline bool) (bool, error) {
 	data, err := ix.vault.Read(rel)
 	if err != nil {
 		return false, err
@@ -86,7 +119,11 @@ func (ix *Indexer) indexFile(ctx context.Context, rel string, size int64, mod ti
 	if err := ix.store.PutNote(ctx, n); err != nil {
 		return false, err
 	}
-	return !had || prev.hash != n.Hash, nil
+	changed := !had || prev.hash != n.Hash
+	if changed {
+		ix.observe(ctx, n, baseline)
+	}
+	return changed, nil
 }
 
 // ReindexPath refreshes a single file, removing it from the index if it is gone.
@@ -99,6 +136,7 @@ func (ix *Indexer) ReindexPath(ctx context.Context, rel string) error {
 		if err := ix.store.DeleteNote(ctx, rel); err != nil {
 			return err
 		}
+		ix.removed(ctx, rel)
 		if had {
 			ix.publish(Event{Type: "note.deleted", Path: rel})
 		}
@@ -109,7 +147,7 @@ func (ix *Indexer) ReindexPath(ctx context.Context, rel string) error {
 	if err != nil {
 		return err
 	}
-	changed, err := ix.indexFile(ctx, rel, fi.Size, fi.ModTime)
+	changed, err := ix.indexFile(ctx, rel, fi.Size, fi.ModTime, false)
 	if err != nil {
 		return err
 	}
@@ -195,7 +233,7 @@ func (ix *Indexer) scanOnce(ctx context.Context) {
 			return nil
 		}
 
-		changed, err := ix.indexFile(ctx, fi.Path, fi.Size, fi.ModTime)
+		changed, err := ix.indexFile(ctx, fi.Path, fi.Size, fi.ModTime, false)
 		if err != nil {
 			ix.log.Warn("reindex failed", "path", fi.Path, "err", err)
 			return nil
@@ -215,6 +253,7 @@ func (ix *Indexer) scanOnce(ctx context.Context) {
 			continue
 		}
 		_ = ix.store.DeleteNote(ctx, p)
+		ix.removed(ctx, p)
 		ix.mu.Lock()
 		delete(ix.seen, p)
 		ix.mu.Unlock()

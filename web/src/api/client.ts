@@ -6,6 +6,7 @@ import type {
   IntegrationKind,
   Issue,
   IssueComment,
+  IssueEvent,
   IssueFilter,
   IssueInput,
   IssuePatch,
@@ -158,6 +159,7 @@ export const api = {
     request<Issue>(`/issues/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) }),
   moveIssue: (key: string, move: { status?: string; before?: string; after?: string; sprint?: string; revision?: number }) =>
     request<Issue>(`/issues/${encodeURIComponent(key)}/move`, { method: "POST", body: JSON.stringify(move) }),
+  issueHistory: (key: string) => request<ListResponse<IssueEvent>>(`/issues/${encodeURIComponent(key)}/history`),
   addComment: (key: string, body: string) =>
     request<IssueComment>(`/issues/${encodeURIComponent(key)}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
   deleteIssue: (key: string) => request<void>(`/issues/${encodeURIComponent(key)}`, { method: "DELETE" }),

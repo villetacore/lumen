@@ -7,6 +7,7 @@ import (
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/alexpyslar/lumen/server/internal/history"
 	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 )
@@ -377,4 +378,20 @@ func meParam(r *http.Request, v string) string {
 		return p.Username
 	}
 	return "\x00" // nobody: matches no issue
+}
+
+// handleIssueHistory lists an issue's changes. The issue must be visible to
+// the caller; a hidden one answers 404 like the issue itself.
+func (a *API) handleIssueHistory(w http.ResponseWriter, r *http.Request) {
+	is, err := a.issues.Get(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	events, err := a.history.Events(r.Context(), is.Key)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, listEnvelope[history.Event]{Items: events, Total: len(events)})
 }

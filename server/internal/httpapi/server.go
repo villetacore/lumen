@@ -8,6 +8,7 @@ import (
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/config"
+	"github.com/alexpyslar/lumen/server/internal/history"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/notify"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
@@ -37,6 +38,7 @@ type API struct {
 	state        *state.Store
 	people       *people.Directory // nil without a state store
 	notify       *notify.Store     // nil without a state store
+	history      *history.Journal  // nil: no issue history
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -66,6 +68,12 @@ func (a *API) wire(p *policy.Policy) {
 	a.tasks = service.NewTasks(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
 	a.issues = service.NewIssues(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p).WithNotify(a.notify)
 	a.views = service.NewViews(a.store)
+}
+
+// WithHistory serves the issue journal the indexer writes (LUM-068).
+func (a *API) WithHistory(j *history.Journal) *API {
+	a.history = j
+	return a
 }
 
 // WithState attaches the operational store (ADR-0011); project member lists
@@ -143,6 +151,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/v1/issues/{key}", a.handleDeleteIssue)
 	mux.HandleFunc("POST /api/v1/issues/{key}/move", a.handleMoveIssue)
 	mux.HandleFunc("POST /api/v1/issues/{key}/comments", a.handleAddComment)
+	mux.HandleFunc("GET /api/v1/issues/{key}/history", a.handleIssueHistory)
 
 	mux.HandleFunc("GET /api/v1/calendar", a.handleCalendar)
 	mux.HandleFunc("POST /api/v1/calendar/move", a.handleCalendarMove)

@@ -25,6 +25,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/config"
 	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/alexpyslar/lumen/server/internal/history"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/state"
@@ -118,14 +119,16 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
-	if _, err := ix.ReindexAll(context.Background()); err != nil {
-		t.Fatal(err)
-	}
 	st, err := state.Open(context.Background(), filepath.Join(dir, "state"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
+	journal := history.New(st.DB(), st)
+	ix.SetObserver(journal)
+	if _, err := ix.ReindexAll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 
 	i := newIDP(t)
 	provider, err := auth.NewProvider(context.Background(), auth.Config{
@@ -135,7 +138,7 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}}
-	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).Handler())
+	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).WithHistory(journal).Handler())
 	t.Cleanup(srv.Close)
 	return &oidcFixture{srv: srv, t: t, tokens: map[string]string{
 		"boss":  i.token(t, "boss", []string{"lumen-admin"}, nil),

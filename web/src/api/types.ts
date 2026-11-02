@@ -406,3 +406,16 @@ export interface Inbox {
   items: AppNotification[];
   unread: number;
 }
+
+export interface IssueEvent {
+  id: number;
+  issue: string;
+  project?: string;
+  kind: "created" | "changed" | "deleted";
+  field?: string;
+  old?: string;
+  new?: string;
+  actor?: string;
+  source: "lumen" | "external";
+  at: string;
+}

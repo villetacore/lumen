@@ -24,6 +24,7 @@ import (
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/config"
+	"github.com/alexpyslar/lumen/server/internal/history"
 	"github.com/alexpyslar/lumen/server/internal/httpapi"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
@@ -152,6 +153,9 @@ func serve(args []string, log *slog.Logger) error {
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
+	// Issue history sees every version the indexer sees, from the first sweep on.
+	journal := history.New(st.DB(), st)
+	ix.SetObserver(journal)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -183,7 +187,7 @@ func serve(args []string, log *slog.Logger) error {
 	}
 	defer pwManager.LockAll()
 
-	api := httpapi.New(cfg, store, v, ix, bus, integrationsSvc, oidcProvider, pwManager, log).WithState(st)
+	api := httpapi.New(cfg, store, v, ix, bus, integrationsSvc, oidcProvider, pwManager, log).WithState(st).WithHistory(journal)
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Handler(),

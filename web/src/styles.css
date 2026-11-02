@@ -486,3 +486,12 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
   .my-issue { grid-template-columns: auto minmax(0, 1fr); }
   .my-issue-meta { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+/* Issue history (LUM-068) */
+.history-block > summary { cursor: pointer; font: 12px var(--vs-font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--vs-muted); padding: 4px 0; }
+.issue-history { list-style: none; margin: 8px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--vs-border); display: flex; flex-direction: column; gap: 6px; font-size: .875em; }
+.issue-history li { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; overflow-wrap: anywhere; }
+.issue-history time { font: 12px var(--vs-font-mono); color: var(--vs-muted); }
+.issue-history del { color: var(--vs-muted); }
+.issue-history ins { text-decoration: none; font-weight: 600; }
+@media (max-width: 640px) { .issue-history li { grid-template-columns: 1fr; gap: 0; } }

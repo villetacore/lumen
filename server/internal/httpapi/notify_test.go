@@ -82,6 +82,23 @@ func TestTeamworkNotifications(t *testing.T) {
 		t.Fatalf("SEC title leaked: %s", raw)
 	}
 
+	// History: who changed what, visible only with the issue itself.
+	var hist struct {
+		Items []struct {
+			Kind, Field, New, Actor, Source string
+		} `json:"items"`
+	}
+	json.Unmarshal(f.expect("vic", "GET", "/api/v1/issues/"+is.Key+"/history", nil, 200), &hist)
+	var lines []string
+	for _, e := range hist.Items {
+		lines = append(lines, e.Kind+":"+e.Field+":"+e.New+"@"+e.Source+"/"+e.Actor)
+	}
+	if got := strings.Join(lines, ","); got != "created::@lumen/bob,changed:comments:1@lumen/alice,changed:status:in-progress@lumen/alice" {
+		t.Fatalf("history = %s", got)
+	}
+	f.expect("bob", "GET", "/api/v1/issues/SEC-1/history", nil, 404)
+	f.expect("alice", "GET", "/api/v1/issues/SEC-1/history", nil, 200)
+
 	// My issues.
 	var mine listEnvelope[domain.Issue]
 	json.Unmarshal(f.expect("alice", "GET", "/api/v1/issues?assignee=me", nil, 200), &mine)

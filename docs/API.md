@@ -94,6 +94,7 @@
 | `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
 | `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, sprint?, revision?}` — перенос на доске или в бэклоге: `before`/`after` — ключи соседей сверху/снизу; `sprint` — в спринт (`""` — в бэклог) |
 | `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |
+| `GET` | `/api/v1/issues/{key}/history` | Журнал изменений, старые сверху: `{id, kind: created\|changed\|deleted, field, old, new, actor, source: lumen\|external, at}`. Правки файла вне Lumen — `source: external` без автора; ранг доски не журналируется |
 | `DELETE` | `/api/v1/issues/{key}` | Переместить файл тикета в корзину vault; номер не переиспользуется |
 | `GET` | `/api/v1/tracker/projects/{key}/members` | Доступ к проекту: `{open, my_role, items: [{kind, name, role, added_at, added_by}]}` |
 | `PUT` | `/api/v1/tracker/projects/{key}/members` | `{kind: user\|group, name, role: viewer\|member\|admin}` — добавить/изменить; нужен admin проекта; закрыть открытый проект может только admin пространства |

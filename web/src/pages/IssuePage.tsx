@@ -7,6 +7,7 @@ import type { Issue, IssuePatch, Task, TrackerProject } from "../api/types";
 import Crumbs from "../components/Crumbs";
 import Icon from "../components/Icon";
 import Markdown from "../components/Markdown";
+import IssueHistory from "../components/IssueHistory";
 import { longDate } from "../lib/date";
 import { PeopleOptions } from "../lib/people";
 import { errorText, isConflict, isNotFound } from "../lib/errors";
@@ -158,6 +159,11 @@ export default function IssuePage() {
             <li key={l.type + l.target}><span className="sub">{LINK_LABEL[l.type] ?? l.type}</span> <Link className="issue-key" to={issueUrl(l.target)}>{l.target}</Link></li>)}
           </ul>
         </section>}
+
+        <details className="history-block">
+          <summary>История изменений</summary>
+          <IssueHistory issueKey={issue.key} project={project} />
+        </details>
 
         <section aria-labelledby="comments-title">
           <h2 id="comments-title" className="nav-title">Комментарии · {issue.comments?.length ?? 0}</h2>
