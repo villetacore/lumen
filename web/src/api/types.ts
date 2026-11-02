@@ -419,3 +419,22 @@ export interface IssueEvent {
   source: "lumen" | "external";
   at: string;
 }
+
+export type ProposalState = "pending" | "applying" | "applied" | "rejected" | "expired" | "stale" | "failed";
+
+/** A change an AI client asked for through MCP, waiting for the person (ADR-0013). */
+export interface Proposal {
+  id: string;
+  requester: string;
+  kind: "create_issue" | "update_issue" | "change_status" | "add_comment";
+  target?: string;
+  args: Record<string, unknown>;
+  preview: string;
+  state: ProposalState;
+  result?: string;
+  error?: string;
+  request_id?: string;
+  created_at: string;
+  expires_at: string;
+  decided_at?: string;
+}

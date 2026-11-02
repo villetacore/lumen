@@ -12,6 +12,7 @@ import type {
   IssuePatch,
   Person,
   PersonGroup,
+  Proposal,
   ProjectAccess,
   WorkspaceRole,
   Sprint,
@@ -185,6 +186,9 @@ export const api = {
   notifications: (unread = false) => request<Inbox>("/notifications" + query({ unread: unread || undefined })),
   readNotifications: (ids?: number[]) =>
     request<void>("/notifications/read", { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
+  proposals: (pending = false) => request<ListResponse<Proposal>>("/proposals" + query({ pending: pending || undefined })),
+  approveProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+  rejectProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/reject`, { method: "POST" }),
   users: (q = "") => request<ListResponse<Person>>("/users" + query({ q })),
   groups: () => request<ListResponse<PersonGroup>>("/groups"),
   projectAccess: (key: string) => request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`),
@@ -270,6 +274,7 @@ export function subscribeEvents(onEvent: () => void): () => void {
     "issue.deleted",
     "sprint.changed",
     "notification",
+    "proposal",
     "reindex.finished",
     "integration.synced",
   ]) {

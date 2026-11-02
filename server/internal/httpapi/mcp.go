@@ -33,9 +33,13 @@ func (a *API) mcpHandler() http.Handler {
 	server := mcp.NewServer(&mcp.Implementation{Name: "lumen", Title: "Lumen", Version: "1"},
 		&mcp.ServerOptions{Instructions: mcpInstructions})
 	a.addMCPReadTools(server)
+	a.addMCPWriteTools(server)
 
 	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server },
-		&mcp.StreamableHTTPOptions{Stateless: true, Logger: a.log})
+		&mcp.StreamableHTTPOptions{Stateless: true, Logger: a.log,
+			// MCP clients are not browsers; a browser page from another site
+			// (Sec-Fetch-Site / Origin) must not reach the tools.
+			CrossOriginProtection: http.NewCrossOriginProtection()})
 	// The principal travels to tool handlers as TokenInfo, which the SDK
 	// hands to every call of the request that carried it.
 	verify := mcpauth.RequireBearerToken(func(ctx context.Context, _ string, _ *http.Request) (*mcpauth.TokenInfo, error) {

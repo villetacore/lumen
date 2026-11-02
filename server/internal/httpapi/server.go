@@ -14,6 +14,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/passwords"
 	"github.com/alexpyslar/lumen/server/internal/people"
 	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/alexpyslar/lumen/server/internal/proposals"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/state"
 	"github.com/alexpyslar/lumen/server/internal/vault"
@@ -39,6 +40,7 @@ type API struct {
 	people       *people.Directory // nil without a state store
 	notify       *notify.Store     // nil without a state store
 	history      *history.Journal  // nil: no issue history
+	proposals    *proposals.Store  // nil without a state store
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -81,6 +83,7 @@ func (a *API) WithHistory(j *history.Journal) *API {
 func (a *API) WithState(st *state.Store) *API {
 	a.state = st
 	a.people = people.New(st.DB())
+	a.proposals = proposals.New(st.DB(), st)
 	// The SSE nudge names no issue: the client refetches the list, which is
 	// filtered by what the recipient may see.
 	a.notify = notify.New(st.DB(), func(recipient, _ string) {
@@ -115,6 +118,10 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("POST /mcp", mcpHandler)
 	mux.Handle("GET /mcp", mcpHandler)
 	mux.Handle("DELETE /mcp", mcpHandler)
+
+	mux.HandleFunc("GET /api/v1/proposals", a.handleListProposals)
+	mux.HandleFunc("POST /api/v1/proposals/{id}/approve", a.handleDecideProposal(true))
+	mux.HandleFunc("POST /api/v1/proposals/{id}/reject", a.handleDecideProposal(false))
 
 	mux.HandleFunc("GET /api/v1/stats", a.handleStats)
 	mux.HandleFunc("POST /api/v1/reindex", a.adminOnly(a.handleReindex))

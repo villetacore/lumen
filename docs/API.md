@@ -285,3 +285,16 @@
 Существующие запросы с явным `path` без новых полей совместимы.
 Это локальные связи текущего single-user режима; workspace ACL и общие
 ResourceRef остаются отдельной задачей LUM-023 с её зависимостями.
+
+## MCP и подтверждения
+
+`/mcp` — MCP-сервер ([MCP.md](MCP.md), [ADR-0013](adr/0013-mcp-server.md)).
+Изменения, предложенные через него, ждут решения пользователя:
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/v1/proposals?pending=true` | Свои предложения: `{id, kind, target, args, preview, state, result, error, created_at, expires_at, decided_at}` |
+| `POST` | `/api/v1/proposals/{id}/approve` | Применить своё предложение; `state` станет `applied`, `stale` или `failed`. Повтор — `409 proposal_state` |
+| `POST` | `/api/v1/proposals/{id}/reject` | Отклонить |
+
+Чужое предложение отвечает `404`. SSE-событие `proposal` приходит только автору.

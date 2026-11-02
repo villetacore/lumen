@@ -55,6 +55,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
   const [newIssue, setNewIssue] = useState(false);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const { data: proposals } = useQuery({ queryKey: ["proposals", "pending"], queryFn: () => api.proposals(true) });
   const { data: inbox } = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications(), enabled: !!me?.username });
 
   return (
@@ -83,6 +84,11 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           <span className="icon"><Icon name="bell" /></span>
           Уведомления
           {!!inbox?.unread && <span className="count">{inbox.unread}</span>}
+        </NavLink>
+        <NavLink to="/approvals" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+          <span className="icon"><Icon name="check" /></span>
+          Подтверждения
+          {!!proposals?.total && <span className="count">{proposals.total}</span>}
         </NavLink>
         <NavLink end to="/tracker" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="board" /></span>

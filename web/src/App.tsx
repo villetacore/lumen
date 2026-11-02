@@ -23,6 +23,7 @@ import AccessPage from "./pages/AccessPage";
 import PeoplePage from "./pages/PeoplePage";
 import InboxPage from "./pages/InboxPage";
 import MyIssuesPage from "./pages/MyIssuesPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/inbox" element={<InboxPage />} />
           <Route path="/my" element={<MyIssuesPage />} />
+          <Route path="/approvals" element={<ApprovalsPage />} />
           <Route path="/issue/:key" element={<IssuePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
