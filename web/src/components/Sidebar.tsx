@@ -9,6 +9,7 @@ import { api } from "../api/client";
 import type { ViewName } from "../api/types";
 import { iso, today } from "../lib/date";
 import NewNoteDialog from "./NewNoteDialog";
+import { IconButton } from "@villetacore/velessoft-ui";
 
 const VIEWS: { view: ViewName; label: string; icon: IconName }[] = [
   { view: "today", label: "Сегодня", icon: "sun" },
@@ -52,10 +53,10 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
-      <div className="sidebar-brand"><Brand /><button className="btn icon-button mobile-only" onClick={onClose} aria-label="Закрыть меню"><Icon name="close" /></button></div>
+      <div className="sidebar-brand"><Brand /><IconButton className="mobile-only" variant="ghost" onClick={onClose} label="Закрыть меню"><Icon name="close" size={16} /></IconButton></div>
       <div className="sidebar-scroll">
-      <div className="nav-title">Задачи</div>
       <div className="nav-group">
+      <div className="nav-title">Задачи</div>
         {VIEWS.map((v) => (
           <ViewLink key={v.view} {...v} />
         ))}
@@ -64,9 +65,9 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
       <div className="nav-group">
         <div className="nav-title">
           Проекты
-          <button className="nav-add" onClick={() => { setCreating("project"); if (open) onClose(); }} title="Новый проект" aria-label="Новый проект">
-            <Icon name="plus" size={16} />
-          </button>
+          <IconButton className="nav-add" size="sm" variant="ghost" label="Новый проект" onClick={() => { setCreating("project"); if (open) onClose(); }}>
+            <Icon name="plus" size={14} />
+          </IconButton>
         </div>
         {projects?.items.map((p) => (
           <NavLink
@@ -80,9 +81,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           </NavLink>
         ))}
         {projects?.items.length === 0 && (
-          <div className="nav-item" style={{ color: "var(--text-faint)" }}>
-            нет проектов
-          </div>
+          <div className="nav-item placeholder">нет проектов</div>
         )}
       </div>
 
@@ -100,7 +99,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           <span className="icon"><Icon name="calendar" /></span>
           Календарь
         </NavLink>
-        <NavLink to="/notes?section=documents" className={"nav-item" + (params.get("section") === "documents" ? " active" : "")}><span className="icon"><Icon name="book" /></span>Документация</NavLink>
+        <NavLink to="/docs" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}><span className="icon"><Icon name="book" /></span>Документация</NavLink>
         <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive && !params.get("section") && !params.get("tag") ? " active" : "")}>
           <span className="icon"><Icon name="file" /></span>
           Материалы

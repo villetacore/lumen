@@ -51,27 +51,17 @@ export default function AsidePanel() {
   const todayEvents = (agenda?.events ?? []).filter((e) => e.start.slice(0, 10) === iso(now));
 
   return (
-    <aside className="aside card">
-      <div className="section-head" style={{ marginTop: 0 }}>
-        {monthTitle(now)}
-      </div>
+    <aside className="card aside" style={{ padding: 16 }}>
+      <div className="nav-title" style={{ padding: 0 }}>{monthTitle(now)}</div>
       <MiniCalendar busy={busy} />
-
-      <div className="section-head">Повестка дня</div>
-      {todayEvents.length === 0 && <div style={{ color: "var(--text-faint)" }}>на сегодня пусто</div>}
+      <div className="nav-title" style={{ padding: 0 }}>Повестка дня</div>
+      {todayEvents.length === 0 && <div className="hint">На сегодня событий нет</div>}
       {todayEvents.map((e) => (
-        <div key={e.id} style={{ display: "flex", gap: 8, padding: "2px 0" }}>
-          <span style={{ color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
-            {e.all_day ? "—" : e.start.slice(11, 16)}
-          </span>
-          {e.path ? (
-            <Link to={`/note/${e.path}`}>{e.title}</Link>
-          ) : (
-            <span>{e.title}</span>
-          )}
+        <div key={e.id} className="agenda-item">
+          <time>{e.all_day ? "весь день" : e.start.slice(11, 16)}</time>
+          {e.path ? <Link to={`/note/${e.path}`}>{e.title}</Link> : <span>{e.title}</span>}
         </div>
       ))}
-
     </aside>
   );
 }

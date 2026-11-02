@@ -258,9 +258,12 @@ export default function IntegrationsPage() {
   return (
     <>
       <div className="page-head">
-        <h1>Интеграции</h1>
-        <span className="sub">календари и трекеры рядом с задачами</span>
-        <div style={{ marginLeft: "auto" }}>
+        <div>
+          <span className="kicker">Сервисы</span>
+          <h1>Интеграции</h1>
+          <span className="sub">Календари и трекеры рядом с задачами.</span>
+        </div>
+        <div className="head-actions">
           <button className="btn primary" onClick={() => setAdding((v) => !v)}>
             + Подключить
           </button>

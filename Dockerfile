@@ -10,6 +10,8 @@
 FROM node:26-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
+# Velessoft UI ставится из вендорных архивов (web/vendor/README.md).
+COPY web/vendor/ ./vendor/
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build

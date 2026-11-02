@@ -407,9 +407,12 @@ export default function PasswordsPage() {
   return (
     <>
       <div className="page-head">
-        <h1>Пароли</h1>
-        <span className="sub">чтение из вашего менеджера паролей</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div>
+          <span className="kicker">Сервисы</span>
+          <h1>Пароли</h1>
+          <span className="sub">Чтение из вашего менеджера паролей.</span>
+        </div>
+        <div className="head-actions">
           <button className="btn" onClick={() => lockAll.mutate()}>
             Закрыть все
           </button>

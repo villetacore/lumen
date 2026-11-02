@@ -14,6 +14,8 @@ import { errorText, isConflict, isNotFound } from "../lib/errors";
 /** Edit holds the draft together with the version it was started from. */
 type Edit = { draft: string; baseRevision: number; baseBody: string };
 
+const KIND_LABEL: Record<string, string> = { project: "Проект", document: "Документ", entry: "Рабочая запись" };
+
 const TYPE_LABEL: Record<NoteType, string> = {
   note: "заметка",
   project: "проект",
@@ -101,7 +103,7 @@ export default function NotePage() {
     mutationFn: () => api.deleteNote(note!.path),
     onSuccess: () => {
       qc.invalidateQueries();
-      navigate("/notes");
+      navigate(note?.frontmatter?.content_kind === "document" ? "/docs" : "/notes");
     },
   });
 
@@ -122,13 +124,16 @@ export default function NotePage() {
   }
 
   const title = note?.title ?? path;
+  const kind = note?.type === "project" ? "project" : String(note?.frontmatter?.content_kind ?? note?.type ?? "note");
 
   return (
     <div className="note-view">
-      <ParentLink parent={note?.frontmatter?.parent} />
+      <ParentLink parent={note?.frontmatter?.parent} title={title} kind={kind} />
       <div className="page-head">
-        <h1>{title}</h1>
-        <span className="sub">{note?.type === "project" ? "Проект" : note?.frontmatter?.content_kind === "entry" ? "Запись" : "Документ"}</span>
+        <div>
+          <span className="kicker">{KIND_LABEL[kind] ?? TYPE_LABEL[note?.type ?? "note"]}{note?.updated ? ` / изменено ${note.updated.slice(0, 10)}` : ""}</span>
+          <h1>{title}</h1>
+        </div>
         <div className="head-actions">
           {edit ? (
             <>
@@ -151,7 +156,7 @@ export default function NotePage() {
             </>
           ) : (
             <>
-              <button className="btn" onClick={() => note && startEdit(note)}>
+              <button className="btn primary" onClick={() => note && startEdit(note)}>
                 <Icon name="edit" size={16} /> Редактировать
               </button>
               <button
@@ -226,7 +231,7 @@ export default function NotePage() {
                   {note.tasks.length}
                 </div>
                 {note.tasks.map((t) => (
-                  <TaskRow key={t.id} task={t} showNote={false} />
+                  <TaskRow key={t.id} task={t} />
                 ))}
               </section>
             )}

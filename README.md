@@ -31,7 +31,7 @@
 </details>
 
 Скриншоты сняты на демонстрационном хранилище. Интерфейс использует дизайн-систему
-Velessoft RIOT: Manrope, JetBrains Mono, графит, лайм и фиолетовый; шрифты поставляются локально.
+Интерфейс на библиотеке [Velessoft UI](https://github.com/villetacore/velessoft-ui) 0.2: компоненты и токены `--vs-*`, Manrope и JetBrains Mono локально.
 
 ## Возможности
 

@@ -1,11 +1,15 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import TaskRow from "../components/TaskRow";
+import Icon from "../components/Icon";
+import { noteLabel, useNoteIndex } from "../lib/notes";
 
 export default function SearchPage() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
+  const notes = useNoteIndex();
 
   const { data, isLoading } = useQuery({
     queryKey: ["search", q],
@@ -20,37 +24,41 @@ export default function SearchPage() {
   });
 
   return (
-    <>
+    <div className="page">
       <div className="page-head">
-        <h1>Поиск</h1>
-        <span className="sub">
-          «{q}» — {data?.total ?? 0} совпадений
-        </span>
+        <div>
+          <span className="kicker">Поиск / {(data?.total ?? 0) + (tasks?.total ?? 0)}</span>
+          <h1>«{q}»</h1>
+        </div>
       </div>
 
       {tasks && tasks.items.length > 0 && (
-        <section>
-          <div className="section-head">Открытые задачи {tasks.total}</div>
+        <section className="list">
+          <div className="group-head">Открытые задачи <span className="count">{tasks.total}</span></div>
           {tasks.items.map((t) => (
-            <TaskRow key={t.id} task={t} />
+            <TaskRow key={t.id} task={t} noteTitle={noteLabel(notes.byPath.get(t.note_path), t.note_path)} />
           ))}
-          <div className="section-head">Материалы</div>
         </section>
       )}
 
-      {isLoading && <div className="spinner">Ищем…</div>}
-      {!isLoading && data?.items.length === 0 && <div className="empty">Ничего не найдено</div>}
+      {isLoading && <Spinner label="Ищем" />}
+      {!isLoading && data?.items.length === 0 && !tasks?.items.length && (
+        <EmptyState icon={<Icon name="search" size={24} />} title="Ничего не найдено" description="Попробуйте другое слово или часть названия." />
+      )}
 
-      {data?.items.map((hit) => (
-        <div key={hit.path} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-          <Link to={`/note/${hit.path}`} style={{ fontWeight: 550 }}>
-            {hit.title}
-          </Link>
-          <div style={{ color: "var(--text-dim)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            {hit.snippet}
+      {!!data?.items.length && (
+        <section className="list">
+          <div className="group-head">Материалы <span className="count">{data.total}</span></div>
+          <div className="note-list">
+            {data.items.map((hit) => (
+              <div key={hit.path} className="note-row" style={{ display: "block" }}>
+                <Link to={`/note/${hit.path}`}>{hit.title}</Link>
+                <div className="hint mono">{hit.snippet}</div>
+              </div>
+            ))}
           </div>
-        </div>
-      ))}
-    </>
+        </section>
+      )}
+    </div>
   );
 }

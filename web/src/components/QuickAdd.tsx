@@ -3,6 +3,7 @@ import { useState, type Ref } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { errorText } from "../lib/errors";
+import { Button, Input } from "@villetacore/velessoft-ui";
 
 /**
  * QuickAdd parses a few shorthands before sending the task:
@@ -62,7 +63,7 @@ export default function QuickAdd({
 
   return (
     <form
-      className="quick-add"
+      className="quick-add hide-label"
       onSubmit={(e) => {
         e.preventDefault();
         // The field clears at once so the next task can be typed while this one saves.
@@ -72,24 +73,19 @@ export default function QuickAdd({
         }
       }}
     >
-      <span className="quick-add-icon"><Icon name="plus" /></span>
-      <input
+      <Input
         ref={inputRef}
+        label="Новая задача"
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
           if (create.isError) create.reset();
         }}
-        placeholder={
-          placeholder ??
-          (note
-            ? "Новая задача… (!A приоритет, @завтра срок)"
-            : "Новая задача… (!A приоритет, @завтра срок)")
-        }
-        aria-label="Новая задача"
+        placeholder={placeholder ?? "Новая задача… !A — приоритет, @завтра — срок"}
+        startAddon={<Icon name="plus" size={16} />}
+        error={create.isError ? errorText(create.error) : undefined}
       />
-      <button className="btn primary" type="submit" disabled={!parse(value).text}>Добавить</button>
-      {create.isError && <span style={{ color: "var(--overdue)" }}>{errorText(create.error)}</span>}
+      <Button variant="primary" type="submit" disabled={!parse(value).text}>Добавить</Button>
     </form>
   );
 }
