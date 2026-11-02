@@ -17,7 +17,7 @@ COPY web/ ./
 RUN npm run build
 
 # --- сервер ---
-FROM golang:1.26-alpine AS server
+FROM golang:1.27-alpine AS server
 ARG VERSION=0.1.0-dev
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
