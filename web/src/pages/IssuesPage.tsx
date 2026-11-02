@@ -7,6 +7,7 @@ import type { Issue, IssueFilter } from "../api/types";
 import Crumbs from "../components/Crumbs";
 import Icon from "../components/Icon";
 import NewIssueDialog from "../components/NewIssueDialog";
+import ProjectTabs from "../components/ProjectTabs";
 import { dueTone } from "../components/TaskRow";
 import { relativeDue } from "../lib/date";
 import { errorText } from "../lib/errors";
@@ -69,7 +70,8 @@ export default function IssuesPage() {
     <Crumbs items={[{ label: "Трекер", to: "/tracker" }, { label: project ? `${project.key} · ${project.title}` : key }]} />
     <div className="page-head">
       <div><span className="kicker">Проект {key}</span><h1>{project?.title ?? key}</h1>
-        <span className="sub">{data ? `${issueCount(data.total)}${hasFilter ? " по фильтру" : ""}` : " "}</span></div>
+        <span className="sub">{data ? `${issueCount(data.total)}${hasFilter ? " по фильтру" : ""}` : " "}</span>
+        <ProjectTabs projectKey={key} /></div>
       <div className="head-actions">
         {project && <Button onClick={() => navigate(`/note/${project.path}`)}><Icon name="folder" size={16} />Заметка проекта</Button>}
         <Button variant="primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} />Тикет</Button>

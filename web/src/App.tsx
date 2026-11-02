@@ -17,6 +17,7 @@ import PasswordsPage from "./pages/PasswordsPage";
 import TrackerPage from "./pages/TrackerPage";
 import IssuesPage from "./pages/IssuesPage";
 import IssuePage from "./pages/IssuePage";
+import BoardPage from "./pages/BoardPage";
 import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/note/*" element={<NotePage />} />
           <Route path="/tracker" element={<TrackerPage />} />
           <Route path="/tracker/:key" element={<IssuesPage />} />
+          <Route path="/tracker/:key/board" element={<BoardPage />} />
           <Route path="/issue/:key" element={<IssuePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
