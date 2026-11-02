@@ -110,6 +110,12 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /auth/logout", a.handleLogout)
 	mux.HandleFunc("POST /auth/logout", a.handleLogout)
 
+	// MCP (ADR-0013). Explicit methods keep these routes apart from the UI's "GET /".
+	mcpHandler := a.mcpHandler()
+	mux.Handle("POST /mcp", mcpHandler)
+	mux.Handle("GET /mcp", mcpHandler)
+	mux.Handle("DELETE /mcp", mcpHandler)
+
 	mux.HandleFunc("GET /api/v1/stats", a.handleStats)
 	mux.HandleFunc("POST /api/v1/reindex", a.adminOnly(a.handleReindex))
 	mux.HandleFunc("GET /api/v1/events", a.handleEvents)
