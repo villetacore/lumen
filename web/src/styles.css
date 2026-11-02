@@ -461,3 +461,28 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 .group-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .group-list li { padding: 4px 10px; border: 1px solid var(--vs-border); background: var(--vs-surface); }
 .access-hint { flex-basis: 100%; margin: 0; font-size: .8125em; }
+
+/* Notifications and my issues (LUM-067) */
+.bell { position: relative; display: inline-flex; align-items: center; padding: 6px; color: var(--vs-text); }
+.bell:hover { text-decoration: none; background: var(--row-hover); }
+.bell-count { position: absolute; top: -2px; right: -4px; min-width: 18px; padding: 0 4px; font: 700 10px/16px var(--vs-font-mono); text-align: center; color: var(--vs-on-primary); background: var(--vs-primary); border: 1px solid var(--vs-border); }
+.inbox { list-style: none; margin: 0; padding: 0; border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.inbox-item + .inbox-item { border-top: 1px solid var(--vs-border); }
+.inbox-open { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; width: 100%; padding: 10px 14px; cursor: pointer; }
+.inbox-open:hover { background: var(--row-hover); }
+.inbox-open:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: -2px; }
+.inbox-dot { width: 8px; height: 8px; }
+.inbox-item.is-unread .inbox-dot { background: var(--vs-accent); }
+.inbox-item:not(.is-unread) .inbox-text { color: var(--vs-muted); }
+.inbox-text { overflow-wrap: anywhere; }
+.inbox-open time { font: 12px var(--vs-font-mono); color: var(--vs-muted); white-space: nowrap; }
+.my-issues { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.my-issues li + li { border-top: 1px solid var(--vs-border); }
+.my-issue { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; color: var(--vs-text); }
+.my-issue:hover { text-decoration: none; background: var(--row-hover); }
+.my-issue-title { overflow-wrap: anywhere; }
+.my-issue-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; font-size: .8125em; }
+@media (max-width: 640px) {
+  .my-issue { grid-template-columns: auto minmax(0, 1fr); }
+  .my-issue-meta { grid-column: 1 / -1; justify-content: flex-start; }
+}

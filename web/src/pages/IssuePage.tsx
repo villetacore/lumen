@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Input, Select, Spinner, Textarea } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -20,6 +20,7 @@ type Draft = { text: string; baseRevision: number; baseText: string };
 export default function IssuePage() {
   const { key = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const { data: issue, error, isLoading } = useQuery({
     queryKey: ["issue", key],
@@ -41,6 +42,11 @@ export default function IssuePage() {
   const titleDirty = title !== null && title.trim() !== issue?.title;
   useDraftGuard(descDirty || titleDirty || !!comment.trim());
   useEffect(() => { setDesc(null); setTitle(null); setComment(""); }, [key]);
+  // A notification links to a comment by #id; it exists only after loading.
+  useEffect(() => {
+    if (issue && location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "center" });
+  }, [issue?.key, location.hash]);
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
   // Someone changed only fields (status, assignee…) elsewhere: the draft is
   // still based on the current description, so follow the new revision.
   useEffect(() => {
@@ -104,6 +110,8 @@ export default function IssuePage() {
           onChange={(e) => patch.mutate({ status: e.target.value })}>
           {allowedStatuses(project, issue.status).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Select>}
+        {me?.username && <WatchButton issue={issue} me={me.username} busy={patch.isPending}
+          onChange={(watchers) => patch.mutate({ watchers })} />}
         <Button onClick={() => navigate(`/note/${issue.path}`)} title="Открыть файл тикета как заметку"><Icon name="file" size={16} />Файл</Button>
         <Button variant="ghost" onClick={() => { if (window.confirm(`Переместить ${issue.key} в корзину?`)) remove.mutate(); }} loading={remove.isPending}>
           <Icon name="trash" size={16} />Удалить
@@ -236,5 +244,22 @@ function PropText({ label, value, type = "text", placeholder, list, onCommit }: 
         if (e.key === "Escape") { setText(value); sent.current = value; requestAnimationFrame(() => (e.target as HTMLInputElement).blur()); }
       }} />
   </dd></div>;
+}
+
+/**
+ * WatchButton follows an issue. The reporter and the assignee follow it by
+ * virtue of their role; others add themselves to "watchers".
+ */
+function WatchButton({ issue, me, busy, onChange }: { issue: Issue; me: string; busy: boolean; onChange: (w: string[]) => void }) {
+  const explicit = issue.watchers ?? [];
+  const role = issue.assignee === me ? "исполнитель" : issue.reporter === me ? "автор" : "";
+  if (role) {
+    return <Button disabled title={`Вы получаете уведомления как ${role}`}><Icon name="eye" size={16} />Слежу</Button>;
+  }
+  const on = explicit.includes(me);
+  return <Button onClick={() => onChange(on ? explicit.filter((w) => w !== me) : [...explicit, me])} disabled={busy}
+    aria-pressed={on} title={on ? "Перестать получать уведомления" : "Получать уведомления о комментариях и статусе"}>
+    <Icon name={on ? "eyeOff" : "eye"} size={16} />{on ? "Не следить" : "Следить"}
+  </Button>;
 }
 

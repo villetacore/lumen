@@ -94,9 +94,18 @@ var policyVault = map[string]string{
 	"10-notes/common.md":                "---\ntitle: Общая\n---\nОбщая заметка #общий про [[sec-doc]]\n",
 }
 
-func TestAccessPolicyAcrossChannels(t *testing.T) {
+// oidcFixture runs the API over a vault of files with a fake Keycloak and a
+// state store; call makes a request as one of the named users.
+type oidcFixture struct {
+	srv    *httptest.Server
+	tokens map[string]string
+	t      *testing.T
+}
+
+func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
+	t.Helper()
 	dir := t.TempDir()
-	for name, body := range policyVault {
+	for name, body := range files {
 		p := filepath.Join(dir, "vault", filepath.FromSlash(name))
 		os.MkdirAll(filepath.Dir(p), 0o755)
 		os.WriteFile(p, []byte(body), 0o644)
@@ -116,7 +125,7 @@ func TestAccessPolicyAcrossChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	t.Cleanup(func() { st.Close() })
 
 	i := newIDP(t)
 	provider, err := auth.NewProvider(context.Background(), auth.Config{
@@ -127,40 +136,46 @@ func TestAccessPolicyAcrossChannels(t *testing.T) {
 	}
 	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}}
 	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).Handler())
-	defer srv.Close()
-
-	tokens := map[string]string{
+	t.Cleanup(srv.Close)
+	return &oidcFixture{srv: srv, t: t, tokens: map[string]string{
 		"boss":  i.token(t, "boss", []string{"lumen-admin"}, nil),
 		"alice": i.token(t, "alice", nil, []string{"/designers"}),
 		"bob":   i.token(t, "bob", nil, nil),
 		"vic":   i.token(t, "vic", nil, []string{"/guests"}),
+	}}
+}
+
+func (f *oidcFixture) call(user, method, path string, body any) (int, []byte) {
+	f.t.Helper()
+	var data io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		data = bytes.NewReader(b)
 	}
-	call := func(user, method, path string, body any) (int, []byte) {
-		t.Helper()
-		var data io.Reader
-		if body != nil {
-			b, _ := json.Marshal(body)
-			data = bytes.NewReader(b)
-		}
-		req, _ := http.NewRequest(method, srv.URL+path, data)
-		req.Header.Set("Authorization", "Bearer "+tokens[user])
-		req.Header.Set("Content-Type", "application/json")
-		res, err := srv.Client().Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer res.Body.Close()
-		out, _ := io.ReadAll(res.Body)
-		return res.StatusCode, out
+	req, _ := http.NewRequest(method, f.srv.URL+path, data)
+	req.Header.Set("Authorization", "Bearer "+f.tokens[user])
+	req.Header.Set("Content-Type", "application/json")
+	res, err := f.srv.Client().Do(req)
+	if err != nil {
+		f.t.Fatal(err)
 	}
-	expect := func(user, method, path string, body any, want int) []byte {
-		t.Helper()
-		code, out := call(user, method, path, body)
-		if code != want {
-			t.Fatalf("%s %s %s: %d, want %d: %s", user, method, path, code, want, out)
-		}
-		return out
+	defer res.Body.Close()
+	out, _ := io.ReadAll(res.Body)
+	return res.StatusCode, out
+}
+
+func (f *oidcFixture) expect(user, method, path string, body any, want int) []byte {
+	f.t.Helper()
+	code, out := f.call(user, method, path, body)
+	if code != want {
+		f.t.Fatalf("%s %s %s: %d, want %d: %s", user, method, path, code, want, out)
 	}
+	return out
+}
+
+func TestAccessPolicyAcrossChannels(t *testing.T) {
+	f := newOIDCFixture(t, policyVault)
+	srv, tokens, expect := f.srv, f.tokens, f.expect
 
 	// Roles from the identity provider.
 	var me identity

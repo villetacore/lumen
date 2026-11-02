@@ -11,6 +11,9 @@ type Event struct {
 	Revision int64  `json:"revision,omitempty"`
 	Notes    int    `json:"notes,omitempty"`
 	TookMS   int64  `json:"took_ms,omitempty"`
+	// User addresses an event to one person (a new notification); SSE sends it
+	// to that user only.
+	User string `json:"-"`
 }
 
 // Bus is a minimal fan-out for change events. Slow subscribers are skipped

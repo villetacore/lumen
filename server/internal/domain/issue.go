@@ -124,6 +124,7 @@ type IssueQuery struct {
 	Status   []string
 	Category StatusCategory
 	Assignee string
+	Watcher  string // reporter, assignee or explicit watcher
 	Type     string
 	Labels   []string
 	Sprint   string

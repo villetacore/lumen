@@ -9,6 +9,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/config"
 	"github.com/alexpyslar/lumen/server/internal/index"
+	"github.com/alexpyslar/lumen/server/internal/notify"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
 	"github.com/alexpyslar/lumen/server/internal/people"
 	"github.com/alexpyslar/lumen/server/internal/policy"
@@ -35,6 +36,7 @@ type API struct {
 
 	state        *state.Store
 	people       *people.Directory // nil without a state store
+	notify       *notify.Store     // nil without a state store
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -62,7 +64,7 @@ func (a *API) wire(p *policy.Policy) {
 	a.store = policy.Scope(a.raw, p)
 	a.notes = service.NewNotes(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
 	a.tasks = service.NewTasks(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
-	a.issues = service.NewIssues(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
+	a.issues = service.NewIssues(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p).WithNotify(a.notify)
 	a.views = service.NewViews(a.store)
 }
 
@@ -71,6 +73,11 @@ func (a *API) wire(p *policy.Policy) {
 func (a *API) WithState(st *state.Store) *API {
 	a.state = st
 	a.people = people.New(st.DB())
+	// The SSE nudge names no issue: the client refetches the list, which is
+	// filtered by what the recipient may see.
+	a.notify = notify.New(st.DB(), func(recipient, _ string) {
+		a.bus.Publish(service.Event{Type: "notification", User: recipient})
+	})
 	a.wire(policy.New(a.raw, policy.NewMembers(st.DB())))
 	return a
 }
@@ -125,6 +132,8 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/members", a.handleListMembers)
 	mux.HandleFunc("PUT /api/v1/tracker/projects/{key}/members", a.handleSetMember)
 	mux.HandleFunc("DELETE /api/v1/tracker/projects/{key}/members/{kind}/{name}", a.handleRemoveMember)
+	mux.HandleFunc("GET /api/v1/notifications", a.handleListNotifications)
+	mux.HandleFunc("POST /api/v1/notifications/read", a.handleReadNotifications)
 	mux.HandleFunc("GET /api/v1/users", a.handleListUsers)
 	mux.HandleFunc("GET /api/v1/groups", a.handleListGroups)
 	mux.HandleFunc("GET /api/v1/issues", a.handleListIssues)

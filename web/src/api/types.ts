@@ -309,6 +309,7 @@ export interface IssueFilter {
   status?: string[];
   category?: StatusCategory | "";
   assignee?: string;
+  watcher?: string;
   type?: string;
   label?: string[];
   sprint?: string;
@@ -384,4 +385,24 @@ export interface ProjectAccess {
   open: boolean;
   my_role: WorkspaceRole | "none";
   items: ProjectMember[];
+}
+
+export type NotificationKind = "assigned" | "mentioned" | "commented" | "status";
+
+export interface AppNotification {
+  id: number;
+  kind: NotificationKind;
+  issue: string;
+  ref?: string;
+  actor?: string;
+  created_at: string;
+  read: boolean;
+  title: string;
+  project: string;
+  status: string;
+}
+
+export interface Inbox {
+  items: AppNotification[];
+  unread: number;
 }

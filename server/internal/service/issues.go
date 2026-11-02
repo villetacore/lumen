@@ -13,6 +13,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/alexpyslar/lumen/server/internal/notify"
 	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 )
@@ -32,6 +33,13 @@ type Issues struct {
 	bus    *Bus
 	log    *slog.Logger
 	policy *policy.Policy // nil: no checks (background jobs, tests)
+	notify *notify.Store  // nil: no notifications
+}
+
+// WithNotify reports assignments, mentions, comments and status changes.
+func (s *Issues) WithNotify(n *notify.Store) *Issues {
+	s.notify = n
+	return s
 }
 
 // WithPolicy makes every write check the caller's project role (ADR-0012).
@@ -222,6 +230,9 @@ func matchIssue(is *domain.Issue, q domain.IssueQuery) bool {
 		return false
 	}
 	if q.Assignee != "" && is.Assignee != q.Assignee && !(q.Assignee == "none" && is.Assignee == "") {
+		return false
+	}
+	if q.Watcher != "" && !contains(watchersOf(is), q.Watcher) {
 		return false
 	}
 	if q.Type != "" && is.Type != q.Type {
@@ -417,7 +428,11 @@ func (s *Issues) Create(ctx context.Context, in IssueInput, actor string) (*doma
 		s.log.Warn("issue counter not saved", "project", p.Key, "err", err)
 	}
 	s.bus.Publish(Event{Type: "issue.changed", ID: key, Path: rel})
-	return s.Get(ctx, key)
+	created, err := s.Get(ctx, key)
+	if err == nil {
+		s.notifyChange(ctx, &domain.Issue{Key: key}, created, actor)
+	}
+	return created, err
 }
 
 func (s *Issues) setProjectSeq(ctx context.Context, p *domain.TrackerProject, seq int) error {
@@ -644,6 +659,23 @@ func (s *Issues) AddComment(ctx context.Context, key, body, actor string) (*doma
 	if err != nil {
 		return nil, nil, err
 	}
+	// Mentioned people hear about the mention; other watchers about the comment.
+	if s.notify != nil {
+		mentioned := notify.Mentions(body)
+		skip := map[string]bool{}
+		for _, m := range mentioned {
+			skip[m] = true
+		}
+		var watchers []string
+		for _, w := range watchersOf(is) {
+			if !skip[w] {
+				watchers = append(watchers, w)
+			}
+		}
+		s.emit(ctx,
+			notify.Event{Kind: notify.Mentioned, Issue: is.Key, Ref: id, Actor: actor, Recipients: mentioned, Dedup: "mention:" + is.Key + ":" + id},
+			notify.Event{Kind: notify.Commented, Issue: is.Key, Ref: id, Actor: actor, Recipients: watchers, Dedup: "comment:" + is.Key + ":" + id})
+	}
 	for _, c := range is.Comments {
 		if c.ID == id {
 			return is, c, nil
@@ -716,7 +748,11 @@ func (s *Issues) edit(ctx context.Context, key string, revision int64, fn editFu
 		return nil, err
 	}
 	s.bus.Publish(Event{Type: "issue.changed", ID: n.ID, Path: n.Path})
-	return s.Get(ctx, n.ID)
+	after, err := s.Get(ctx, n.ID)
+	if err == nil {
+		s.notifyChange(ctx, is, after, actorOf(ctx))
+	}
+	return after, err
 }
 
 func (s *Issues) write(ctx context.Context, rel, eol string, lines []string) error {
@@ -725,4 +761,62 @@ func (s *Issues) write(ctx context.Context, rel, eol string, lines []string) err
 	}
 	s.ix.Forget(rel)
 	return s.ix.ReindexPath(ctx, rel)
+}
+
+// actorOf is the username of the caller, "" for background work.
+func actorOf(ctx context.Context) string {
+	if p := policy.From(ctx); p != nil {
+		return p.Username
+	}
+	return ""
+}
+
+// watchersOf are the people who follow an issue: its reporter, assignee and
+// explicit watchers.
+func watchersOf(is *domain.Issue) []string {
+	return append([]string{is.Reporter, is.Assignee}, is.Watchers...)
+}
+
+// notifyChange reports what changed between two states of an issue. Only real
+// changes reach it (edit returns early when the file is unchanged), so a
+// retried request does not notify twice; mentions are keyed by issue so a
+// re-saved description does not repeat them.
+func (s *Issues) notifyChange(ctx context.Context, before, after *domain.Issue, actor string) {
+	if s.notify == nil {
+		return
+	}
+	stamp := nowFunc().UTC().Format(time.RFC3339Nano)
+	var events []notify.Event
+	if after.Assignee != "" && after.Assignee != before.Assignee {
+		events = append(events, notify.Event{Kind: notify.Assigned, Issue: after.Key, Actor: actor,
+			Recipients: []string{after.Assignee}, Dedup: "assigned:" + after.Key + ":" + stamp})
+	}
+	if before.Status != "" && after.Status != before.Status {
+		events = append(events, notify.Event{Kind: notify.Status, Issue: after.Key, Ref: after.Status, Actor: actor,
+			Recipients: append(watchersOf(before), watchersOf(after)...), Dedup: "status:" + after.Key + ":" + stamp})
+	}
+	old := map[string]bool{}
+	for _, m := range notify.Mentions(before.Description) {
+		old[m] = true
+	}
+	var fresh []string
+	for _, m := range notify.Mentions(after.Description) {
+		if !old[m] {
+			fresh = append(fresh, m)
+		}
+	}
+	if len(fresh) > 0 {
+		events = append(events, notify.Event{Kind: notify.Mentioned, Issue: after.Key, Actor: actor,
+			Recipients: fresh, Dedup: "mention:" + after.Key + ":description"})
+	}
+	s.emit(ctx, events...)
+}
+
+func (s *Issues) emit(ctx context.Context, events ...notify.Event) {
+	for _, e := range events {
+		if _, err := s.notify.Emit(ctx, e); err != nil {
+			// The change itself is saved; a lost notification is not worth failing it.
+			s.log.Warn("уведомление не сохранено", "issue", e.Issue, "kind", e.Kind, "err", err)
+		}
+	}
 }

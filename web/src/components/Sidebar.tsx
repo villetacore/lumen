@@ -54,6 +54,8 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const { data: tags } = useQuery({ queryKey: ["tags"], queryFn: api.tags });
   const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
   const [newIssue, setNewIssue] = useState(false);
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const { data: inbox } = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications(), enabled: !!me?.username });
 
   return (
     <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
@@ -73,6 +75,15 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
             <Icon name="plus" size={14} />
           </IconButton>
         </div>
+        <NavLink to="/my" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+          <span className="icon"><Icon name="user" /></span>
+          Мои задачи
+        </NavLink>
+        <NavLink to="/inbox" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+          <span className="icon"><Icon name="bell" /></span>
+          Уведомления
+          {!!inbox?.unread && <span className="count">{inbox.unread}</span>}
+        </NavLink>
         <NavLink end to="/tracker" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="board" /></span>
           Все проекты

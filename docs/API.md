@@ -88,7 +88,7 @@
 | `GET` | `/api/v1/tracker/projects` | Проекты с ключом: `{key, title, path, workflow, issue_types, transitions, issue_seq}` |
 | `POST` | `/api/v1/tracker/projects` | `{key, title}` — новый проект; `{key, note}` — включить трекер у существующей заметки-проекта |
 | `GET` | `/api/v1/tracker/projects/{key}` | Один проект |
-| `GET` | `/api/v1/issues` | Список в порядке доски, без описания и комментариев. Параметры: `project`, `status` (csv), `category` (`todo\|in_progress\|done`), `assignee` (`none` — без исполнителя), `type`, `label` (csv), `sprint`, `epic`, `q`, `limit`, `offset` |
+| `GET` | `/api/v1/issues` | Список в порядке доски, без описания и комментариев. Параметры: `project`, `status` (csv), `category` (`todo\|in_progress\|done`), `assignee` (`none` — без исполнителя, `me` — вызывающий), `watcher` (автор, исполнитель или наблюдатель; `me`), `type`, `label` (csv), `sprint`, `epic`, `q`, `limit`, `offset` |
 | `POST` | `/api/v1/issues` | `{project, title, issue_type?, status?, priority?, assignee?, labels?, epic?, parent?, sprint?, start?, due?, estimate?, points?, description?}`; ключ выдаёт сервер, `reporter` — вошедший пользователь |
 | `GET` | `/api/v1/issues/{key}` | Тикет с `description`, `checklist`, `comments` |
 | `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
@@ -104,6 +104,12 @@
 | `PATCH` | `/api/v1/sprints/{id}` | `{name?, goal?, start?, end?}` |
 | `POST` | `/api/v1/sprints/{id}/start` | `{start?, end?, goal?}`; по умолчанию сегодня и +14 дней. Второй активный спринт — `409 sprint_state` |
 | `POST` | `/api/v1/sprints/{id}/complete` | `{move_to?}` — куда незавершённые тикеты (пусто — бэклог) → `{sprint, moved}`. Повтор после сбоя дозавершает |
+
+Уведомления: исполнитель — о назначении; упомянутые через `@логин` в описании
+(однократно на тикет) или комментарии — об упоминании; наблюдатели (автор,
+исполнитель, `watchers`) — о комментариях и смене статуса. Автор действия
+уведомлений о себе не получает; повторный запрос без изменений их не создаёт.
+Событие SSE `notification` приходит только адресату и не называет тикет.
 
 Ошибки: недопустимый переход workflow — `409 bad_transition`; недопустимое
 состояние спринта (второй активный, закрытый спринт для тикета) — `409 sprint_state`; устаревшая
@@ -159,6 +165,7 @@
 {"type":"issue.changed","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
 {"type":"issue.deleted","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
 {"type":"sprint.changed","id":"WEB-S3","path":"20-projects/WEB/sprints/WEB-S3.md"}
+{"type":"notification"}
 {"type":"sync.progress","done":120,"total":340}
 {"type":"reindex.finished","notes":512,"tasks":1840,"took_ms":410}
 ```
@@ -211,6 +218,8 @@
 | `GET` | `/auth/callback` | Возврат от провайдера |
 | `GET`/`POST` | `/auth/logout` | Выйти |
 
+| `GET` | `/api/v1/notifications?unread=true&limit=` | Уведомления вызывающего, новые сверху: `{items: [{id, kind, issue, ref, actor, created_at, read, title, project, status}], unread}`; `kind` — `assigned\|mentioned\|commented\|status`. Тикеты, которые читателю не видны, в выдачу не попадают |
+| `POST` | `/api/v1/notifications/read` | `{ids: [..]}` — отметить прочитанными; пустое тело — все |
 | `GET` | `/api/v1/users?q=` | Справочник: кто входил через OIDC — `{username, name, groups, role, first_seen, last_seen, email?}`; `email` только для admin |
 | `GET` | `/api/v1/groups` | Группы Keycloak известных пользователей: `{name, users}` |
 

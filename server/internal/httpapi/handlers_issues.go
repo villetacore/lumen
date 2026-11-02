@@ -68,7 +68,8 @@ func (a *API) handleListIssues(w http.ResponseWriter, r *http.Request) {
 		Project:  q.Get("project"),
 		Status:   csvParam(r, "status"),
 		Category: domain.StatusCategory(q.Get("category")),
-		Assignee: q.Get("assignee"),
+		Assignee: meParam(r, q.Get("assignee")),
+		Watcher:  meParam(r, q.Get("watcher")),
 		Type:     q.Get("type"),
 		Labels:   csvParam(r, "label"),
 		Sprint:   q.Get("sprint"),
@@ -365,4 +366,15 @@ func (a *API) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, acc)
+}
+
+// meParam resolves "me" to the caller's username, for "Мои задачи".
+func meParam(r *http.Request, v string) string {
+	if v != "me" {
+		return v
+	}
+	if p := policy.From(r.Context()); p != nil && p.Username != "" {
+		return p.Username
+	}
+	return "\x00" // nobody: matches no issue
 }

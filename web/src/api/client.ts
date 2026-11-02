@@ -1,6 +1,7 @@
 import type {
   Agenda,
   Identity,
+  Inbox,
   Integration,
   IntegrationKind,
   Issue,
@@ -179,6 +180,9 @@ export const api = {
     }),
 
   me: () => request<Identity>("/me"),
+  notifications: (unread = false) => request<Inbox>("/notifications" + query({ unread: unread || undefined })),
+  readNotifications: (ids?: number[]) =>
+    request<void>("/notifications/read", { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
   users: (q = "") => request<ListResponse<Person>>("/users" + query({ q })),
   groups: () => request<ListResponse<PersonGroup>>("/groups"),
   projectAccess: (key: string) => request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`),
@@ -263,6 +267,7 @@ export function subscribeEvents(onEvent: () => void): () => void {
     "issue.changed",
     "issue.deleted",
     "sprint.changed",
+    "notification",
     "reindex.finished",
     "integration.synced",
   ]) {
