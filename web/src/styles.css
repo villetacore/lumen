@@ -323,3 +323,52 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 .note-view > .page-head { margin-bottom: 16px; }
 /* Pages without the .page wrapper still need space under the header. */
 .main > .page-head { margin-bottom: 24px; }
+
+/* Tracker (LUM-062) */
+.issue-key { font: 12px var(--vs-font-mono); letter-spacing: .02em; color: var(--vs-link); white-space: nowrap; }
+.nav-item .nav-key { font: 10px var(--vs-font-mono); min-width: 18px; color: var(--vs-muted); }
+.tracker-projects { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.tracker-project { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 14px 16px; border: 1px solid var(--vs-border); border-top: 3px solid var(--vs-accent); background: var(--vs-surface); color: var(--vs-text); }
+.tracker-project:hover { text-decoration: none; background: var(--row-hover); }
+.tracker-project .sub { color: var(--vs-muted); font-size: .875em; overflow-wrap: anywhere; }
+.issue-filters .vs-field { min-width: 140px; }
+.issue-filters .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+.issue-table { overflow-x: auto; }
+.issue-table td { vertical-align: top; }
+.issue-title-link { color: var(--vs-text); overflow-wrap: anywhere; }
+.issue-label { margin-right: 6px; white-space: nowrap; }
+.issue-form { display: flex; flex-direction: column; gap: 12px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row .vs-field { margin: 0; }
+.issue-card .page-head { align-items: flex-start; }
+.issue-head { flex: 1; min-width: 0; }
+.issue-title-btn { all: unset; cursor: text; overflow-wrap: anywhere; }
+.issue-title-btn:hover, .issue-title-btn:focus-visible { outline: 1px dashed var(--vs-border); outline-offset: 4px; }
+.issue-title-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.issue-title-edit .vs-field { flex: 1; min-width: 220px; margin: 0; }
+.status-select { min-width: 150px; }
+.issue-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.issue-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.issue-side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
+.issue-props { grid-template-columns: 1fr; }
+.issue-props > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px 12px; }
+.issue-props dd { margin: 0; min-width: 0; }
+.issue-props .vs-field { margin: 0; }
+.issue-props .vs-field > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.issue-props .prop-control { width: 100%; min-height: 32px; border-color: transparent; background: transparent; }
+.issue-props .prop-control:hover, .issue-props .prop-control:focus { border-color: var(--vs-border); background: var(--vs-surface); }
+.issue-editor, .comment-form { display: flex; flex-direction: column; gap: 10px; }
+.editor-actions, .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.issue-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.issue-comments { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.issue-comment { padding: 10px 14px; border: 1px solid var(--vs-border); border-left: 3px solid var(--vs-accent); background: var(--vs-surface); }
+.comment-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 4px; }
+.comment-meta time { font: 12px var(--vs-font-mono); color: var(--vs-muted); }
+@media (max-width: 960px) {
+  .issue-layout { grid-template-columns: 1fr; }
+  .issue-side { position: static; order: -1; }
+}
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: 1fr; }
+  .issue-filters .vs-field { min-width: 0; flex: 1 1 140px; }
+}

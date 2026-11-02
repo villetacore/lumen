@@ -14,6 +14,9 @@ import NotePage from "./pages/NotePage";
 import SearchPage from "./pages/SearchPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import PasswordsPage from "./pages/PasswordsPage";
+import TrackerPage from "./pages/TrackerPage";
+import IssuesPage from "./pages/IssuesPage";
+import IssuePage from "./pages/IssuePage";
 import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
@@ -67,6 +70,9 @@ export default function App() {
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/task/:id" element={<TaskPage />} />
           <Route path="/note/*" element={<NotePage />} />
+          <Route path="/tracker" element={<TrackerPage />} />
+          <Route path="/tracker/:key" element={<IssuesPage />} />
+          <Route path="/issue/:key" element={<IssuePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/passwords" element={<PasswordsPage />} />

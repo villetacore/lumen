@@ -9,6 +9,8 @@ import { api } from "../api/client";
 import type { ViewName } from "../api/types";
 import { iso, today } from "../lib/date";
 import NewNoteDialog from "./NewNoteDialog";
+import NewIssueDialog from "./NewIssueDialog";
+import { projectUrl } from "../lib/tracker";
 import { IconButton } from "@villetacore/velessoft-ui";
 
 const VIEWS: { view: ViewName; label: string; icon: IconName }[] = [
@@ -50,6 +52,8 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     queryFn: () => api.notes({ type: "project" }),
   });
   const { data: tags } = useQuery({ queryKey: ["tags"], queryFn: api.tags });
+  const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
+  const [newIssue, setNewIssue] = useState(false);
 
   return (
     <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
@@ -59,6 +63,25 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
       <div className="nav-title">Задачи</div>
         {VIEWS.map((v) => (
           <ViewLink key={v.view} {...v} />
+        ))}
+      </div>
+
+      <div className="nav-group">
+        <div className="nav-title">
+          Трекер
+          <IconButton className="nav-add" size="sm" variant="ghost" label="Новый тикет" onClick={() => { setNewIssue(true); if (open) onClose(); }}>
+            <Icon name="plus" size={14} />
+          </IconButton>
+        </div>
+        <NavLink end to="/tracker" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+          <span className="icon"><Icon name="board" /></span>
+          Все проекты
+        </NavLink>
+        {tracker?.items.map((p) => (
+          <NavLink key={p.key} to={projectUrl(p.key)} className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+            <span className="icon nav-key">{p.key}</span>
+            {p.title}
+          </NavLink>
         ))}
       </div>
 
@@ -134,6 +157,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
       </div>
       <div className="sidebar-foot"><ThemeSwitch /><Signature /></div>
       {creating && createPortal(<NewNoteDialog type={creating} onClose={() => setCreating(null)} />, document.body)}
+      {newIssue && createPortal(<NewIssueDialog onClose={() => setNewIssue(false)} />, document.body)}
     </nav>
   );
 }

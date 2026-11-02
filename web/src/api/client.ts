@@ -3,6 +3,11 @@ import type {
   Identity,
   Integration,
   IntegrationKind,
+  Issue,
+  IssueComment,
+  IssueFilter,
+  IssueInput,
+  IssuePatch,
   ListResponse,
   PasswordItem,
   PasswordKind,
@@ -16,6 +21,7 @@ import type {
   Task,
   TaskFilter,
   TaskPatch,
+  TrackerProject,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -133,6 +139,22 @@ export const api = {
   backlinks: (idOrPath: string) =>
     request<ListResponse<NoteSummary>>(`/backlinks/${encodePath(idOrPath)}`),
 
+  trackerProjects: () => request<ListResponse<TrackerProject>>("/tracker/projects"),
+  trackerProject: (key: string) => request<TrackerProject>(`/tracker/projects/${encodeURIComponent(key)}`),
+  createTrackerProject: (input: { key: string; title?: string; note?: string }) =>
+    request<TrackerProject>("/tracker/projects", { method: "POST", body: JSON.stringify(input) }),
+  issues: (filter: IssueFilter = {}) => request<ListResponse<Issue>>("/issues" + query({ ...filter })),
+  issue: (key: string) => request<Issue>(`/issues/${encodeURIComponent(key)}`),
+  createIssue: (input: IssueInput) =>
+    request<Issue>("/issues", { method: "POST", body: JSON.stringify(input) }),
+  patchIssue: (key: string, patch: IssuePatch) =>
+    request<Issue>(`/issues/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  moveIssue: (key: string, move: { status?: string; before?: string; after?: string; revision?: number }) =>
+    request<Issue>(`/issues/${encodeURIComponent(key)}/move`, { method: "POST", body: JSON.stringify(move) }),
+  addComment: (key: string, body: string) =>
+    request<IssueComment>(`/issues/${encodeURIComponent(key)}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  deleteIssue: (key: string) => request<void>(`/issues/${encodeURIComponent(key)}`, { method: "DELETE" }),
+
   calendar: (from: string, to: string) =>
     request<Agenda>("/calendar" + query({ from, to })),
   moveEvent: (ref: string, date: string, field: "scheduled" | "due" = "scheduled") =>
@@ -216,6 +238,8 @@ export function subscribeEvents(onEvent: () => void): () => void {
     "note.changed",
     "note.deleted",
     "task.changed",
+    "issue.changed",
+    "issue.deleted",
     "reindex.finished",
     "integration.synced",
   ]) {

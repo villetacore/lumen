@@ -2,7 +2,7 @@
 
 export type TaskStatus = "todo" | "doing" | "done" | "cancelled" | "deferred";
 export type Priority = "A" | "B" | "C" | "D" | "";
-export type NoteType = "note" | "project" | "area" | "daily" | "meeting" | "event";
+export type NoteType = "note" | "project" | "area" | "daily" | "meeting" | "event" | "issue" | "sprint";
 export type EventSource = "note" | "task" | "daily" | "ics";
 
 export interface Task {
@@ -235,3 +235,102 @@ export interface ServerEvent {
   status?: string;
   revision?: number;
 }
+
+// Tracker (spec/FORMAT.md §7, server/internal/domain/issue.go).
+
+export type StatusCategory = "todo" | "in_progress" | "done";
+
+export interface WorkflowStatus {
+  id: string;
+  name: string;
+  category: StatusCategory;
+  wip?: number;
+}
+
+export interface TrackerProject {
+  key: string;
+  title: string;
+  note_id: string;
+  path: string;
+  workflow: WorkflowStatus[];
+  issue_types: string[];
+  transitions?: Record<string, string[]>;
+  issue_seq: number;
+  revision: number;
+}
+
+export interface IssueLink {
+  type: string;
+  target: string;
+}
+
+export interface IssueComment {
+  id: string;
+  author?: string;
+  at: string;
+  body: string;
+  line: number;
+}
+
+export interface Issue {
+  key: string;
+  project: string;
+  path: string;
+  title: string;
+  issue_type: string;
+  status: string;
+  status_category?: StatusCategory;
+  priority?: string;
+  assignee?: string;
+  reporter?: string;
+  watchers?: string[];
+  labels?: string[];
+  epic?: string;
+  parent?: string;
+  sprint?: string;
+  start: string | null;
+  due: string | null;
+  estimate?: string;
+  points?: number;
+  rank?: string;
+  links?: IssueLink[];
+  created?: string;
+  updated?: string;
+  revision: number;
+  description?: string;
+  comments?: IssueComment[];
+  checklist?: Task[];
+}
+
+export interface IssueFilter {
+  project?: string;
+  status?: string[];
+  category?: StatusCategory | "";
+  assignee?: string;
+  type?: string;
+  label?: string[];
+  sprint?: string;
+  epic?: string;
+  q?: string;
+  limit?: number;
+}
+
+export interface IssueInput {
+  project: string;
+  title: string;
+  issue_type?: string;
+  status?: string;
+  priority?: string;
+  assignee?: string;
+  labels?: string[];
+  epic?: string;
+  parent?: string;
+  sprint?: string;
+  start?: string;
+  due?: string;
+  estimate?: string;
+  points?: number;
+  description?: string;
+}
+
+export type IssuePatch = Partial<Omit<IssueInput, "project">> & { watchers?: string[]; revision?: number };
