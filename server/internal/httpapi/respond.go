@@ -44,6 +44,8 @@ func fail(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "conflict", err.Error(), nil)
 	case errors.Is(err, service.ErrAlreadyExists()):
 		writeError(w, http.StatusConflict, "conflict", err.Error(), nil)
+	case errors.Is(err, service.ErrSprintState):
+		writeError(w, http.StatusConflict, "sprint_state", err.Error(), nil)
 	case errors.Is(err, service.ErrBadTransition):
 		writeError(w, http.StatusConflict, "bad_transition", err.Error(), nil)
 	case errors.Is(err, vault.ErrOutside):

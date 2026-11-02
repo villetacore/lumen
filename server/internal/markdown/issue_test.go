@@ -172,3 +172,21 @@ func TestRankBetween(t *testing.T) {
 		hi = m
 	}
 }
+
+func TestParseSprintFixture(t *testing.T) {
+	n := parseFixture(t, "tracker-sprint.md", "20-projects/WEB/sprints/WEB-S3.md")
+	sp := ParseSprint(n)
+	if sp == nil || sp.ID != "WEB-S3" || sp.Project != "WEB" || sp.State != domain.SprintActive ||
+		sp.Name != "Спринт 3" || sp.Goal != "Запустить главную страницу" ||
+		sp.Start.String() != "2026-11-02" || sp.End.String() != "2026-11-16" {
+		t.Fatalf("sprint = %+v", sp)
+	}
+	// A sprint with dates is a calendar entry like any dated note.
+	if ev := Events(n); len(ev) != 1 || ev[0].Title != "Спринт 3" {
+		t.Errorf("events = %+v", ev)
+	}
+	bare, _ := ParseNote("x/WEB-S1.md", []byte("---\ntype: sprint\nstate: odd\n---\n"))
+	if sp := ParseSprint(bare); sp.ID != "WEB-S1" || sp.Project != "WEB" || sp.State != domain.SprintPlanned {
+		t.Errorf("defaults = %+v", sp)
+	}
+}

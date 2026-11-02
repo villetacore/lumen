@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"errors"
+	"io"
 	"net/http"
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
@@ -164,10 +166,11 @@ func (a *API) handlePatchIssue(w http.ResponseWriter, r *http.Request) {
 }
 
 type moveIssueReq struct {
-	Status   string `json:"status"`
-	Before   string `json:"before"`
-	After    string `json:"after"`
-	Revision int64  `json:"revision"`
+	Status   string  `json:"status"`
+	Before   string  `json:"before"`
+	After    string  `json:"after"`
+	Sprint   *string `json:"sprint"`
+	Revision int64   `json:"revision"`
 }
 
 func (a *API) handleMoveIssue(w http.ResponseWriter, r *http.Request) {
@@ -208,4 +211,96 @@ func (a *API) handleDeleteIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleListSprints(w http.ResponseWriter, r *http.Request) {
+	if _, err := a.issues.Project(r.Context(), r.PathValue("key")); err != nil {
+		fail(w, err)
+		return
+	}
+	list, err := a.issues.Sprints(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, listEnvelope[*domain.Sprint]{Items: list, Total: len(list)})
+}
+
+type sprintReq struct {
+	Name  *string `json:"name"`
+	Goal  *string `json:"goal"`
+	Start *string `json:"start"`
+	End   *string `json:"end"`
+}
+
+func (a *API) handleCreateSprint(w http.ResponseWriter, r *http.Request) {
+	var req sprintReq
+	// Every field is optional: an empty body creates "Спринт N".
+	if err := decodeJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	sp, err := a.issues.CreateSprint(r.Context(), r.PathValue("key"), service.SprintInput(req))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, sp)
+}
+
+func (a *API) handleGetSprint(w http.ResponseWriter, r *http.Request) {
+	sp, err := a.issues.Sprint(r.Context(), r.PathValue("id"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sp)
+}
+
+func (a *API) handlePatchSprint(w http.ResponseWriter, r *http.Request) {
+	var req sprintReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	sp, err := a.issues.UpdateSprint(r.Context(), r.PathValue("id"), service.SprintInput(req))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sp)
+}
+
+func (a *API) handleStartSprint(w http.ResponseWriter, r *http.Request) {
+	var req sprintReq
+	// The body is optional: an empty request takes the defaults.
+	if err := decodeJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	sp, err := a.issues.StartSprint(r.Context(), r.PathValue("id"), service.SprintInput(req))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sp)
+}
+
+type completeSprintReq struct {
+	MoveTo string `json:"move_to"`
+}
+
+func (a *API) handleCompleteSprint(w http.ResponseWriter, r *http.Request) {
+	var req completeSprintReq
+	// The body is optional: an empty request takes the defaults.
+	if err := decodeJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	sp, moved, err := a.issues.CompleteSprint(r.Context(), r.PathValue("id"), req.MoveTo)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sprint": sp, "moved": moved})
 }

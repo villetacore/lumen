@@ -7,7 +7,7 @@ import { errorText } from "../lib/errors";
 import { PRIORITIES, issueUrl, splitList, typeLabel } from "../lib/tracker";
 
 /** NewIssueDialog creates a tracker issue; the server assigns its key. */
-export default function NewIssueDialog({ project, status, onClose }: { project?: string; status?: string; onClose: () => void }) {
+export default function NewIssueDialog({ project, status, sprint, onClose }: { project?: string; status?: string; sprint?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: projects } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
@@ -26,7 +26,7 @@ export default function NewIssueDialog({ project, status, onClose }: { project?:
   const dirty = !!(form.title || form.description);
   const create = useMutation({
     mutationFn: () => api.createIssue({
-      project: form.project, title: form.title.trim(), status,
+      project: form.project, title: form.title.trim(), status, sprint,
       issue_type: form.issue_type || undefined, priority: form.priority || undefined,
       assignee: form.assignee.trim() || undefined, labels: splitList(form.labels),
       due: form.due || undefined, description: form.description || undefined,

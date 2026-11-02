@@ -78,6 +78,28 @@ func TestIssueTrackerHTTP(t *testing.T) {
 	}
 	request(http.MethodDelete, "/api/v1/issues/WEB-1", nil, http.StatusNoContent, nil)
 	request(http.MethodGet, "/api/v1/issues/WEB-1", nil, http.StatusNotFound, nil)
+	// Sprints: plan, start, a second start is refused, complete moves the rest.
+	var sp domain.Sprint
+	request(http.MethodPost, "/api/v1/tracker/projects/WEB/sprints", map[string]any{"goal": "Запуск"}, http.StatusCreated, &sp)
+	request(http.MethodPost, "/api/v1/tracker/projects/WEB/sprints", nil, http.StatusCreated, nil)
+	request(http.MethodPost, "/api/v1/issues/WEB-2/move", map[string]any{"sprint": sp.ID}, http.StatusOK, nil)
+	request(http.MethodPost, "/api/v1/sprints/"+sp.ID+"/start", nil, http.StatusOK, &sp)
+	request(http.MethodPost, "/api/v1/sprints/WEB-S2/start", nil, http.StatusConflict, nil)
+	var done struct {
+		Sprint domain.Sprint `json:"sprint"`
+		Moved  int           `json:"moved"`
+	}
+	request(http.MethodPost, "/api/v1/sprints/"+sp.ID+"/complete", map[string]any{"move_to": "WEB-S2"}, http.StatusOK, &done)
+	if sp.State != domain.SprintActive || done.Sprint.State != domain.SprintClosed || done.Moved != 1 {
+		t.Fatalf("sprint = %+v, done = %+v", sp, done)
+	}
+	var sprints listEnvelope[domain.Sprint]
+	request(http.MethodGet, "/api/v1/tracker/projects/WEB/sprints", nil, http.StatusOK, &sprints)
+	if sprints.Total != 2 || sprints.Items[0].ID != "WEB-S2" {
+		t.Fatalf("sprints = %+v", sprints.Items)
+	}
+	request(http.MethodGet, "/api/v1/tracker/projects/NOPE/sprints", nil, http.StatusNotFound, nil)
+
 	// A regular note is not reachable as an issue.
 	request(http.MethodGet, "/api/v1/issues/20-projects%2Fweb.md", nil, http.StatusNotFound, nil)
 }

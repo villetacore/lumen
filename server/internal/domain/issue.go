@@ -132,3 +132,25 @@ type IssueQuery struct {
 	Limit    int
 	Offset   int
 }
+
+type SprintState string
+
+const (
+	SprintPlanned SprintState = "planned"
+	SprintActive  SprintState = "active"
+	SprintClosed  SprintState = "closed"
+)
+
+// Sprint is a "type: sprint" note of a tracker project (spec §7).
+type Sprint struct {
+	ID        string      `json:"id"`
+	Project   string      `json:"project"`
+	Path      string      `json:"path"`
+	Name      string      `json:"name"`
+	Goal      string      `json:"goal,omitempty"`
+	State     SprintState `json:"state"`
+	Start     Date        `json:"start,omitempty"`
+	End       Date        `json:"end,omitempty"`
+	Completed Date        `json:"completed,omitempty"`
+	Revision  int64       `json:"revision"`
+}

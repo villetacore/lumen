@@ -334,3 +334,20 @@ export interface IssueInput {
 }
 
 export type IssuePatch = Partial<Omit<IssueInput, "project">> & { watchers?: string[]; revision?: number };
+
+export type SprintState = "planned" | "active" | "closed";
+
+export interface Sprint {
+  id: string;
+  project: string;
+  path: string;
+  name: string;
+  goal?: string;
+  state: SprintState;
+  start: string | null;
+  end: string | null;
+  completed: string | null;
+  revision: number;
+}
+
+export type SprintInput = { name?: string; goal?: string; start?: string; end?: string };

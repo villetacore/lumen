@@ -326,6 +326,9 @@ func (s *Issues) Create(ctx context.Context, in IssueInput, actor string) (*doma
 	} else if _, ok := p.Status(in.Status); !ok {
 		return nil, fmt.Errorf("%w: unknown status %q", ErrInvalid, in.Status)
 	}
+	if err := s.checkSprint(ctx, p, strings.TrimSpace(in.Sprint)); err != nil {
+		return nil, err
+	}
 
 	all, err := s.all(ctx)
 	if err != nil {
@@ -455,9 +458,15 @@ func (s *Issues) Update(ctx context.Context, key string, up IssueUpdate) (*domai
 			}
 			set("status", *up.Status)
 		}
+		if up.Sprint != nil && strings.TrimSpace(*up.Sprint) != is.Sprint {
+			if err := s.checkSprint(ctx, p, strings.TrimSpace(*up.Sprint)); err != nil {
+				return nil, err
+			}
+			set("sprint", strings.TrimSpace(*up.Sprint))
+		}
 		for k, v := range map[string]*string{
 			"priority": up.Priority, "assignee": up.Assignee, "epic": up.Epic,
-			"parent": up.Parent, "sprint": up.Sprint, "estimate": up.Estimate,
+			"parent": up.Parent, "estimate": up.Estimate,
 		} {
 			if v != nil {
 				set(k, strings.TrimSpace(*v))
@@ -499,6 +508,24 @@ func (s *Issues) Update(ctx context.Context, key string, up IssueUpdate) (*domai
 	})
 }
 
+// checkSprint accepts the backlog ("") or an open sprint of the same project.
+func (s *Issues) checkSprint(ctx context.Context, p *domain.TrackerProject, id string) error {
+	if id == "" {
+		return nil
+	}
+	sp, err := s.Sprint(ctx, id)
+	if err != nil {
+		return err
+	}
+	if sp.Project != p.Key {
+		return fmt.Errorf("%w: sprint %s belongs to %s", ErrInvalid, sp.ID, sp.Project)
+	}
+	if sp.State == domain.SprintClosed {
+		return fmt.Errorf("%w: sprint %s is closed", ErrSprintState, sp.ID)
+	}
+	return nil
+}
+
 func checkMove(p *domain.TrackerProject, from, to string) error {
 	if _, ok := p.Status(to); !ok {
 		return fmt.Errorf("%w: unknown status %q", ErrInvalid, to)
@@ -530,8 +557,9 @@ func replaceDescription(lines []string, bodyStart int, desc string) []string {
 // was dropped between (empty: top or bottom of the column).
 type MoveInput struct {
 	Status   string
-	Before   string // key of the issue now directly above
-	After    string // key of the issue now directly below
+	Before   string  // key of the issue now directly above
+	After    string  // key of the issue now directly below
+	Sprint   *string // set: move to this sprint; "" is the backlog
 	Revision int64
 }
 
@@ -562,6 +590,12 @@ func (s *Issues) Move(ctx context.Context, key string, in MoveInput) (*domain.Is
 				return nil, err
 			}
 			lines = markdown.SetFrontmatterValue(lines, "status", in.Status)
+		}
+		if in.Sprint != nil && *in.Sprint != is.Sprint {
+			if err := s.checkSprint(ctx, p, *in.Sprint); err != nil {
+				return nil, err
+			}
+			lines = markdown.SetFrontmatterValue(lines, "sprint", *in.Sprint)
 		}
 		if in.Before != "" || in.After != "" {
 			lines = markdown.SetFrontmatterValue(lines, "rank", markdown.RankBetween(prev, next))

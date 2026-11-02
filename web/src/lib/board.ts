@@ -61,15 +61,21 @@ export type Move = { key: string; status: string; before?: string; after?: strin
  * when nothing would change.
  */
 export function planMove(cell: Issue[], dragged: Issue, status: string, index: number): Move | null {
-  const others = cell.filter((i) => i.key !== dragged.key);
+  const n = neighbours(cell, dragged.key, index);
+  if (!n && status === dragged.status) return null;
+  return { key: dragged.key, status, ...(n ?? neighbours(cell, dragged.key, index, true)!) };
+}
+
+/**
+ * neighbours finds the keys above and below position index of a list once
+ * the dragged item is taken out. It returns null when the item would land
+ * where it already is, unless force is set.
+ */
+export function neighbours(list: Issue[], key: string, index: number, force = false): { before?: string; after?: string } | null {
+  const others = list.filter((i) => i.key !== key);
   const at = Math.max(0, Math.min(index, others.length));
-  const before = others[at - 1]?.key;
-  const after = others[at]?.key;
-  if (status === dragged.status) {
-    const was = cell.findIndex((i) => i.key === dragged.key);
-    if (was === at) return null;
-  }
-  return { key: dragged.key, status, before, after };
+  if (!force && list.findIndex((i) => i.key === key) === at) return null;
+  return { before: others[at - 1]?.key, after: others[at]?.key };
 }
 
 /** applyMove reorders a rank-ordered list locally, for an optimistic update. */

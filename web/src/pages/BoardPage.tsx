@@ -9,7 +9,7 @@ import Icon from "../components/Icon";
 import NewIssueDialog from "../components/NewIssueDialog";
 import ProjectTabs from "../components/ProjectTabs";
 import { dueTone } from "../components/TaskRow";
-import { relativeDue } from "../lib/date";
+import { longDate, parseDate, relativeDue } from "../lib/date";
 import { errorText } from "../lib/errors";
 import { type LaneBy, type Move, OTHER, applyMove, boardColumns, canDrop, columnOf, laneOf, layoutBoard, planMove } from "../lib/board";
 import { filterFromParams, filterToParams, issueUrl, priorityOf, typeLabel } from "../lib/tracker";
@@ -35,10 +35,19 @@ export default function BoardPage() {
   const board = useRef<HTMLDivElement>(null);
 
   const { data: project, error: projectError } = useQuery({ queryKey: ["tracker", "project", key], queryFn: () => api.trackerProject(key) });
+  const { data: sprints } = useQuery({ queryKey: ["sprints", key], queryFn: () => api.sprints(key) });
+  const active = sprints?.items.find((s) => s.state === "active");
+  // The board shows the active sprint unless another scope is picked;
+  // "all" is every issue of the project.
+  const sprintScope = filter.sprint || active?.id || "all";
+  const shownSprint = sprints?.items.find((s) => s.id === sprintScope);
   // Status filters make no sense on a board: the columns are the statuses.
-  const boardFilter: IssueFilter = { ...filter, status: undefined, category: undefined, project: key };
+  const boardFilter: IssueFilter = {
+    ...filter, status: undefined, category: undefined, project: key,
+    sprint: sprintScope === "all" ? undefined : sprintScope,
+  };
   const listKey = ["issues", key, "board", boardFilter];
-  const { data, error, isLoading } = useQuery({ queryKey: listKey, queryFn: () => api.issues(boardFilter) });
+  const { data, error, isLoading } = useQuery({ queryKey: listKey, queryFn: () => api.issues(boardFilter), enabled: !!sprints });
 
   const move = useMutation({
     mutationFn: (m: Move) => api.moveIssue(m.key, { status: m.status, before: m.before, after: m.after }),
@@ -126,12 +135,23 @@ export default function BoardPage() {
       </Select>
       <Input label="Исполнитель" placeholder="имя или none" value={filter.assignee ?? ""} onChange={(e) => update({ assignee: e.target.value.trim() })} />
       <Input label="Метка" value={filter.label?.join(",") ?? ""} onChange={(e) => update({ label: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
+      <Select label="Спринт" value={sprintScope} onChange={(e) => update({ sprint: e.target.value === active?.id ? "" : e.target.value })}>
+        {sprints?.items.filter((sp) => sp.state !== "closed").map((sp) => <option key={sp.id} value={sp.id}>{sp.name}{sp.state === "active" ? " (идёт)" : ""}</option>)}
+        <option value="all">Все тикеты</option>
+      </Select>
       <Select label="Дорожки" value={laneBy} onChange={(e) => setLanes(e.target.value as LaneBy)}>
         <option value="none">Без дорожек</option>
         <option value="assignee">По исполнителю</option>
         <option value="epic">По эпику</option>
       </Select>
     </div>
+    {shownSprint && <div className="sprint-banner">
+      <strong>{shownSprint.name}</strong>
+      {shownSprint.start && <span className="sub">{longDate(parseDate(shownSprint.start))} — {shownSprint.end ? longDate(parseDate(shownSprint.end)) : "…"}</span>}
+      {shownSprint.goal && <span>{shownSprint.goal}</span>}
+      <Link to={`/tracker/${encodeURIComponent(project.key)}/backlog`}>{shownSprint.state === "active" ? "Завершить в бэклоге" : "Бэклог"}</Link>
+    </div>}
+    {!active && sprintScope === "all" && !!sprints?.items.length && <p className="hint">Активного спринта нет — доска показывает все тикеты проекта.</p>}
     <p id="board-keys" className="hint board-hint">Перетащите карточку или нажмите на ней Alt+←/→ (колонка) и Alt+↑/↓ (порядок).</p>
 
     {isLoading && <Spinner label="Загрузка тикетов" />}
@@ -187,7 +207,7 @@ export default function BoardPage() {
         </div>
       </section>)}
     </div>
-    {creating && <NewIssueDialog project={project.key} status={creating} onClose={() => setCreating(null)} />}
+    {creating && <NewIssueDialog project={project.key} status={creating} sprint={shownSprint?.id} onClose={() => setCreating(null)} />}
   </div>;
 }
 

@@ -8,6 +8,8 @@ import type {
   IssueFilter,
   IssueInput,
   IssuePatch,
+  Sprint,
+  SprintInput,
   ListResponse,
   PasswordItem,
   PasswordKind,
@@ -149,11 +151,20 @@ export const api = {
     request<Issue>("/issues", { method: "POST", body: JSON.stringify(input) }),
   patchIssue: (key: string, patch: IssuePatch) =>
     request<Issue>(`/issues/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  moveIssue: (key: string, move: { status?: string; before?: string; after?: string; revision?: number }) =>
+  moveIssue: (key: string, move: { status?: string; before?: string; after?: string; sprint?: string; revision?: number }) =>
     request<Issue>(`/issues/${encodeURIComponent(key)}/move`, { method: "POST", body: JSON.stringify(move) }),
   addComment: (key: string, body: string) =>
     request<IssueComment>(`/issues/${encodeURIComponent(key)}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
   deleteIssue: (key: string) => request<void>(`/issues/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  sprints: (project: string) => request<ListResponse<Sprint>>(`/tracker/projects/${encodeURIComponent(project)}/sprints`),
+  createSprint: (project: string, input: SprintInput = {}) =>
+    request<Sprint>(`/tracker/projects/${encodeURIComponent(project)}/sprints`, { method: "POST", body: JSON.stringify(input) }),
+  patchSprint: (id: string, input: SprintInput) =>
+    request<Sprint>(`/sprints/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }),
+  startSprint: (id: string, input: SprintInput = {}) =>
+    request<Sprint>(`/sprints/${encodeURIComponent(id)}/start`, { method: "POST", body: JSON.stringify(input) }),
+  completeSprint: (id: string, moveTo = "") =>
+    request<{ sprint: Sprint; moved: number }>(`/sprints/${encodeURIComponent(id)}/complete`, { method: "POST", body: JSON.stringify({ move_to: moveTo }) }),
 
   calendar: (from: string, to: string) =>
     request<Agenda>("/calendar" + query({ from, to })),
@@ -240,6 +251,7 @@ export function subscribeEvents(onEvent: () => void): () => void {
     "task.changed",
     "issue.changed",
     "issue.deleted",
+    "sprint.changed",
     "reindex.finished",
     "integration.synced",
   ]) {

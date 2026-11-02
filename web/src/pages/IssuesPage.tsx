@@ -28,7 +28,8 @@ export default function IssuesPage() {
   const { data: project, error: projectError } = useQuery({ queryKey: ["tracker", "project", key], queryFn: () => api.trackerProject(key) });
   const { data, error, isLoading } = useQuery({
     queryKey: ["issues", key, filter],
-    queryFn: () => api.issues({ ...filter, project: key }),
+    // "all" is the board's "every sprint" scope, not a sprint id.
+    queryFn: () => api.issues({ ...filter, sprint: filter.sprint === "all" ? undefined : filter.sprint, project: key }),
   });
 
   const update = (patch: Partial<IssueFilter>) => setParams(filterToParams({ ...filter, ...patch }), { replace: true });

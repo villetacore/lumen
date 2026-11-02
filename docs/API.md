@@ -92,11 +92,18 @@
 | `POST` | `/api/v1/issues` | `{project, title, issue_type?, status?, priority?, assignee?, labels?, epic?, parent?, sprint?, start?, due?, estimate?, points?, description?}`; ключ выдаёт сервер, `reporter` — вошедший пользователь |
 | `GET` | `/api/v1/issues/{key}` | Тикет с `description`, `checklist`, `comments` |
 | `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
-| `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, revision?}` — перенос на доске: `before`/`after` — ключи соседей сверху/снизу |
+| `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, sprint?, revision?}` — перенос на доске или в бэклоге: `before`/`after` — ключи соседей сверху/снизу; `sprint` — в спринт (`""` — в бэклог) |
 | `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |
 | `DELETE` | `/api/v1/issues/{key}` | Переместить файл тикета в корзину vault; номер не переиспользуется |
+| `GET` | `/api/v1/tracker/projects/{key}/sprints` | Спринты: активный, запланированные, закрытые (новые сверху) |
+| `POST` | `/api/v1/tracker/projects/{key}/sprints` | `{name?, goal?, start?, end?}` — новый запланированный спринт `KEY-S<N>` |
+| `GET` | `/api/v1/sprints/{id}` | Один спринт |
+| `PATCH` | `/api/v1/sprints/{id}` | `{name?, goal?, start?, end?}` |
+| `POST` | `/api/v1/sprints/{id}/start` | `{start?, end?, goal?}`; по умолчанию сегодня и +14 дней. Второй активный спринт — `409 sprint_state` |
+| `POST` | `/api/v1/sprints/{id}/complete` | `{move_to?}` — куда незавершённые тикеты (пусто — бэклог) → `{sprint, moved}`. Повтор после сбоя дозавершает |
 
-Ошибки: недопустимый переход workflow — `409 bad_transition`; устаревшая
+Ошибки: недопустимый переход workflow — `409 bad_transition`; недопустимое
+состояние спринта (второй активный, закрытый спринт для тикета) — `409 sprint_state`; устаревшая
 `revision` — `409 conflict`; неизвестный статус/тип или пустой заголовок —
 `422 unprocessable`.
 
@@ -148,6 +155,7 @@
 {"type":"task.changed","id":"k5q9v3","status":"done"}
 {"type":"issue.changed","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
 {"type":"issue.deleted","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
+{"type":"sprint.changed","id":"WEB-S3","path":"20-projects/WEB/sprints/WEB-S3.md"}
 {"type":"sync.progress","done":120,"total":340}
 {"type":"reindex.finished","notes":512,"tasks":1840,"took_ms":410}
 ```

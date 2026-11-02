@@ -363,3 +363,50 @@ func quoted(s string) string {
 func IssuePath(p *domain.TrackerProject, key string) string {
 	return path.Join(path.Dir(p.Path), p.Key, "issues", key+".md")
 }
+
+var sprintIDRe = regexp.MustCompile(`^([A-Z][A-Z0-9]{0,9})-S([1-9][0-9]*)$`)
+
+// SplitSprintID parses "WEB-S3" into its project key and number.
+func SplitSprintID(id string) (project string, n int, ok bool) {
+	m := sprintIDRe.FindStringSubmatch(id)
+	if m == nil {
+		return "", 0, false
+	}
+	n, err := strconv.Atoi(m[2])
+	return m[1], n, err == nil
+}
+
+// ParseSprint projects a "type: sprint" note. The id falls back to the file
+// name, the project to the id prefix, the state to "planned".
+func ParseSprint(n *domain.Note) *domain.Sprint {
+	if n == nil || n.Type != domain.TypeSprint {
+		return nil
+	}
+	fm := &Frontmatter{Fields: n.Frontmatter}
+	sp := &domain.Sprint{
+		ID: fm.Str("id"), Path: n.Path, Name: n.Title, Goal: fm.Str("goal"),
+		Project: strings.ToUpper(fm.Str("project")), State: domain.SprintState(fm.Str("state")),
+		Revision: n.Revision,
+	}
+	if sp.ID == "" {
+		sp.ID = TitleFromPath(n.Path)
+	}
+	if sp.Project == "" {
+		sp.Project, _, _ = SplitSprintID(sp.ID)
+	}
+	switch sp.State {
+	case domain.SprintActive, domain.SprintClosed:
+	default:
+		sp.State = domain.SprintPlanned
+	}
+	sp.Start, sp.End = n.Start, n.End
+	if s := fm.Str("completed"); s != "" {
+		sp.Completed, _ = domain.ParseDate(s)
+	}
+	return sp
+}
+
+// SprintPath is where a new sprint of a project is created.
+func SprintPath(p *domain.TrackerProject, id string) string {
+	return path.Join(path.Dir(p.Path), p.Key, "sprints", id+".md")
+}

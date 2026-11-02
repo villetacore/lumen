@@ -407,3 +407,35 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 @media (max-width: 640px) {
   .board-row { grid-template-columns: repeat(var(--board-cols), minmax(78vw, 1fr)); }
 }
+
+/* Backlog and sprints (LUM-064) */
+.sprint-banner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding: 10px 14px; border: 1px solid var(--vs-border); border-left: 3px solid var(--vs-accent); background: var(--vs-surface); }
+.sprint-banner a { margin-left: auto; }
+.backlog-section { border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.backlog-section.is-active { border-top: 3px solid var(--vs-accent); }
+.backlog-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 14px; border-bottom: 1px solid var(--vs-border); }
+.backlog-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; flex: 1; min-width: 0; }
+.backlog-title h2 { margin: 0; font-size: 16px; }
+.backlog-title .sub { color: var(--vs-muted); font-size: .8125em; }
+.backlog-goal { flex-basis: 100%; order: 3; margin: 0; color: var(--vs-muted); font-size: .875em; }
+.backlog-list { list-style: none; margin: 0; padding: 6px; min-height: 48px; background: var(--vs-surface-muted); border: 1px dashed transparent; }
+.backlog-list.is-target { border-color: var(--vs-accent); }
+.backlog-list.is-blocked { opacity: .45; }
+.backlog-empty { padding: 12px; text-align: center; color: var(--vs-muted); font-size: .875em; }
+.backlog-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto 150px; align-items: center; gap: 10px; padding: 6px 10px; margin-bottom: 4px; background: var(--vs-surface); border: 1px solid var(--vs-border); cursor: grab; }
+.backlog-row:hover { border-color: var(--vs-accent); }
+.backlog-row.is-dragging { opacity: .4; }
+.backlog-row.is-done .backlog-row-title { text-decoration: line-through; color: var(--vs-muted); }
+.backlog-grip { color: var(--vs-muted); letter-spacing: -2px; font-size: 12px; }
+.backlog-row-title { color: var(--vs-text); overflow-wrap: anywhere; }
+.backlog-row-title:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 2px; }
+.backlog-row-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; font-size: .8125em; }
+.backlog-sprint { min-height: 30px; padding: 2px 6px; font-size: .8125em; }
+.backlog-page { gap: 16px; }
+@media (max-width: 760px) {
+  .backlog-row { grid-template-columns: auto minmax(0, 1fr); }
+  .backlog-row .backlog-grip { display: none; }
+  .backlog-row-title { grid-column: 2; }
+  .backlog-row-meta { grid-column: 1 / -1; justify-content: flex-start; }
+  .backlog-sprint { grid-column: 1 / -1; }
+}
