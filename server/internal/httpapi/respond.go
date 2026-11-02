@@ -11,6 +11,7 @@ import (
 
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 )
@@ -44,6 +45,8 @@ func fail(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "conflict", err.Error(), nil)
 	case errors.Is(err, service.ErrAlreadyExists()):
 		writeError(w, http.StatusConflict, "conflict", err.Error(), nil)
+	case errors.Is(err, policy.ErrForbidden):
+		writeError(w, http.StatusForbidden, "forbidden", err.Error(), nil)
 	case errors.Is(err, service.ErrSprintState):
 		writeError(w, http.StatusConflict, "sprint_state", err.Error(), nil)
 	case errors.Is(err, service.ErrBadTransition):

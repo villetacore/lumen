@@ -38,6 +38,8 @@ Single sign-on (см. [../docs/AUTH.md](../docs/AUTH.md)):
 | `--oidc-client-id` | `LUMEN_OIDC_CLIENT_ID` | Идентификатор клиента |
 | `--oidc-client-secret` | `LUMEN_OIDC_CLIENT_SECRET` | Ссылка на секрет |
 | `--oidc-roles` | `LUMEN_OIDC_ROLES` | Кого пускать: роли или группы |
+| `--admin-roles` | `LUMEN_ADMIN_ROLES` | Роли/группы администраторов пространства; пусто — все допущенные администраторы ([ADR-0012](../docs/adr/0012-access-policy.md)) |
+| `--viewer-roles` | `LUMEN_VIEWER_ROLES` | Роли/группы только для чтения |
 | `--session-ttl` | — | Срок жизни сессии в браузере |
 
 ## Команды

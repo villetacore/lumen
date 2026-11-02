@@ -7,6 +7,7 @@ import (
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
 	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 )
 
@@ -303,4 +304,65 @@ func (a *API) handleCompleteSprint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sprint": sp, "moved": moved})
+}
+
+// Project access lists (ADR-0012). The project must be visible to the caller;
+// a hidden one answers 404 like any hidden object.
+
+func (a *API) handleListMembers(w http.ResponseWriter, r *http.Request) {
+	p, err := a.issues.Project(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	acc, err := a.policy.ProjectAccess(r.Context(), p.Key)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, acc)
+}
+
+type memberReq struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+func (a *API) handleSetMember(w http.ResponseWriter, r *http.Request) {
+	var req memberReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	role, ok := policy.ParseRole(req.Role)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, "unprocessable", "role must be viewer, member or admin", nil)
+		return
+	}
+	p, err := a.issues.Project(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	acc, err := a.policy.SetMember(r.Context(), p.Key, req.Kind, req.Name, role)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, acc)
+}
+
+func (a *API) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
+	p, err := a.issues.Project(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	acc, err := a.policy.RemoveMember(r.Context(), p.Key, r.PathValue("kind"), r.PathValue("name"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, acc)
 }

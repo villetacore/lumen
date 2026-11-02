@@ -11,6 +11,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 )
 
 // ErrSprintState is returned for a start or completion that the sprint's
@@ -72,6 +73,9 @@ func (s *Issues) CreateSprint(ctx context.Context, project string, in SprintInpu
 	defer vaultWrites.Unlock()
 	p, err := s.Project(ctx, project)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.policy.CheckProject(ctx, p.Key, policy.RoleMember); err != nil {
 		return nil, err
 	}
 	all, err := s.Sprints(ctx, p.Key)
@@ -198,6 +202,9 @@ func (s *Issues) CompleteSprint(ctx context.Context, id, moveTo string) (*domain
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := s.policy.CheckProject(ctx, sp.Project, policy.RoleMember); err != nil {
+		return nil, 0, err
+	}
 	if sp.State != domain.SprintActive {
 		return nil, 0, fmt.Errorf("%w: %s is %s", ErrSprintState, sp.ID, sp.State)
 	}
@@ -238,6 +245,9 @@ func (s *Issues) CompleteSprint(ctx context.Context, id, moveTo string) (*domain
 func (s *Issues) editSprint(ctx context.Context, id string, fn func(*domain.Sprint, func(string, any)) error) (*domain.Sprint, error) {
 	sp, err := s.Sprint(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.policy.CheckProject(ctx, sp.Project, policy.RoleMember); err != nil {
 		return nil, err
 	}
 	data, err := s.vault.Read(sp.Path)

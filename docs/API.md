@@ -95,6 +95,9 @@
 | `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, sprint?, revision?}` — перенос на доске или в бэклоге: `before`/`after` — ключи соседей сверху/снизу; `sprint` — в спринт (`""` — в бэклог) |
 | `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |
 | `DELETE` | `/api/v1/issues/{key}` | Переместить файл тикета в корзину vault; номер не переиспользуется |
+| `GET` | `/api/v1/tracker/projects/{key}/members` | Доступ к проекту: `{open, my_role, items: [{kind, name, role, added_at, added_by}]}` |
+| `PUT` | `/api/v1/tracker/projects/{key}/members` | `{kind: user\|group, name, role: viewer\|member\|admin}` — добавить/изменить; нужен admin проекта; закрыть открытый проект может только admin пространства |
+| `DELETE` | `/api/v1/tracker/projects/{key}/members/{kind}/{name}` | Убрать участника; без участников проект снова открыт |
 | `GET` | `/api/v1/tracker/projects/{key}/sprints` | Спринты: активный, запланированные, закрытые (новые сверху) |
 | `POST` | `/api/v1/tracker/projects/{key}/sprints` | `{name?, goal?, start?, end?}` — новый запланированный спринт `KEY-S<N>` |
 | `GET` | `/api/v1/sprints/{id}` | Один спринт |
@@ -203,7 +206,7 @@
 
 | Метод | Путь | Описание |
 |---|---|---|
-| `GET` | `/api/v1/me` | Кто вошёл и как: `{authenticated, mode, name, roles, login_url}` |
+| `GET` | `/api/v1/me` | Кто вошёл и как: `{authenticated, mode, name, roles, role, login_url}`; `role` — роль пространства `viewer\|member\|admin` |
 | `GET` | `/auth/login?return_to=/calendar` | Начать вход через OIDC |
 | `GET` | `/auth/callback` | Возврат от провайдера |
 | `GET`/`POST` | `/auth/logout` | Выйти |
@@ -237,8 +240,14 @@
 {"error": {"code": "conflict", "message": "revision mismatch", "details": {"current": 9}}}
 ```
 
-Коды: `bad_request`, `unauthorized`, `not_found`, `conflict`, `unprocessable`,
-`rate_limited`, `internal`.
+Коды: `bad_request`, `unauthorized`, `forbidden`, `not_found`, `conflict`,
+`unprocessable`, `rate_limited`, `internal`.
+
+Права ([ADR-0012](adr/0012-access-policy.md)): объект, который вызывающему не
+виден (закрытый проект), отвечает `404` и не попадает в списки, поиск, теги,
+календарь, статистику и SSE. Запись без нужной роли в видимом объекте —
+`403 forbidden`. Интеграции, хранилища паролей и `POST /reindex` — только для
+роли `admin`.
 
 ## Вложенные материалы и документация
 

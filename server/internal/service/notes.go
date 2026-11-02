@@ -15,6 +15,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 )
 
@@ -23,11 +24,19 @@ var nowFunc = time.Now
 
 // Notes implements note-level use cases.
 type Notes struct {
-	vault *vault.Vault
-	store index.Store
-	ix    *Indexer
-	bus   *Bus
-	log   *slog.Logger
+	vault  *vault.Vault
+	store  index.Store
+	ix     *Indexer
+	bus    *Bus
+	log    *slog.Logger
+	policy *policy.Policy // nil: no checks (background jobs, tests)
+}
+
+// WithPolicy makes every write check the caller's role (ADR-0012). The store
+// passed to NewNotes should then be the policy-scoped one.
+func (s *Notes) WithPolicy(p *policy.Policy) *Notes {
+	s.policy = p
+	return s
 }
 
 func NewNotes(v *vault.Vault, st index.Store, ix *Indexer, bus *Bus, log *slog.Logger) *Notes {
@@ -130,6 +139,9 @@ func (s *Notes) create(ctx context.Context, in CreateInput) (*domain.Note, error
 	if !strings.HasSuffix(rel, ".md") {
 		rel += ".md"
 	}
+	if err := s.policy.CheckCreate(ctx, rel, in.Parent); err != nil {
+		return nil, err
+	}
 	if s.vault.Exists(rel) {
 		return nil, fmt.Errorf("%w: %s", errAlreadyExists, rel)
 	}
@@ -183,6 +195,9 @@ func (s *Notes) ReplaceBody(ctx context.Context, idOrPath, body string, revision
 	if err != nil {
 		return nil, err
 	}
+	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
+		return nil, err
+	}
 	if revision != 0 && revision != n.Revision {
 		return nil, fmt.Errorf("%w: have %d, want %d", ErrConflict, n.Revision, revision)
 	}
@@ -215,6 +230,9 @@ func (s *Notes) SetFrontmatter(ctx context.Context, idOrPath string, kv map[stri
 	if err != nil {
 		return nil, err
 	}
+	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
+		return nil, err
+	}
 	if revision != 0 && revision != n.Revision {
 		return nil, fmt.Errorf("%w: have %d, want %d", ErrConflict, n.Revision, revision)
 	}
@@ -242,6 +260,9 @@ func (s *Notes) Delete(ctx context.Context, idOrPath string) error {
 	defer vaultWrites.Unlock()
 	n, err := s.store.Note(ctx, idOrPath)
 	if err != nil {
+		return err
+	}
+	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
 		return err
 	}
 	if err := s.vault.Trash(n.Path); err != nil {

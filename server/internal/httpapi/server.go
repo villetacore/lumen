@@ -10,6 +10,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/config"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/state"
 	"github.com/alexpyslar/lumen/server/internal/vault"
@@ -21,6 +22,8 @@ type API struct {
 	cfg    *config.Config
 	store  index.Store
 	vault  *vault.Vault
+	raw    index.Store    // unfiltered: indexing and background work only
+	policy *policy.Policy // every request decision (ADR-0012)
 	notes  *service.Notes
 	tasks  *service.Tasks
 	issues *service.Issues
@@ -40,21 +43,32 @@ func New(
 	bus *service.Bus, integrations *service.Integrations, oidc *auth.Provider,
 	pw *passwords.Manager, log *slog.Logger,
 ) *API {
-	return &API{
-		cfg: cfg, store: st, vault: v, ix: ix, bus: bus, log: log,
-		notes:        service.NewNotes(v, st, ix, bus, log),
-		tasks:        service.NewTasks(v, st, ix, bus, log),
-		issues:       service.NewIssues(v, st, ix, bus, log),
-		views:        service.NewViews(st),
+	a := &API{
+		cfg: cfg, raw: st, vault: v, ix: ix, bus: bus, log: log,
 		integrations: integrations,
 		oidc:         oidc,
 		passwords:    pw,
 	}
+	a.wire(policy.New(st, nil))
+	return a
 }
 
-// WithState attaches the operational store (ADR-0011).
+// wire builds the request-side services on the policy-scoped index, so every
+// read and write of a request goes through one set of rules.
+func (a *API) wire(p *policy.Policy) {
+	a.policy = p
+	a.store = policy.Scope(a.raw, p)
+	a.notes = service.NewNotes(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
+	a.tasks = service.NewTasks(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
+	a.issues = service.NewIssues(a.vault, a.store, a.ix, a.bus, a.log).WithPolicy(p)
+	a.views = service.NewViews(a.store)
+}
+
+// WithState attaches the operational store (ADR-0011); project member lists
+// live there.
 func (a *API) WithState(st *state.Store) *API {
 	a.state = st
+	a.wire(policy.New(a.raw, policy.NewMembers(st.DB())))
 	return a
 }
 
@@ -79,7 +93,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /auth/logout", a.handleLogout)
 
 	mux.HandleFunc("GET /api/v1/stats", a.handleStats)
-	mux.HandleFunc("POST /api/v1/reindex", a.handleReindex)
+	mux.HandleFunc("POST /api/v1/reindex", a.adminOnly(a.handleReindex))
 	mux.HandleFunc("GET /api/v1/events", a.handleEvents)
 
 	mux.HandleFunc("GET /api/v1/notes", a.handleListNotes)
@@ -105,6 +119,9 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PATCH /api/v1/sprints/{id}", a.handlePatchSprint)
 	mux.HandleFunc("POST /api/v1/sprints/{id}/start", a.handleStartSprint)
 	mux.HandleFunc("POST /api/v1/sprints/{id}/complete", a.handleCompleteSprint)
+	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/members", a.handleListMembers)
+	mux.HandleFunc("PUT /api/v1/tracker/projects/{key}/members", a.handleSetMember)
+	mux.HandleFunc("DELETE /api/v1/tracker/projects/{key}/members/{kind}/{name}", a.handleRemoveMember)
 	mux.HandleFunc("GET /api/v1/issues", a.handleListIssues)
 	mux.HandleFunc("POST /api/v1/issues", a.handleCreateIssue)
 	mux.HandleFunc("GET /api/v1/issues/{key}", a.handleGetIssue)
@@ -119,23 +136,23 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tags", a.handleTags)
 	mux.HandleFunc("GET /api/v1/daily/{date}", a.handleDaily)
 
-	mux.HandleFunc("GET /api/v1/integrations", a.handleListIntegrations)
-	mux.HandleFunc("GET /api/v1/integrations/kinds", a.handleIntegrationKinds)
-	mux.HandleFunc("POST /api/v1/integrations", a.handleCreateIntegration)
-	mux.HandleFunc("PATCH /api/v1/integrations/{id}", a.handlePatchIntegration)
-	mux.HandleFunc("DELETE /api/v1/integrations/{id}", a.handleDeleteIntegration)
-	mux.HandleFunc("POST /api/v1/integrations/{id}/sync", a.handleSyncIntegration)
+	mux.HandleFunc("GET /api/v1/integrations", a.adminOnly(a.handleListIntegrations))
+	mux.HandleFunc("GET /api/v1/integrations/kinds", a.adminOnly(a.handleIntegrationKinds))
+	mux.HandleFunc("POST /api/v1/integrations", a.adminOnly(a.handleCreateIntegration))
+	mux.HandleFunc("PATCH /api/v1/integrations/{id}", a.adminOnly(a.handlePatchIntegration))
+	mux.HandleFunc("DELETE /api/v1/integrations/{id}", a.adminOnly(a.handleDeleteIntegration))
+	mux.HandleFunc("POST /api/v1/integrations/{id}/sync", a.adminOnly(a.handleSyncIntegration))
 
-	mux.HandleFunc("GET /api/v1/passwords/kinds", a.handlePasswordKinds)
-	mux.HandleFunc("GET /api/v1/passwords/stores", a.handlePasswordStores)
-	mux.HandleFunc("POST /api/v1/passwords/stores", a.handleAddPasswordStore)
-	mux.HandleFunc("PATCH /api/v1/passwords/stores/{id}", a.handlePatchPasswordStore)
-	mux.HandleFunc("DELETE /api/v1/passwords/stores/{id}", a.handleDeletePasswordStore)
-	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/unlock", a.handleUnlockPasswordStore)
-	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/lock", a.handleLockPasswordStore)
-	mux.HandleFunc("POST /api/v1/passwords/lock", a.handleLockAllPasswordStores)
-	mux.HandleFunc("GET /api/v1/passwords/stores/{id}/items", a.handlePasswordItems)
-	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/reveal", a.handleRevealPassword)
+	mux.HandleFunc("GET /api/v1/passwords/kinds", a.adminOnly(a.handlePasswordKinds))
+	mux.HandleFunc("GET /api/v1/passwords/stores", a.adminOnly(a.handlePasswordStores))
+	mux.HandleFunc("POST /api/v1/passwords/stores", a.adminOnly(a.handleAddPasswordStore))
+	mux.HandleFunc("PATCH /api/v1/passwords/stores/{id}", a.adminOnly(a.handlePatchPasswordStore))
+	mux.HandleFunc("DELETE /api/v1/passwords/stores/{id}", a.adminOnly(a.handleDeletePasswordStore))
+	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/unlock", a.adminOnly(a.handleUnlockPasswordStore))
+	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/lock", a.adminOnly(a.handleLockPasswordStore))
+	mux.HandleFunc("POST /api/v1/passwords/lock", a.adminOnly(a.handleLockAllPasswordStores))
+	mux.HandleFunc("GET /api/v1/passwords/stores/{id}/items", a.adminOnly(a.handlePasswordItems))
+	mux.HandleFunc("POST /api/v1/passwords/stores/{id}/reveal", a.adminOnly(a.handleRevealPassword))
 
 	// The compiled web client lives inside the binary, so `lumend` alone is the
 	// whole application. "GET /" is the least specific pattern, so every route

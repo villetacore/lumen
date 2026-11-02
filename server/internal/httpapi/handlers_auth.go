@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alexpyslar/lumen/server/internal/auth"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 )
 
 // contextKey keeps request-scoped values from colliding with other packages.
@@ -23,8 +24,10 @@ type identity struct {
 	Email         string   `json:"email,omitempty"`
 	Username      string   `json:"username,omitempty"`
 	Roles         []string `json:"roles,omitempty"`
-	LoginURL      string   `json:"login_url,omitempty"`
-	LogoutURL     string   `json:"logout_url,omitempty"`
+	// Role is the workspace role Lumen applies: viewer, member or admin.
+	Role      string `json:"role,omitempty"`
+	LoginURL  string `json:"login_url,omitempty"`
+	LogoutURL string `json:"logout_url,omitempty"`
 }
 
 func (a *API) authMode() string {
@@ -66,6 +69,9 @@ func (a *API) handleMe(w http.ResponseWriter, r *http.Request) {
 			id.Authenticated = true
 			id.Name = "доступ по токену"
 		}
+	}
+	if p := policy.From(r.Context()); p != nil && id.Authenticated {
+		id.Role = p.Role.String()
 	}
 	writeJSON(w, http.StatusOK, id)
 }

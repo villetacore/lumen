@@ -13,6 +13,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 )
 
@@ -25,11 +26,18 @@ var (
 // every write goes through the vault and the shared vaultWrites lock, and the
 // index stays the only read model.
 type Issues struct {
-	vault *vault.Vault
-	store index.Store
-	ix    *Indexer
-	bus   *Bus
-	log   *slog.Logger
+	vault  *vault.Vault
+	store  index.Store
+	ix     *Indexer
+	bus    *Bus
+	log    *slog.Logger
+	policy *policy.Policy // nil: no checks (background jobs, tests)
+}
+
+// WithPolicy makes every write check the caller's project role (ADR-0012).
+func (s *Issues) WithPolicy(p *policy.Policy) *Issues {
+	s.policy = p
+	return s
 }
 
 func NewIssues(v *vault.Vault, st index.Store, ix *Indexer, bus *Bus, log *slog.Logger) *Issues {
@@ -82,6 +90,9 @@ func (s *Issues) CreateProject(ctx context.Context, in ProjectInput) (*domain.Tr
 	if !markdown.ValidProjectKey(key) {
 		return nil, fmt.Errorf("%w: key must be 1–10 latin capitals or digits, starting with a letter", ErrInvalid)
 	}
+	if err := s.policy.CheckWorkspace(ctx, policy.RoleMember); err != nil {
+		return nil, err
+	}
 	if _, err := s.Project(ctx, key); err == nil {
 		return nil, fmt.Errorf("%w: project key %s", errAlreadyExists, key)
 	}
@@ -96,6 +107,9 @@ func (s *Issues) CreateProject(ctx context.Context, in ProjectInput) (*domain.Tr
 		}
 		if n.Type != domain.TypeProject {
 			return nil, fmt.Errorf("%w: %s is not a project", ErrInvalid, n.Path)
+		}
+		if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
+			return nil, err
 		}
 		data, err := s.vault.Read(n.Path)
 		if err != nil {
@@ -310,6 +324,9 @@ func (s *Issues) Create(ctx context.Context, in IssueInput, actor string) (*doma
 	defer vaultWrites.Unlock()
 	p, err := s.Project(ctx, in.Project)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.policy.CheckProject(ctx, p.Key, policy.RoleMember); err != nil {
 		return nil, err
 	}
 	title := strings.TrimSpace(in.Title)
@@ -643,6 +660,9 @@ func (s *Issues) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
+	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
+		return err
+	}
 	if err := s.vault.Trash(n.Path); err != nil {
 		return err
 	}
@@ -669,6 +689,9 @@ func (s *Issues) edit(ctx context.Context, key string, revision int64, fn editFu
 	is := markdown.ParseIssue(n)
 	p, err := s.Project(ctx, is.Project)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.policy.CheckProject(ctx, p.Key, policy.RoleMember); err != nil {
 		return nil, err
 	}
 	data, err := s.vault.Read(n.Path)

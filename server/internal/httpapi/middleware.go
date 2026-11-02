@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"net/http"
 	"strings"
 	"time"
@@ -141,9 +142,38 @@ func (a *API) identify(r *http.Request) (*http.Request, bool) {
 	return r, false
 }
 
+// principal turns what identify found into the subject policy decides about
+// (ADR-0012). nil means nobody is signed in.
+func (a *API) principal(r *http.Request, authenticated bool) *policy.Principal {
+	switch {
+	case authenticated:
+		c, _ := r.Context().Value(claimsKey).(*auth.Claims)
+		if c == nil {
+			return nil
+		}
+		have := append(c.Roles(a.oidc.Config().ClientID), c.Groups...)
+		groups := make([]string, 0, len(c.Groups))
+		for _, g := range c.Groups {
+			groups = append(groups, strings.TrimPrefix(g, "/"))
+		}
+		return &policy.Principal{
+			ID: c.Subject, Username: c.Username, Name: c.DisplayName(), Groups: groups,
+			Role: policy.RoleMapping{Admin: a.cfg.AdminRoles, Viewer: a.cfg.ViewerRoles}.WorkspaceRole(have),
+		}
+	case a.oidc == nil && a.cfg.Token == "":
+		return policy.Service("local") // single-user local mode
+	case a.tokenMatches(r):
+		return policy.Service("token")
+	}
+	return nil
+}
+
 func (a *API) withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r, authenticated := a.identify(r)
+		if p := a.principal(r, authenticated); p != nil {
+			r = r.WithContext(policy.With(r.Context(), p))
+		}
 
 		if isPublicPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
@@ -172,4 +202,16 @@ func (a *API) withAuth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r) // локальный режим без авторизации
 		}
 	})
+}
+
+// adminOnly guards workspace administration: integrations, password stores,
+// reindexing (ADR-0012 §6).
+func (a *API) adminOnly(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := a.policy.CheckWorkspace(r.Context(), policy.RoleAdmin); err != nil {
+			fail(w, err)
+			return
+		}
+		h(w, r)
+	}
 }

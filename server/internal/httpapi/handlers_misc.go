@@ -152,6 +152,10 @@ func (a *API) handleEvents(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
+			// A change in a project the subscriber cannot see is not news to them.
+			if !a.policy.VisiblePath(r.Context(), ev.Path) {
+				continue
+			}
 			b, err := json.Marshal(ev)
 			if err != nil {
 				continue

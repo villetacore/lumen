@@ -35,8 +35,12 @@ type Config struct {
 	OIDCClientSecret string // ссылка на секрет, не сам секрет
 	OIDCRedirectURL  string
 	OIDCRoles        []string
-	OIDCScopes       []string
-	SessionTTL       time.Duration
+	// AdminRoles and ViewerRoles map identity-provider roles or groups to
+	// workspace roles (ADR-0012). No admin roles: everyone admitted is admin.
+	AdminRoles  []string
+	ViewerRoles []string
+	OIDCScopes  []string
+	SessionTTL  time.Duration
 
 	// PassphraseRef is a secrets reference that unlocks an encrypted vault,
 	// for example "bitwarden:lumen-vault" or "keepass:db.kdbx#Lumen/vault".
@@ -53,7 +57,7 @@ type Config struct {
 func Load(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("lumend", flag.ContinueOnError)
 	c := &Config{}
-	var origins, roles, scopes string
+	var origins, roles, scopes, adminRoles, viewerRoles string
 
 	fs.StringVar(&c.Addr, "addr", env("LUMEN_ADDR", "127.0.0.1:8787"), "listen address")
 	fs.StringVar(&c.VaultPath, "vault", env("LUMEN_VAULT", "./vault"), "path to the vault directory")
@@ -80,6 +84,10 @@ func Load(args []string) (*Config, error) {
 	fs.StringVar(&roles, "oidc-roles", env("LUMEN_OIDC_ROLES", ""),
 		"comma separated roles or groups; a user needs at least one")
 	fs.StringVar(&scopes, "oidc-scopes", env("LUMEN_OIDC_SCOPES", "openid,profile,email"), "comma separated OIDC scopes")
+	fs.StringVar(&adminRoles, "admin-roles", env("LUMEN_ADMIN_ROLES", ""),
+		"comma separated roles or groups that make a workspace admin; empty: everyone admitted is admin")
+	fs.StringVar(&viewerRoles, "viewer-roles", env("LUMEN_VIEWER_ROLES", ""),
+		"comma separated roles or groups that make a read-only workspace viewer")
 	fs.DurationVar(&c.SessionTTL, "session-ttl", 12*time.Hour, "how long a browser session lives")
 	fs.BoolVar(&c.Verbose, "v", false, "verbose request logging")
 
@@ -113,6 +121,8 @@ func Load(args []string) (*Config, error) {
 	}
 	c.OIDCRoles = splitCSV(roles)
 	c.OIDCScopes = splitCSV(scopes)
+	c.AdminRoles = splitCSV(adminRoles)
+	c.ViewerRoles = splitCSV(viewerRoles)
 	if c.PublicURL == "" {
 		c.PublicURL = c.BaseURL()
 	}
