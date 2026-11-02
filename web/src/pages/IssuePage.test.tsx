@@ -26,6 +26,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 async function setup() {
   vi.spyOn(api, "issue").mockResolvedValue(issue);
   vi.spyOn(api, "trackerProject").mockResolvedValue(project);
+  vi.spyOn(api, "users").mockResolvedValue({ items: [], total: 0, limit: 0, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter([
     { path: "/issue/:key", element: <IssuePage /> },
@@ -50,7 +51,7 @@ test("a field changed elsewhere keeps the draft and lets it save", async () => {
   const { client, editor } = await setup();
   vi.mocked(api.issue).mockResolvedValue({ ...issue, assignee: "alice", revision: 2 });
   await act(async () => { await client.invalidateQueries({ queryKey: ["issue"] }); });
-  await waitFor(() => expect((screen.getAllByRole("textbox", { name: "Исполнитель" })[0] as HTMLInputElement).value).toBe("alice"));
+  await waitFor(() => expect((screen.getAllByRole("combobox", { name: "Исполнитель" })[0] as HTMLInputElement).value).toBe("alice"));
   expect(editor.value).toBe("Мой черновик");
   expect(screen.queryByText("Описание изменилось")).toBeNull();
   fireEvent.click(screen.getByText("Сохранить описание"));

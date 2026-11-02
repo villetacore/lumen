@@ -11,6 +11,7 @@ import ProjectTabs from "../components/ProjectTabs";
 import { dueTone } from "../components/TaskRow";
 import { relativeDue } from "../lib/date";
 import { errorText } from "../lib/errors";
+import { PeopleOptions } from "../lib/people";
 import {
   CATEGORY_TONE, PRIORITIES, type SavedFilter, filterFromParams, filterToParams, issueUrl,
   loadSavedFilters, priorityOf, statusName, storeSavedFilters, typeLabel,
@@ -93,7 +94,8 @@ export default function IssuesPage() {
         <option value="">Все</option>
         {project?.issue_types.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
       </Select>
-      <Input label="Исполнитель" placeholder="имя или none" value={filter.assignee ?? ""} onChange={(e) => update({ assignee: e.target.value.trim() })} />
+      <Input label="Исполнитель" placeholder="имя или none" list="filter-people" value={filter.assignee ?? ""} onChange={(e) => update({ assignee: e.target.value.trim() })} />
+      <PeopleOptions id="filter-people" />
       <Input label="Метка" value={filter.label?.join(",") ?? ""} onChange={(e) => update({ label: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
       <Select label="Сохранённые" value={activeSaved}
         onChange={(e) => { const s = saved.find((x) => x.name === e.target.value); setParams(new URLSearchParams(s?.query ?? ""), { replace: true }); }}>

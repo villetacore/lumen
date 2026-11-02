@@ -69,7 +69,7 @@ func (i *idp) token(t *testing.T, user string, roles, groups []string) string {
 	claims := map[string]any{
 		"sub": "sub-" + user, "iss": i.realm, "aud": "lumen", "preferred_username": user,
 		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
-		"realm_access": map[string]any{"roles": roles}, "groups": groups,
+		"realm_access": map[string]any{"roles": roles}, "groups": groups, "email": user + "@studio.test",
 	}
 	enc := base64.RawURLEncoding
 	header, _ := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT", "kid": "k1"})
@@ -275,6 +275,34 @@ func TestAccessPolicyAcrossChannels(t *testing.T) {
 		}
 	}
 	cancel()
+
+	// The directory holds everyone who signed in, with groups from Keycloak;
+	// e-mail is shown to admins only.
+	if out := string(expect("boss", "GET", "/api/v1/users?q=alice", nil, 200)); !strings.Contains(out, "alice@studio.test") {
+		t.Fatalf("admin sees e-mail: %s", out)
+	}
+	var users struct {
+		Items []struct {
+			Username string   `json:"username"`
+			Email    string   `json:"email"`
+			Groups   []string `json:"groups"`
+			Role     string   `json:"role"`
+		} `json:"items"`
+	}
+	json.Unmarshal(expect("bob", "GET", "/api/v1/users", nil, 200), &users)
+	got := map[string]string{}
+	for _, u := range users.Items {
+		got[u.Username] = u.Role + "|" + strings.Join(u.Groups, ",") + "|" + u.Email
+	}
+	if got["alice"] != "member|designers|" || got["vic"] != "viewer|guests|" || got["boss"] != "admin||" || len(got) != 4 {
+		t.Fatalf("directory as bob = %v", got)
+	}
+	if out := string(expect("vic", "GET", "/api/v1/groups", nil, 200)); !strings.Contains(out, `"designers"`) {
+		t.Fatalf("groups = %s", out)
+	}
+	if out := string(expect("bob", "GET", "/api/v1/users?q=ALI", nil, 200)); !strings.Contains(out, "alice") || strings.Contains(out, "vic") {
+		t.Fatalf("search = %s", out)
+	}
 
 	// Removing every member opens the project again.
 	expect("boss", "DELETE", "/api/v1/tracker/projects/SEC/members/user/alice", nil, 200)

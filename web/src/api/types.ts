@@ -159,6 +159,8 @@ export interface Identity {
   email?: string;
   username?: string;
   roles?: string[];
+  /** Workspace role Lumen applies (ADR-0012). */
+  role?: WorkspaceRole;
   login_url?: string;
   logout_url?: string;
 }
@@ -351,3 +353,35 @@ export interface Sprint {
 }
 
 export type SprintInput = { name?: string; goal?: string; start?: string; end?: string };
+
+export type WorkspaceRole = "viewer" | "member" | "admin";
+
+export interface Person {
+  username: string;
+  name: string;
+  email?: string;
+  groups: string[];
+  role: WorkspaceRole;
+  first_seen: string;
+  last_seen: string;
+}
+
+export interface PersonGroup {
+  name: string;
+  users: number;
+}
+
+export interface ProjectMember {
+  project: string;
+  kind: "user" | "group";
+  name: string;
+  role: WorkspaceRole;
+  added_at: string;
+  added_by?: string;
+}
+
+export interface ProjectAccess {
+  open: boolean;
+  my_role: WorkspaceRole | "none";
+  items: ProjectMember[];
+}

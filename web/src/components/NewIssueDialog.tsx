@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Dialog, Input, Select, Textarea } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import { errorText } from "../lib/errors";
+import { PeopleOptions } from "../lib/people";
 import { PRIORITIES, issueUrl, splitList, typeLabel } from "../lib/tracker";
 
 /** NewIssueDialog creates a tracker issue; the server assigns its key. */
@@ -67,7 +68,8 @@ export default function NewIssueDialog({ project, status, sprint, onClose }: { p
         </Select>
       </div>
       <div className="form-row">
-        <Input label="Исполнитель" value={form.assignee} onChange={set("assignee")} hint="Имя пользователя" disabled={create.isPending} />
+        <Input label="Исполнитель" value={form.assignee} onChange={set("assignee")} hint="Имя пользователя" list="new-issue-people" disabled={create.isPending} />
+        <PeopleOptions id="new-issue-people" />
         <Input label="Срок" type="date" value={form.due} onChange={set("due")} disabled={create.isPending} />
       </div>
       <Input label="Метки" value={form.labels} onChange={set("labels")} hint="Через запятую или пробел" disabled={create.isPending} />

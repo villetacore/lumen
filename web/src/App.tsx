@@ -19,6 +19,8 @@ import IssuesPage from "./pages/IssuesPage";
 import IssuePage from "./pages/IssuePage";
 import BoardPage from "./pages/BoardPage";
 import BacklogPage from "./pages/BacklogPage";
+import AccessPage from "./pages/AccessPage";
+import PeoplePage from "./pages/PeoplePage";
 import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
@@ -76,6 +78,8 @@ export default function App() {
           <Route path="/tracker/:key" element={<IssuesPage />} />
           <Route path="/tracker/:key/board" element={<BoardPage />} />
           <Route path="/tracker/:key/backlog" element={<BacklogPage />} />
+          <Route path="/tracker/:key/access" element={<AccessPage />} />
+          <Route path="/people" element={<PeoplePage />} />
           <Route path="/issue/:key" element={<IssuePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />

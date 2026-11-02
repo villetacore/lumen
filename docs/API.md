@@ -211,6 +211,9 @@
 | `GET` | `/auth/callback` | Возврат от провайдера |
 | `GET`/`POST` | `/auth/logout` | Выйти |
 
+| `GET` | `/api/v1/users?q=` | Справочник: кто входил через OIDC — `{username, name, groups, role, first_seen, last_seen, email?}`; `email` только для admin |
+| `GET` | `/api/v1/groups` | Группы Keycloak известных пользователей: `{name, users}` |
+
 `mode` — `none`, `token` или `oidc`. `/api/v1/me` доступен без входа: клиенту
 нужно узнать, как войти. См. [AUTH.md](AUTH.md).
 

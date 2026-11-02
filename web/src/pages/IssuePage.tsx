@@ -8,6 +8,7 @@ import Crumbs from "../components/Crumbs";
 import Icon from "../components/Icon";
 import Markdown from "../components/Markdown";
 import { longDate } from "../lib/date";
+import { PeopleOptions } from "../lib/people";
 import { errorText, isConflict, isNotFound } from "../lib/errors";
 import {
   CATEGORY_TONE, PRIORITIES, allowedStatuses, issueUrl, projectUrl, splitList, statusName, typeLabel, useDraftGuard,
@@ -181,6 +182,7 @@ const LINK_LABEL: Record<string, string> = { blocks: "блокирует", "bloc
 
 function IssueProps({ issue, project, onPatch, busy }: { issue: Issue; project?: TrackerProject; onPatch: (p: IssuePatch) => void; busy: boolean }) {
   return <dl className="props issue-props">
+    <PeopleOptions id="people-options" />
     <div><dt>Тип</dt><dd>
       <Select label="Тип" className="prop-control" value={issue.issue_type} disabled={busy} onChange={(e) => onPatch({ issue_type: e.target.value })}>
         {(project?.issue_types ?? [issue.issue_type]).map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
@@ -191,7 +193,7 @@ function IssueProps({ issue, project, onPatch, busy }: { issue: Issue; project?:
         {issue.priority && !PRIORITIES.some((p) => p.id === issue.priority) && <option value={issue.priority}>{issue.priority}</option>}
         {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
       </Select></dd></div>
-    <PropText label="Исполнитель" value={issue.assignee ?? ""} onCommit={(v) => onPatch({ assignee: v })} />
+    <PropText label="Исполнитель" value={issue.assignee ?? ""} list="people-options" onCommit={(v) => onPatch({ assignee: v })} />
     <div><dt>Автор</dt><dd>{issue.reporter || "—"}</dd></div>
     <PropText label="Срок" type="date" value={issue.due ?? ""} onCommit={(v) => onPatch({ due: v })} />
     <PropText label="Начало" type="date" value={issue.start ?? ""} onCommit={(v) => onPatch({ start: v })} />
@@ -210,8 +212,8 @@ function IssueProps({ issue, project, onPatch, busy }: { issue: Issue; project?:
  * PropText edits one property in place: Enter or leaving the field saves,
  * Escape restores. While focused it ignores server refetches.
  */
-function PropText({ label, value, type = "text", placeholder, onCommit }: {
-  label: string; value: string; type?: string; placeholder?: string; onCommit: (v: string) => void;
+function PropText({ label, value, type = "text", placeholder, list, onCommit }: {
+  label: string; value: string; type?: string; placeholder?: string; list?: string; onCommit: (v: string) => void;
 }) {
   const [text, setText] = useState(value);
   const [focused, setFocused] = useState(false);
@@ -224,7 +226,7 @@ function PropText({ label, value, type = "text", placeholder, onCommit }: {
     onCommit(v);
   };
   return <div><dt>{label}</dt><dd>
-    <Input label={label} className="prop-control" type={type} value={text} placeholder={placeholder ?? "—"}
+    <Input label={label} className="prop-control" type={type} value={text} placeholder={placeholder ?? "—"} list={list}
       onFocus={() => setFocused(true)}
       onBlur={() => { setFocused(false); send(text.trim()); }}
       // A date picker has no "typing" state: each pick is a decision.

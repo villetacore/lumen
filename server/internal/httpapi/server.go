@@ -10,6 +10,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/config"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/passwords"
+	"github.com/alexpyslar/lumen/server/internal/people"
 	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/state"
@@ -33,6 +34,7 @@ type API struct {
 	log    *slog.Logger
 
 	state        *state.Store
+	people       *people.Directory // nil without a state store
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -68,6 +70,7 @@ func (a *API) wire(p *policy.Policy) {
 // live there.
 func (a *API) WithState(st *state.Store) *API {
 	a.state = st
+	a.people = people.New(st.DB())
 	a.wire(policy.New(a.raw, policy.NewMembers(st.DB())))
 	return a
 }
@@ -122,6 +125,8 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/members", a.handleListMembers)
 	mux.HandleFunc("PUT /api/v1/tracker/projects/{key}/members", a.handleSetMember)
 	mux.HandleFunc("DELETE /api/v1/tracker/projects/{key}/members/{kind}/{name}", a.handleRemoveMember)
+	mux.HandleFunc("GET /api/v1/users", a.handleListUsers)
+	mux.HandleFunc("GET /api/v1/groups", a.handleListGroups)
 	mux.HandleFunc("GET /api/v1/issues", a.handleListIssues)
 	mux.HandleFunc("POST /api/v1/issues", a.handleCreateIssue)
 	mux.HandleFunc("GET /api/v1/issues/{key}", a.handleGetIssue)

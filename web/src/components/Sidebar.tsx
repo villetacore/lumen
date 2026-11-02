@@ -127,6 +127,10 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           <span className="icon"><Icon name="file" /></span>
           Материалы
         </NavLink>
+        <NavLink to="/people" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
+          <span className="icon"><Icon name="users" /></span>
+          Команда
+        </NavLink>
         <NavLink to="/integrations" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
           <span className="icon"><Icon name="plug" /></span>
           Интеграции

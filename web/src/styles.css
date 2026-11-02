@@ -439,3 +439,25 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
   .backlog-row-meta { grid-column: 1 / -1; justify-content: flex-start; }
   .backlog-sprint { grid-column: 1 / -1; }
 }
+
+/* Team and project access (LUM-066) */
+.access-status { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1px solid var(--vs-border); border-left: 3px solid var(--vs-accent); background: var(--vs-surface); }
+.access-status.is-closed { border-left-color: var(--vs-warning); }
+.access-status > div { flex: 1; min-width: 220px; }
+.access-status p { margin: 4px 0 0; color: var(--vs-muted); font-size: .875em; }
+.access-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.access-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px; }
+.access-row + .access-row { border-top: 1px solid var(--vs-border); }
+.access-name { display: flex; flex-direction: column; flex: 1; min-width: 160px; overflow-wrap: anywhere; }
+.access-name .sub, .person .sub { color: var(--vs-muted); font-size: .8125em; }
+.access-role { min-width: 150px; }
+.access-row .vs-field { margin: 0; }
+.access-row .vs-field > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.access-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.access-add .vs-field { margin: 0; }
+.access-add .grow { flex: 1; min-width: 220px; }
+.person { display: flex; align-items: center; gap: 10px; }
+.person > span:last-child { display: flex; flex-direction: column; }
+.group-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.group-list li { padding: 4px 10px; border: 1px solid var(--vs-border); background: var(--vs-surface); }
+.access-hint { flex-basis: 100%; margin: 0; font-size: .8125em; }

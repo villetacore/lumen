@@ -173,6 +173,16 @@ func (a *API) withAuth(next http.Handler) http.Handler {
 		r, authenticated := a.identify(r)
 		if p := a.principal(r, authenticated); p != nil {
 			r = r.WithContext(policy.With(r.Context(), p))
+			if authenticated {
+				// The directory follows Keycloak: name, groups and role as of now.
+				email := ""
+				if c, _ := r.Context().Value(claimsKey).(*auth.Claims); c != nil {
+					email = c.Email
+				}
+				if err := a.people.Touch(r.Context(), p, email); err != nil {
+					a.log.Warn("справочник пользователей не обновлён", "user", p.Username, "err", err)
+				}
+			}
 		}
 
 		if isPublicPath(r.URL.Path) {

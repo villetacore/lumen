@@ -8,6 +8,10 @@ import type {
   IssueFilter,
   IssueInput,
   IssuePatch,
+  Person,
+  PersonGroup,
+  ProjectAccess,
+  WorkspaceRole,
   Sprint,
   SprintInput,
   ListResponse,
@@ -175,6 +179,13 @@ export const api = {
     }),
 
   me: () => request<Identity>("/me"),
+  users: (q = "") => request<ListResponse<Person>>("/users" + query({ q })),
+  groups: () => request<ListResponse<PersonGroup>>("/groups"),
+  projectAccess: (key: string) => request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`),
+  setMember: (key: string, member: { kind: "user" | "group"; name: string; role: WorkspaceRole }) =>
+    request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`, { method: "PUT", body: JSON.stringify(member) }),
+  removeMember: (key: string, kind: "user" | "group", name: string) =>
+    request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members/${kind}/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
   passwordStores: () => request<ListResponse<PasswordStore>>("/passwords/stores"),
   passwordKinds: () => request<ListResponse<PasswordKind>>("/passwords/kinds"),

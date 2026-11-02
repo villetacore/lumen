@@ -10,5 +10,6 @@ export default function ProjectTabs({ projectKey }: { projectKey: string }) {
     <NavLink end to={base + search} className={tab}>Список</NavLink>
     <NavLink to={`${base}/backlog`} className={tab}>Бэклог</NavLink>
     <NavLink to={`${base}/board${search}`} className={tab}>Доска</NavLink>
+    <NavLink to={`${base}/access`} className={tab}>Доступ</NavLink>
   </nav>;
 }
