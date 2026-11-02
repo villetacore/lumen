@@ -2,7 +2,7 @@
 
 export type TaskStatus = "todo" | "doing" | "done" | "cancelled" | "deferred";
 export type Priority = "A" | "B" | "C" | "D" | "";
-export type NoteType = "note" | "project" | "area" | "daily" | "meeting" | "event";
+export type NoteType = "note" | "project" | "area" | "daily" | "meeting" | "event" | "issue" | "sprint";
 export type EventSource = "note" | "task" | "daily" | "ics";
 
 export interface Task {
@@ -159,6 +159,8 @@ export interface Identity {
   email?: string;
   username?: string;
   roles?: string[];
+  /** Workspace role Lumen applies (ADR-0012). */
+  role?: WorkspaceRole;
   login_url?: string;
   logout_url?: string;
 }
@@ -234,4 +236,205 @@ export interface ServerEvent {
   id?: string;
   status?: string;
   revision?: number;
+}
+
+// Tracker (spec/FORMAT.md §7, server/internal/domain/issue.go).
+
+export type StatusCategory = "todo" | "in_progress" | "done";
+
+export interface WorkflowStatus {
+  id: string;
+  name: string;
+  category: StatusCategory;
+  wip?: number;
+}
+
+export interface TrackerProject {
+  key: string;
+  title: string;
+  note_id: string;
+  path: string;
+  workflow: WorkflowStatus[];
+  issue_types: string[];
+  transitions?: Record<string, string[]>;
+  issue_seq: number;
+  revision: number;
+}
+
+export interface IssueLink {
+  type: string;
+  target: string;
+}
+
+export interface IssueComment {
+  id: string;
+  author?: string;
+  at: string;
+  body: string;
+  line: number;
+}
+
+export interface Issue {
+  key: string;
+  project: string;
+  path: string;
+  title: string;
+  issue_type: string;
+  status: string;
+  status_category?: StatusCategory;
+  priority?: string;
+  assignee?: string;
+  reporter?: string;
+  watchers?: string[];
+  labels?: string[];
+  epic?: string;
+  parent?: string;
+  sprint?: string;
+  start: string | null;
+  due: string | null;
+  estimate?: string;
+  points?: number;
+  rank?: string;
+  links?: IssueLink[];
+  created?: string;
+  updated?: string;
+  revision: number;
+  description?: string;
+  comments?: IssueComment[];
+  checklist?: Task[];
+}
+
+export interface IssueFilter {
+  project?: string;
+  status?: string[];
+  category?: StatusCategory | "";
+  assignee?: string;
+  watcher?: string;
+  type?: string;
+  label?: string[];
+  sprint?: string;
+  epic?: string;
+  q?: string;
+  limit?: number;
+}
+
+export interface IssueInput {
+  project: string;
+  title: string;
+  issue_type?: string;
+  status?: string;
+  priority?: string;
+  assignee?: string;
+  labels?: string[];
+  epic?: string;
+  parent?: string;
+  sprint?: string;
+  start?: string;
+  due?: string;
+  estimate?: string;
+  points?: number;
+  description?: string;
+}
+
+export type IssuePatch = Partial<Omit<IssueInput, "project">> & { watchers?: string[]; revision?: number };
+
+export type SprintState = "planned" | "active" | "closed";
+
+export interface Sprint {
+  id: string;
+  project: string;
+  path: string;
+  name: string;
+  goal?: string;
+  state: SprintState;
+  start: string | null;
+  end: string | null;
+  completed: string | null;
+  revision: number;
+}
+
+export type SprintInput = { name?: string; goal?: string; start?: string; end?: string };
+
+export type WorkspaceRole = "viewer" | "member" | "admin";
+
+export interface Person {
+  username: string;
+  name: string;
+  email?: string;
+  groups: string[];
+  role: WorkspaceRole;
+  first_seen: string;
+  last_seen: string;
+}
+
+export interface PersonGroup {
+  name: string;
+  users: number;
+}
+
+export interface ProjectMember {
+  project: string;
+  kind: "user" | "group";
+  name: string;
+  role: WorkspaceRole;
+  added_at: string;
+  added_by?: string;
+}
+
+export interface ProjectAccess {
+  open: boolean;
+  my_role: WorkspaceRole | "none";
+  items: ProjectMember[];
+}
+
+export type NotificationKind = "assigned" | "mentioned" | "commented" | "status";
+
+export interface AppNotification {
+  id: number;
+  kind: NotificationKind;
+  issue: string;
+  ref?: string;
+  actor?: string;
+  created_at: string;
+  read: boolean;
+  title: string;
+  project: string;
+  status: string;
+}
+
+export interface Inbox {
+  items: AppNotification[];
+  unread: number;
+}
+
+export interface IssueEvent {
+  id: number;
+  issue: string;
+  project?: string;
+  kind: "created" | "changed" | "deleted";
+  field?: string;
+  old?: string;
+  new?: string;
+  actor?: string;
+  source: "lumen" | "external";
+  at: string;
+}
+
+export type ProposalState = "pending" | "applying" | "applied" | "rejected" | "expired" | "stale" | "failed";
+
+/** A change an AI client asked for through MCP, waiting for the person (ADR-0013). */
+export interface Proposal {
+  id: string;
+  requester: string;
+  kind: "create_issue" | "update_issue" | "change_status" | "add_comment";
+  target?: string;
+  args: Record<string, unknown>;
+  preview: string;
+  state: ProposalState;
+  result?: string;
+  error?: string;
+  request_id?: string;
+  created_at: string;
+  expires_at: string;
+  decided_at?: string;
 }

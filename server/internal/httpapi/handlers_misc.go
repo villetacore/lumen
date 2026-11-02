@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/alexpyslar/lumen/server/internal/webui"
 )
@@ -151,6 +152,16 @@ func (a *API) handleEvents(w http.ResponseWriter, r *http.Request) {
 		case ev, ok := <-ch:
 			if !ok {
 				return
+			}
+			// A change in a project the subscriber cannot see is not news to them,
+			// and a notification is news to its recipient only.
+			if !a.policy.VisiblePath(r.Context(), ev.Path) {
+				continue
+			}
+			if ev.User != "" {
+				if p := policy.From(r.Context()); p == nil || p.Username != ev.User {
+					continue
+				}
 			}
 			b, err := json.Marshal(ev)
 			if err != nil {

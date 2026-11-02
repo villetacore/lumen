@@ -15,7 +15,8 @@ export function errorText(err: unknown): string {
     if (err.status === 409 && /already exists/.test(err.message)) return "Такой материал уже существует.";
     if (err.status === 409) return "Материал изменился, пока вы редактировали. Обновите и повторите.";
     if (err.status === 404) return "Не найдено — возможно, материал удалён или перемещён.";
-    if (err.status === 401 || err.status === 403) return "Нет доступа — войдите заново.";
+    if (err.status === 401) return "Нет доступа — войдите заново.";
+    if (err.status === 403) return "Недостаточно прав для этого действия.";
     return err.message;
   }
   if (err instanceof TypeError) return "Сервер недоступен — проверьте, что lumend запущен.";

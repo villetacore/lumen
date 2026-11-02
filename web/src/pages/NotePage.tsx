@@ -23,6 +23,8 @@ const TYPE_LABEL: Record<NoteType, string> = {
   daily: "дневная",
   meeting: "встреча",
   event: "событие",
+  issue: "тикет",
+  sprint: "спринт",
 };
 
 export default function NotePage() {

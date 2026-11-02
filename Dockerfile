@@ -27,16 +27,19 @@ COPY --from=web /src/web/dist/ ./internal/webui/dist/
 RUN CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X main.version=${VERSION}" \
       -o /out/lumend ./cmd/lumend \
- && mkdir /out/vault
+ && mkdir /out/vault /out/state
 
 # --- запуск ---
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=server /out/lumend /usr/local/bin/lumend
 # Пустой /vault, принадлежащий nonroot: новый том Docker наследует владельца.
 COPY --from=server --chown=nonroot:nonroot /out/vault /vault
+# Операционная БД (ADR-0011) — отдельный том: бэкап и восстановление у неё свои.
+COPY --from=server --chown=nonroot:nonroot /out/state /state
 ENV LUMEN_ADDR=0.0.0.0:8787 \
-    LUMEN_VAULT=/vault
-VOLUME /vault
+    LUMEN_VAULT=/vault \
+    LUMEN_STATE=/state
+VOLUME ["/vault", "/state"]
 EXPOSE 8787
 USER nonroot:nonroot
 ENTRYPOINT ["/usr/local/bin/lumend"]

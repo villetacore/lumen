@@ -78,6 +78,45 @@
 `PATCH` меняет только целевую строку в файле и возвращает обновлённую задачу
 и новую `revision` заметки.
 
+## Трекер
+
+Проекты и тикеты — Markdown-файлы ([формат](../spec/FORMAT.md#7-трекер-проект-тикет-спринт),
+[ADR-0010](adr/0010-issue-files.md)).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/v1/tracker/projects` | Проекты с ключом: `{key, title, path, workflow, issue_types, transitions, issue_seq}` |
+| `POST` | `/api/v1/tracker/projects` | `{key, title}` — новый проект; `{key, note}` — включить трекер у существующей заметки-проекта |
+| `GET` | `/api/v1/tracker/projects/{key}` | Один проект |
+| `GET` | `/api/v1/issues` | Список в порядке доски, без описания и комментариев. Параметры: `project`, `status` (csv), `category` (`todo\|in_progress\|done`), `assignee` (`none` — без исполнителя, `me` — вызывающий), `watcher` (автор, исполнитель или наблюдатель; `me`), `type`, `label` (csv), `sprint`, `epic`, `q`, `limit`, `offset` |
+| `POST` | `/api/v1/issues` | `{project, title, issue_type?, status?, priority?, assignee?, labels?, epic?, parent?, sprint?, start?, due?, estimate?, points?, description?}`; ключ выдаёт сервер, `reporter` — вошедший пользователь |
+| `GET` | `/api/v1/issues/{key}` | Тикет с `description`, `checklist`, `comments` |
+| `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
+| `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, sprint?, revision?}` — перенос на доске или в бэклоге: `before`/`after` — ключи соседей сверху/снизу; `sprint` — в спринт (`""` — в бэклог) |
+| `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |
+| `GET` | `/api/v1/issues/{key}/history` | Журнал изменений, старые сверху: `{id, kind: created\|changed\|deleted, field, old, new, actor, source: lumen\|external, at}`. Правки файла вне Lumen — `source: external` без автора; ранг доски не журналируется |
+| `DELETE` | `/api/v1/issues/{key}` | Переместить файл тикета в корзину vault; номер не переиспользуется |
+| `GET` | `/api/v1/tracker/projects/{key}/members` | Доступ к проекту: `{open, my_role, items: [{kind, name, role, added_at, added_by}]}` |
+| `PUT` | `/api/v1/tracker/projects/{key}/members` | `{kind: user\|group, name, role: viewer\|member\|admin}` — добавить/изменить; нужен admin проекта; закрыть открытый проект может только admin пространства |
+| `DELETE` | `/api/v1/tracker/projects/{key}/members/{kind}/{name}` | Убрать участника; без участников проект снова открыт |
+| `GET` | `/api/v1/tracker/projects/{key}/sprints` | Спринты: активный, запланированные, закрытые (новые сверху) |
+| `POST` | `/api/v1/tracker/projects/{key}/sprints` | `{name?, goal?, start?, end?}` — новый запланированный спринт `KEY-S<N>` |
+| `GET` | `/api/v1/sprints/{id}` | Один спринт |
+| `PATCH` | `/api/v1/sprints/{id}` | `{name?, goal?, start?, end?}` |
+| `POST` | `/api/v1/sprints/{id}/start` | `{start?, end?, goal?}`; по умолчанию сегодня и +14 дней. Второй активный спринт — `409 sprint_state` |
+| `POST` | `/api/v1/sprints/{id}/complete` | `{move_to?}` — куда незавершённые тикеты (пусто — бэклог) → `{sprint, moved}`. Повтор после сбоя дозавершает |
+
+Уведомления: исполнитель — о назначении; упомянутые через `@логин` в описании
+(однократно на тикет) или комментарии — об упоминании; наблюдатели (автор,
+исполнитель, `watchers`) — о комментариях и смене статуса. Автор действия
+уведомлений о себе не получает; повторный запрос без изменений их не создаёт.
+Событие SSE `notification` приходит только адресату и не называет тикет.
+
+Ошибки: недопустимый переход workflow — `409 bad_transition`; недопустимое
+состояние спринта (второй активный, закрытый спринт для тикета) — `409 sprint_state`; устаревшая
+`revision` — `409 conflict`; неизвестный статус/тип или пустой заголовок —
+`422 unprocessable`.
+
 ## Календарь
 
 | Метод | Путь | Описание |
@@ -124,6 +163,10 @@
 {"type":"note.changed","path":"40-daily/2026/2026-09-08.md","revision":12}
 {"type":"note.deleted","path":"00-inbox/tmp.md"}
 {"type":"task.changed","id":"k5q9v3","status":"done"}
+{"type":"issue.changed","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
+{"type":"issue.deleted","id":"WEB-12","path":"20-projects/WEB/issues/WEB-12.md"}
+{"type":"sprint.changed","id":"WEB-S3","path":"20-projects/WEB/sprints/WEB-S3.md"}
+{"type":"notification"}
 {"type":"sync.progress","done":120,"total":340}
 {"type":"reindex.finished","notes":512,"tasks":1840,"took_ms":410}
 ```
@@ -171,10 +214,15 @@
 
 | Метод | Путь | Описание |
 |---|---|---|
-| `GET` | `/api/v1/me` | Кто вошёл и как: `{authenticated, mode, name, roles, login_url}` |
+| `GET` | `/api/v1/me` | Кто вошёл и как: `{authenticated, mode, name, roles, role, login_url}`; `role` — роль пространства `viewer\|member\|admin` |
 | `GET` | `/auth/login?return_to=/calendar` | Начать вход через OIDC |
 | `GET` | `/auth/callback` | Возврат от провайдера |
 | `GET`/`POST` | `/auth/logout` | Выйти |
+
+| `GET` | `/api/v1/notifications?unread=true&limit=` | Уведомления вызывающего, новые сверху: `{items: [{id, kind, issue, ref, actor, created_at, read, title, project, status}], unread}`; `kind` — `assigned\|mentioned\|commented\|status`. Тикеты, которые читателю не видны, в выдачу не попадают |
+| `POST` | `/api/v1/notifications/read` | `{ids: [..]}` — отметить прочитанными; пустое тело — все |
+| `GET` | `/api/v1/users?q=` | Справочник: кто входил через OIDC — `{username, name, groups, role, first_seen, last_seen, email?}`; `email` только для admin |
+| `GET` | `/api/v1/groups` | Группы Keycloak известных пользователей: `{name, users}` |
 
 `mode` — `none`, `token` или `oidc`. `/api/v1/me` доступен без входа: клиенту
 нужно узнать, как войти. См. [AUTH.md](AUTH.md).
@@ -205,8 +253,14 @@
 {"error": {"code": "conflict", "message": "revision mismatch", "details": {"current": 9}}}
 ```
 
-Коды: `bad_request`, `unauthorized`, `not_found`, `conflict`, `unprocessable`,
-`rate_limited`, `internal`.
+Коды: `bad_request`, `unauthorized`, `forbidden`, `not_found`, `conflict`,
+`unprocessable`, `rate_limited`, `internal`.
+
+Права ([ADR-0012](adr/0012-access-policy.md)): объект, который вызывающему не
+виден (закрытый проект), отвечает `404` и не попадает в списки, поиск, теги,
+календарь, статистику и SSE. Запись без нужной роли в видимом объекте —
+`403 forbidden`. Интеграции, хранилища паролей и `POST /reindex` — только для
+роли `admin`.
 
 ## Вложенные материалы и документация
 
@@ -231,3 +285,16 @@
 Существующие запросы с явным `path` без новых полей совместимы.
 Это локальные связи текущего single-user режима; workspace ACL и общие
 ResourceRef остаются отдельной задачей LUM-023 с её зависимостями.
+
+## MCP и подтверждения
+
+`/mcp` — MCP-сервер ([MCP.md](MCP.md), [ADR-0013](adr/0013-mcp-server.md)).
+Изменения, предложенные через него, ждут решения пользователя:
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/v1/proposals?pending=true` | Свои предложения: `{id, kind, target, args, preview, state, result, error, created_at, expires_at, decided_at}` |
+| `POST` | `/api/v1/proposals/{id}/approve` | Применить своё предложение; `state` станет `applied`, `stale` или `failed`. Повтор — `409 proposal_state` |
+| `POST` | `/api/v1/proposals/{id}/reject` | Отклонить |
+
+Чужое предложение отвечает `404`. SSE-событие `proposal` приходит только автору.

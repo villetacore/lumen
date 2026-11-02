@@ -1,8 +1,22 @@
 import type {
   Agenda,
   Identity,
+  Inbox,
   Integration,
   IntegrationKind,
+  Issue,
+  IssueComment,
+  IssueEvent,
+  IssueFilter,
+  IssueInput,
+  IssuePatch,
+  Person,
+  PersonGroup,
+  Proposal,
+  ProjectAccess,
+  WorkspaceRole,
+  Sprint,
+  SprintInput,
   ListResponse,
   PasswordItem,
   PasswordKind,
@@ -16,6 +30,7 @@ import type {
   Task,
   TaskFilter,
   TaskPatch,
+  TrackerProject,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -133,6 +148,32 @@ export const api = {
   backlinks: (idOrPath: string) =>
     request<ListResponse<NoteSummary>>(`/backlinks/${encodePath(idOrPath)}`),
 
+  trackerProjects: () => request<ListResponse<TrackerProject>>("/tracker/projects"),
+  trackerProject: (key: string) => request<TrackerProject>(`/tracker/projects/${encodeURIComponent(key)}`),
+  createTrackerProject: (input: { key: string; title?: string; note?: string }) =>
+    request<TrackerProject>("/tracker/projects", { method: "POST", body: JSON.stringify(input) }),
+  issues: (filter: IssueFilter = {}) => request<ListResponse<Issue>>("/issues" + query({ ...filter })),
+  issue: (key: string) => request<Issue>(`/issues/${encodeURIComponent(key)}`),
+  createIssue: (input: IssueInput) =>
+    request<Issue>("/issues", { method: "POST", body: JSON.stringify(input) }),
+  patchIssue: (key: string, patch: IssuePatch) =>
+    request<Issue>(`/issues/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  moveIssue: (key: string, move: { status?: string; before?: string; after?: string; sprint?: string; revision?: number }) =>
+    request<Issue>(`/issues/${encodeURIComponent(key)}/move`, { method: "POST", body: JSON.stringify(move) }),
+  issueHistory: (key: string) => request<ListResponse<IssueEvent>>(`/issues/${encodeURIComponent(key)}/history`),
+  addComment: (key: string, body: string) =>
+    request<IssueComment>(`/issues/${encodeURIComponent(key)}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  deleteIssue: (key: string) => request<void>(`/issues/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  sprints: (project: string) => request<ListResponse<Sprint>>(`/tracker/projects/${encodeURIComponent(project)}/sprints`),
+  createSprint: (project: string, input: SprintInput = {}) =>
+    request<Sprint>(`/tracker/projects/${encodeURIComponent(project)}/sprints`, { method: "POST", body: JSON.stringify(input) }),
+  patchSprint: (id: string, input: SprintInput) =>
+    request<Sprint>(`/sprints/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }),
+  startSprint: (id: string, input: SprintInput = {}) =>
+    request<Sprint>(`/sprints/${encodeURIComponent(id)}/start`, { method: "POST", body: JSON.stringify(input) }),
+  completeSprint: (id: string, moveTo = "") =>
+    request<{ sprint: Sprint; moved: number }>(`/sprints/${encodeURIComponent(id)}/complete`, { method: "POST", body: JSON.stringify({ move_to: moveTo }) }),
+
   calendar: (from: string, to: string) =>
     request<Agenda>("/calendar" + query({ from, to })),
   moveEvent: (ref: string, date: string, field: "scheduled" | "due" = "scheduled") =>
@@ -142,6 +183,19 @@ export const api = {
     }),
 
   me: () => request<Identity>("/me"),
+  notifications: (unread = false) => request<Inbox>("/notifications" + query({ unread: unread || undefined })),
+  readNotifications: (ids?: number[]) =>
+    request<void>("/notifications/read", { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
+  proposals: (pending = false) => request<ListResponse<Proposal>>("/proposals" + query({ pending: pending || undefined })),
+  approveProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+  rejectProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/reject`, { method: "POST" }),
+  users: (q = "") => request<ListResponse<Person>>("/users" + query({ q })),
+  groups: () => request<ListResponse<PersonGroup>>("/groups"),
+  projectAccess: (key: string) => request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`),
+  setMember: (key: string, member: { kind: "user" | "group"; name: string; role: WorkspaceRole }) =>
+    request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members`, { method: "PUT", body: JSON.stringify(member) }),
+  removeMember: (key: string, kind: "user" | "group", name: string) =>
+    request<ProjectAccess>(`/tracker/projects/${encodeURIComponent(key)}/members/${kind}/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
   passwordStores: () => request<ListResponse<PasswordStore>>("/passwords/stores"),
   passwordKinds: () => request<ListResponse<PasswordKind>>("/passwords/kinds"),
@@ -216,6 +270,11 @@ export function subscribeEvents(onEvent: () => void): () => void {
     "note.changed",
     "note.deleted",
     "task.changed",
+    "issue.changed",
+    "issue.deleted",
+    "sprint.changed",
+    "notification",
+    "proposal",
     "reindex.finished",
     "integration.synced",
   ]) {

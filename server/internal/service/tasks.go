@@ -13,6 +13,7 @@ import (
 	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/alexpyslar/lumen/server/internal/index"
 	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/alexpyslar/lumen/server/internal/policy"
 	"github.com/alexpyslar/lumen/server/internal/vault"
 )
 
@@ -31,11 +32,18 @@ var vaultWrites sync.Mutex
 // Tasks implements the task use cases. Every write goes through
 // markdown.ApplyTaskPatch so only the task's own line is rewritten (ADR-0003).
 type Tasks struct {
-	vault *vault.Vault
-	store index.Store
-	ix    *Indexer
-	bus   *Bus
-	log   *slog.Logger
+	vault  *vault.Vault
+	store  index.Store
+	ix     *Indexer
+	bus    *Bus
+	log    *slog.Logger
+	policy *policy.Policy // nil: no checks (background jobs, tests)
+}
+
+// WithPolicy makes every write check the caller's role (ADR-0012).
+func (s *Tasks) WithPolicy(p *policy.Policy) *Tasks {
+	s.policy = p
+	return s
 }
 
 func NewTasks(v *vault.Vault, st index.Store, ix *Indexer, bus *Bus, log *slog.Logger) *Tasks {
@@ -74,6 +82,9 @@ func (s *Tasks) Update(ctx context.Context, id string, up TaskUpdate) (*domain.T
 	}
 	note, err := s.store.Note(ctx, t.NotePath)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.policy.CheckNote(ctx, note, policy.RoleMember); err != nil {
 		return nil, err
 	}
 	if up.Revision != 0 && up.Revision != note.Revision {
@@ -167,6 +178,19 @@ func (s *Tasks) Create(ctx context.Context, notePath, text, section string, up T
 	if !strings.HasSuffix(notePath, ".md") {
 		notePath += ".md"
 	}
+	// An existing file must be visible and writable; a new one is checked by
+	// where it will appear. A hidden file reads as "not found".
+	if s.vault.Exists(notePath) {
+		note, err := s.store.Note(ctx, notePath)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.policy.CheckNote(ctx, note, policy.RoleMember); err != nil {
+			return nil, err
+		}
+	} else if err := s.policy.CheckCreate(ctx, notePath, ""); err != nil {
+		return nil, err
+	}
 	data, err := s.vault.Read(notePath)
 	if err != nil && !errors.Is(err, vault.ErrNotFound) {
 		return nil, err
@@ -218,6 +242,13 @@ func (s *Tasks) Delete(ctx context.Context, id string) error {
 	defer vaultWrites.Unlock()
 	t, err := s.store.Task(ctx, id)
 	if err != nil {
+		return err
+	}
+	note, err := s.store.Note(ctx, t.NotePath)
+	if err != nil {
+		return err
+	}
+	if err := s.policy.CheckNote(ctx, note, policy.RoleMember); err != nil {
 		return err
 	}
 	data, err := s.vault.Read(t.NotePath)

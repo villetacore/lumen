@@ -17,6 +17,7 @@ go run ./cmd/lumend --vault ../vault-example            # разработка
 |---|---|---|---|
 | `--addr` | `LUMEN_ADDR` | `127.0.0.1:8787` | Адрес прослушивания |
 | `--vault` | `LUMEN_VAULT` | `./vault` | Папка vault |
+| `--state` | `LUMEN_STATE` | `lumen-state` рядом с vault | Операционная БД, вне vault ([ADR-0011](../docs/adr/0011-operational-state.md)); `lumend state status\|backup\|restore` |
 | `--token` | `LUMEN_TOKEN` | пусто | Bearer-токен для `/api`; пусто = без авторизации |
 | `--cors` | `LUMEN_CORS` | `http://localhost:5173` | Разрешённые origin, `*` для всех |
 | `--ui` | `LUMEN_UI` | `true` | Отдавать вшитый веб-клиент на `/` |
@@ -37,6 +38,8 @@ Single sign-on (см. [../docs/AUTH.md](../docs/AUTH.md)):
 | `--oidc-client-id` | `LUMEN_OIDC_CLIENT_ID` | Идентификатор клиента |
 | `--oidc-client-secret` | `LUMEN_OIDC_CLIENT_SECRET` | Ссылка на секрет |
 | `--oidc-roles` | `LUMEN_OIDC_ROLES` | Кого пускать: роли или группы |
+| `--admin-roles` | `LUMEN_ADMIN_ROLES` | Роли/группы администраторов пространства; пусто — все допущенные администраторы ([ADR-0012](../docs/adr/0012-access-policy.md)) |
+| `--viewer-roles` | `LUMEN_VIEWER_ROLES` | Роли/группы только для чтения |
 | `--session-ttl` | — | Срок жизни сессии в браузере |
 
 ## Команды

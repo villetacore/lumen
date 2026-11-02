@@ -13,6 +13,7 @@ flowchart LR
     API --> Services[Сервисы lumend]
     Services --> Index[Индекс в памяти]
     Services --> Vault[Vault / codec]
+    Services --> State[(Операционная БД SQLite)]
     Vault --> Files[Markdown-файлы]
     Files --> Watch[fsnotify / polling]
     Watch --> Services
@@ -22,7 +23,9 @@ flowchart LR
 
 `make app` встраивает production-сборку Vite в `lumend` через `go:embed`.
 В режиме разработки Vite работает отдельно и проксирует API на Go-сервер.
-Нет обязательной внешней БД, очереди или поискового кластера.
+Нет обязательной внешней БД, очереди или поискового кластера: операционное
+состояние — встроенный SQLite (pure Go) в каталоге `--state` вне vault
+([ADR-0011](adr/0011-operational-state.md)).
 
 ## Границы модулей
 
@@ -31,6 +34,7 @@ flowchart LR
 | `domain`, `markdown` | Сущности, формат задач, frontmatter, ссылки и точечные правки |
 | `vault`, `crypt` | Файловые операции, атомарная запись, codec шифрования |
 | `index` | Перестраиваемый индекс в памяти |
+| `state` | Операционная БД: миграции, блокировка каталога, бэкап/восстановление, шифрование значений кодеком vault |
 | `service` | Сценарии заметок/задач, связей, импорта и индексации |
 | `watch` | Изменения файлов, debounce и запасной polling |
 | `httpapi`, `auth` | REST, SSE, Bearer-токены и OIDC-сессии |

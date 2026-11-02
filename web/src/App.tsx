@@ -14,6 +14,16 @@ import NotePage from "./pages/NotePage";
 import SearchPage from "./pages/SearchPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import PasswordsPage from "./pages/PasswordsPage";
+import TrackerPage from "./pages/TrackerPage";
+import IssuesPage from "./pages/IssuesPage";
+import IssuePage from "./pages/IssuePage";
+import BoardPage from "./pages/BoardPage";
+import BacklogPage from "./pages/BacklogPage";
+import AccessPage from "./pages/AccessPage";
+import PeoplePage from "./pages/PeoplePage";
+import InboxPage from "./pages/InboxPage";
+import MyIssuesPage from "./pages/MyIssuesPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 import { useLiveUpdates } from "./hooks/useLiveUpdates";
 
 export default function App() {
@@ -67,6 +77,16 @@ export default function App() {
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/task/:id" element={<TaskPage />} />
           <Route path="/note/*" element={<NotePage />} />
+          <Route path="/tracker" element={<TrackerPage />} />
+          <Route path="/tracker/:key" element={<IssuesPage />} />
+          <Route path="/tracker/:key/board" element={<BoardPage />} />
+          <Route path="/tracker/:key/backlog" element={<BacklogPage />} />
+          <Route path="/tracker/:key/access" element={<AccessPage />} />
+          <Route path="/people" element={<PeoplePage />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/my" element={<MyIssuesPage />} />
+          <Route path="/approvals" element={<ApprovalsPage />} />
+          <Route path="/issue/:key" element={<IssuePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/passwords" element={<PasswordsPage />} />

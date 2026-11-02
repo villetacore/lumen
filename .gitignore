@@ -26,6 +26,9 @@ web/dist/
 # Локальные данные vault
 **/.lumen/cache/
 **/.lumen/trash/
+# Операционная БД (ADR-0011): по умолчанию рядом с vault, т. е. в корне для
+# make run / make dev
+/lumen-state/
 
 # Прочее
 .DS_Store

@@ -149,6 +149,10 @@ func noteType(v, relPath string) domain.NoteType {
 		return domain.TypeMeeting
 	case domain.TypeEvent:
 		return domain.TypeEvent
+	case domain.TypeIssue:
+		return domain.TypeIssue
+	case domain.TypeSprint:
+		return domain.TypeSprint
 	case domain.TypeNote:
 		return domain.TypeNote
 	}

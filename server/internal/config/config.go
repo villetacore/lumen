@@ -12,8 +12,11 @@ import (
 )
 
 type Config struct {
-	Addr         string
-	VaultPath    string
+	Addr      string
+	VaultPath string
+	// StateDir holds the operational database (ADR-0011). It must be outside
+	// the vault: the vault is synced and indexed, the database is not.
+	StateDir     string
 	Token        string
 	CORSOrigins  []string
 	WatchEnabled bool
@@ -32,8 +35,12 @@ type Config struct {
 	OIDCClientSecret string // ссылка на секрет, не сам секрет
 	OIDCRedirectURL  string
 	OIDCRoles        []string
-	OIDCScopes       []string
-	SessionTTL       time.Duration
+	// AdminRoles and ViewerRoles map identity-provider roles or groups to
+	// workspace roles (ADR-0012). No admin roles: everyone admitted is admin.
+	AdminRoles  []string
+	ViewerRoles []string
+	OIDCScopes  []string
+	SessionTTL  time.Duration
 
 	// PassphraseRef is a secrets reference that unlocks an encrypted vault,
 	// for example "bitwarden:lumen-vault" or "keepass:db.kdbx#Lumen/vault".
@@ -50,10 +57,11 @@ type Config struct {
 func Load(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("lumend", flag.ContinueOnError)
 	c := &Config{}
-	var origins, roles, scopes string
+	var origins, roles, scopes, adminRoles, viewerRoles string
 
 	fs.StringVar(&c.Addr, "addr", env("LUMEN_ADDR", "127.0.0.1:8787"), "listen address")
 	fs.StringVar(&c.VaultPath, "vault", env("LUMEN_VAULT", "./vault"), "path to the vault directory")
+	fs.StringVar(&c.StateDir, "state", env("LUMEN_STATE", ""), "operational state directory; default: lumen-state next to the vault")
 	fs.StringVar(&c.Token, "token", env("LUMEN_TOKEN", ""), "bearer token; empty disables auth (local use only)")
 	fs.StringVar(&origins, "cors", env("LUMEN_CORS", "http://localhost:5173"), "comma separated allowed origins, or *")
 	fs.BoolVar(&c.WatchEnabled, "watch", envBool("LUMEN_WATCH", true), "keep the index in sync with the filesystem")
@@ -76,6 +84,10 @@ func Load(args []string) (*Config, error) {
 	fs.StringVar(&roles, "oidc-roles", env("LUMEN_OIDC_ROLES", ""),
 		"comma separated roles or groups; a user needs at least one")
 	fs.StringVar(&scopes, "oidc-scopes", env("LUMEN_OIDC_SCOPES", "openid,profile,email"), "comma separated OIDC scopes")
+	fs.StringVar(&adminRoles, "admin-roles", env("LUMEN_ADMIN_ROLES", ""),
+		"comma separated roles or groups that make a workspace admin; empty: everyone admitted is admin")
+	fs.StringVar(&viewerRoles, "viewer-roles", env("LUMEN_VIEWER_ROLES", ""),
+		"comma separated roles or groups that make a read-only workspace viewer")
 	fs.DurationVar(&c.SessionTTL, "session-ttl", 12*time.Hour, "how long a browser session lives")
 	fs.BoolVar(&c.Verbose, "v", false, "verbose request logging")
 
@@ -92,6 +104,15 @@ func Load(args []string) (*Config, error) {
 	if st, err := os.Stat(abs); (err != nil && !os.IsNotExist(err)) || (err == nil && !st.IsDir()) {
 		return nil, fmt.Errorf("vault %q is not a readable directory", abs)
 	}
+	if c.StateDir == "" {
+		c.StateDir = filepath.Join(filepath.Dir(abs), "lumen-state")
+	}
+	if c.StateDir, err = filepath.Abs(c.StateDir); err != nil {
+		return nil, err
+	}
+	if rel, err := filepath.Rel(abs, c.StateDir); err == nil && (rel == "." || !strings.HasPrefix(rel, "..")) {
+		return nil, fmt.Errorf("state directory %q must be outside the vault %q", c.StateDir, abs)
+	}
 
 	for _, o := range strings.Split(origins, ",") {
 		if o = strings.TrimSpace(o); o != "" {
@@ -100,6 +121,8 @@ func Load(args []string) (*Config, error) {
 	}
 	c.OIDCRoles = splitCSV(roles)
 	c.OIDCScopes = splitCSV(scopes)
+	c.AdminRoles = splitCSV(adminRoles)
+	c.ViewerRoles = splitCSV(viewerRoles)
 	if c.PublicURL == "" {
 		c.PublicURL = c.BaseURL()
 	}
