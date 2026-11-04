@@ -57,7 +57,7 @@ Lumen становится рабочей средой студии: поруч�
 [индекс](../../server/internal/index/memory.go),
 [импорт и scheduler](../../server/internal/service/integrations.go),
 [контракт коннектора](../../server/internal/integrations/connector.go),
-[редактор](../../web/src/pages/NotePage.tsx),
+[редактор](../../web/src/screens/NotePage.tsx),
 [SSE-инвалидация](../../web/src/hooks/useLiveUpdates.ts).
 
 ## Рекомендуемое направление

@@ -2,7 +2,7 @@
 
 Источник дизайна — библиотека [velessoft-ui](https://github.com/villetacore/velessoft-ui) 0.2.0:
 `@villetacore/velessoft-tokens` (CSS-переменные `--vs-*`) и `@villetacore/velessoft-ui`
-(React-компоненты и их CSS). Оба пакета подключены в `../main.tsx`; архивы лежат
+(React-компоненты и их CSS). Оба пакета подключены в `../app/layout.tsx`; архивы лежат
 в `../../vendor/`, потому что в npm пакетов пока нет.
 
 Правила:

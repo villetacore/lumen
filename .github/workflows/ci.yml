@@ -74,6 +74,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test --if-present
       - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
   image:
     runs-on: ubuntu-latest

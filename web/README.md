@@ -1,11 +1,12 @@
 # Веб-клиент Lumen
 
-React 19, TypeScript, Vite, React Router и TanStack Query. Клиент работает с API
-`lumend`; production-сборка встраивается в Go-бинарник.
+React 19, TypeScript, Next.js (статический экспорт), React Router и TanStack Query.
+Клиент работает с API `lumend`; production-сборка встраивается в Go-бинарник
+([ADR-0018](../docs/adr/0018-nextjs-static-export.md)).
 
 ## Запуск
 
-Из корня репозитория `make dev` запускает backend и Vite на демонстрационной
+Из корня репозитория `make dev` запускает backend и Next на демонстрационной
 копии vault. Для отдельного frontend из этого каталога:
 
 ```bash
@@ -29,14 +30,21 @@ refetch, конфликте и уходе. Полный браузерный E2E
 
 ## Устройство
 
+- `src/app/` — оболочка Next: layout и catch-all-маршрут, отдающий одну страницу.
+- `src/ClientApp.tsx`, `src/App.tsx` — провайдеры и маршруты React Router.
+- `src/proxy.dev.ts` — добавляет `LUMEN_TOKEN` к запросам API, только в `next dev`.
 - `src/api/` — HTTP-клиент, DTO, SSE.
 - `src/hooks/` — запросы и live-обновления через инвалидацию кэша.
-- `src/pages/` — задачи, карточка задачи, заметки, календарь, поиск и настройки.
+- `src/screens/` — задачи, карточка задачи, заметки, календарь, поиск и настройки.
 - `src/components/` — оболочка, Markdown, редакторы, диалоги и материалы.
 - `src/lib/` — даты, ошибки, темы и вспомогательная логика.
 - `src/styles.css` — общие токены и компоненты.
 - `src/design/` — как Lumen использует Velessoft UI; `vendor/` — архивы `@villetacore/velessoft-ui` и `-tokens`.
 - `public/fonts/` — локальные Manrope и JetBrains Mono с OFL-лицензиями.
+
+Новые экраны добавляются маршрутом в `src/App.tsx`, а не файлом в `src/app/`:
+экспорт статический, SSR, route handlers и server actions в нём недоступны.
+Каталог не называется `src/pages`, потому что Next считает его Pages Router.
 
 Светлая, тёмная и системная темы применяются до рендера. На узком экране sidebar
 превращается в меню с управлением фокусом и Escape. Детали и ограничения переноса

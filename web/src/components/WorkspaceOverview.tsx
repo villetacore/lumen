@@ -4,7 +4,7 @@ import { Button } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import Icon from "./Icon";
 import { iso, longDate, today } from "../lib/date";
-import { IssueList, byDue } from "../pages/MyIssuesPage";
+import { IssueList, byDue } from "../screens/MyIssuesPage";
 
 /** The head of the home page: the date and the two things people start a day with. */
 export default function WorkspaceOverview({ onAdd }: { onAdd: () => void }) {

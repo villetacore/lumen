@@ -14,7 +14,7 @@ COPY web/package.json web/package-lock.json ./
 COPY web/vendor/ ./vendor/
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
-RUN npm run build
+RUN NEXT_TELEMETRY_DISABLED=1 npm run build
 
 # --- сервер ---
 FROM golang:1.27-alpine AS server

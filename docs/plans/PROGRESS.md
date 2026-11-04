@@ -837,3 +837,17 @@ Redis (ADR-0015): LUMEN_REDIS_URL; сессии без токенов, ключ 
 Не проверено: настоящие Vaultwarden и Jira; Jira Cloud (новый поиск /search/jql) покрыт только разбором описания.
 Важно: ключ, показанный в ошибке, считать раскрытым и перевыпустить; копии vault и чат значение сохранили.
 Следующий ID: LUM-015, затем LUM-076.
+
+Запрос владельца: перевести веб-клиент на Next.js / 2026-11-04 / done (без docker build)
+Next.js 16 статическим экспортом вместо Vite, ADR-0018 (уточняет сборку из ADR-0006, один бинарник
+  сохранён). React Router и экраны без изменений логики: Next собирает приложение и даёт dev-сервер,
+  одна страница src/app/[[...slug]]. src/pages → src/screens (имя занято Pages Router).
+  webui.go кэширует _next/static/. make dev и make dev-prod прежние, токен добавляет src/proxy.dev.ts.
+Проверки: npm ci, npm run typecheck, npm test (55), npm run build; go test ./...; make app. IAB на
+  собранном lumend: глубокие ссылки (/note/….md, /tracker/…), назад и вперёд без перезагрузки и без
+  запросов RSC, черновик заметки при отказе и согласии уйти (ссылка и history.back). next dev с
+  настоящим lumend: страницы и SSE при изменении файла; с тестовым API: токен доходит, в ответ и
+  HTML не попадает, POST и поток проходят.
+Не проверено: docker build (демон Docker не запущен); make dev-prod с боевым сервером.
+Ограничения: SSR, route handlers и server actions недоступны, см. ADR-0018.
+Следующий ID: LUM-015, затем LUM-076.

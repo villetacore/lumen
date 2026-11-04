@@ -6,15 +6,15 @@
 ## Разработка
 
 ```bash
-make dev        # lumend :8787 + Vite :5173 с hot-reload, vault — .dev-vault (копия vault-example)
-make dev-prod   # только Vite, /api проксируется на https://lumen.velessoft.org
+make dev        # lumend :8787 + Next :5173 с hot-reload, vault — .dev-vault (копия vault-example)
+make dev-prod   # только Next, /api проксируется на https://lumen.velessoft.org
 make check      # те же проверки, что в открытом CI
 ```
 
 `make dev-prod` показывает боевые данные, и правки в интерфейсе меняют боевой
 vault. Вход — статический токен (`LUMEN_TOKEN` сервера, запасной путь рядом с
 OIDC, [AUTH.md](AUTH.md)): переменная `LUMEN_TOKEN` или файл
-`~/.config/lumen/token`. Прокси Vite сам добавляет `Authorization`, в браузер
+`~/.config/lumen/token`. Dev-сервер Next сам добавляет `Authorization`, в браузер
 токен не попадает. Другой сервер — `make dev-prod PROD_URL=https://…`.
 
 Путь правки до боевого сервера: PR → `main` на GitHub → открытый CI публикует

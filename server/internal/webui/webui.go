@@ -63,8 +63,8 @@ func Handler() http.Handler {
 			serveIndex(w, assets)
 			return
 		}
-		// Vite emits content-hashed asset names, so they can be cached hard.
-		if strings.HasPrefix(clean, "assets/") {
+		// Next emits content-hashed asset names, so they can be cached hard.
+		if strings.HasPrefix(clean, "_next/static/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}
 		files.ServeHTTP(w, r)
