@@ -80,7 +80,8 @@ type Item struct {
 	Username string   `json:"username,omitempty"`
 	URI      string   `json:"uri,omitempty"`
 	Folder   string   `json:"folder,omitempty"`
-	Fields   []string `json:"fields"` // что можно запросить: password, username, totp, notes
+	Type     string   `json:"type,omitempty"` // login, note, card, identity, ssh
+	Fields   []string `json:"fields"`         // что можно запросить: password, username, totp, notes
 }
 
 // Session is the opaque result of unlocking. It never reaches the client.
@@ -89,6 +90,8 @@ type Session struct {
 	// (KeePass). Whichever the backend needs.
 	Token  string
 	Secret []byte
+	// Data is the in-memory state of a backend that talks to an API itself.
+	Data any
 }
 
 // Input is one external command to run.
@@ -177,7 +180,7 @@ func NewManager(vaultRoot string, runner Runner, resolve SecretResolver) *Manage
 		sessions: map[string]*unlocked{},
 		errors:   map[string]string{},
 	}
-	for _, b := range []Backend{&Bitwarden{}, &KeePass{}} {
+	for _, b := range []Backend{&Vaultwarden{resolve: resolve}, &Bitwarden{}, &KeePass{}} {
 		m.Register(b)
 	}
 	return m

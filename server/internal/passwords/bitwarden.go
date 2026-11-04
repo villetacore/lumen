@@ -13,7 +13,7 @@ type Bitwarden struct{}
 
 func (*Bitwarden) Kind() string { return "bitwarden" }
 
-func (*Bitwarden) Title() string { return "Bitwarden / Vaultwarden" }
+func (*Bitwarden) Title() string { return "Bitwarden CLI (bw)" }
 
 func (*Bitwarden) ConfigSchema() []Field {
 	return []Field{
