@@ -60,9 +60,9 @@ export default function AccessPage() {
   };
 
   return <div className="page access-page">
-    <Crumbs items={[{ label: "Трекер", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
+    <Crumbs items={[{ label: "Проекты", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
     <div className="page-head">
-      <div><span className="kicker">Проект {project.key}</span><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
+      <div><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
     </div>
 
     <div className={`access-status ${access.open ? "is-open" : "is-closed"}`}>

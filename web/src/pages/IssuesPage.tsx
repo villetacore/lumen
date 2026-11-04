@@ -69,9 +69,9 @@ export default function IssuesPage() {
   const hasFilter = query !== "";
 
   return <div className="page">
-    <Crumbs items={[{ label: "Трекер", to: "/tracker" }, { label: project ? `${project.key} · ${project.title}` : key }]} />
+    <Crumbs items={[{ label: "Проекты", to: "/tracker" }, { label: project ? `${project.key} · ${project.title}` : key }]} />
     <div className="page-head">
-      <div><span className="kicker">Проект {key}</span><h1>{project?.title ?? key}</h1>
+      <div><h1>{project?.title ?? key}</h1>
         <span className="sub">{data ? `${issueCount(data.total)}${hasFilter ? " по фильтру" : ""}` : " "}</span>
         <ProjectTabs projectKey={key} /></div>
       <div className="head-actions">

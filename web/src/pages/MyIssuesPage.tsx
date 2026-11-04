@@ -9,11 +9,11 @@ import { errorText } from "../lib/errors";
 import { CATEGORY_TONE, issueUrl, priorityOf, typeLabel } from "../lib/tracker";
 
 /** byDue puts dated issues first, soonest on top. */
-function byDue(a: Issue, b: Issue) {
+export function byDue(a: Issue, b: Issue) {
   return (a.due ?? "9999").localeCompare(b.due ?? "9999") || a.key.localeCompare(b.key);
 }
 
-function IssueList({ items, empty, statusName }: { items: Issue[]; empty: string; statusName: (i: Issue) => string }) {
+export function IssueList({ items, empty, statusName }: { items: Issue[]; empty: string; statusName: (i: Issue) => string }) {
   if (!items.length) return <p className="hint">{empty}</p>;
   return <ul className="my-issues">
     {items.map((i) => {
@@ -49,11 +49,11 @@ export default function MyIssuesPage() {
 
   return <div className="page">
     <div className="page-head">
-      <div><span className="kicker">Трекер</span><h1>Мои задачи</h1>
+      <div><h1>Мои тикеты</h1>
         <span className="sub">Тикеты всех доступных вам проектов: назначенные вам и те, за которыми вы следите.</span></div>
     </div>
     {me && !me.username && <Alert tone="info" title="Нужен вход через Keycloak">
-      «Мои задачи» строятся по вашему логину, а в {me.mode === "token" ? "режиме токена" : "локальном режиме"} его нет.
+      «Мои тикеты» строятся по вашему логину, а в {me.mode === "token" ? "режиме токена" : "локальном режиме"} его нет.
       Тикеты по исполнителю можно найти фильтром в списке проекта.
     </Alert>}
     {(assigned.isLoading || watching.isLoading) && enabled && <Spinner label="Загрузка" />}

@@ -104,18 +104,19 @@ func (a *API) handleCallback(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	if e := q.Get("error"); e != "" {
 		a.log.Warn("вход отклонён провайдером", "error", e, "description", q.Get("error_description"))
-		writeError(w, http.StatusUnauthorized, "unauthorized", e+": "+q.Get("error_description"), nil)
+		http.Redirect(w, r, "/?auth_error=failed", http.StatusFound)
 		return
 	}
 
 	session, returnTo, err := a.oidc.Exchange(r.Context(), q.Get("state"), q.Get("code"))
 	if err != nil {
 		a.log.Warn("не удалось завершить вход", "err", err)
-		status := http.StatusUnauthorized
+		// The web client explains this; a person should not land on raw JSON.
+		reason := "failed"
 		if errors.Is(err, auth.ErrForbidden) {
-			status = http.StatusForbidden
+			reason = "forbidden"
 		}
-		writeError(w, status, "unauthorized", err.Error(), nil)
+		http.Redirect(w, r, "/?auth_error="+reason, http.StatusFound)
 		return
 	}
 

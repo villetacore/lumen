@@ -42,8 +42,9 @@ SHA каждого коммита в `main` (задача `publish` открыт
 ([config.go](../server/internal/config/config.go)). Сервер в контейнере слушает
 сеть, поэтому нужен `LUMEN_TOKEN` или OIDC ([AUTH.md](AUTH.md)).
 
-В образе нет `bw` и `keepassxc-cli`: раздел «Пароли» и ссылки на секреты вида
-`bitwarden:…` в контейнере не работают — секреты передаются через `env:`/`file:`.
+В образе нет `bw` и `keepassxc-cli`: типы хранилищ на их основе и ссылки на секреты
+вида `bitwarden:…` в контейнере не работают, секреты передаются через `env:`/`file:`.
+Vaultwarden по API ([PASSWORDS.md](PASSWORDS.md)) внешних программ не требует.
 
 ### Kubernetes
 

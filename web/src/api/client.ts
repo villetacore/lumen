@@ -36,6 +36,9 @@ import type {
 const BASE = "/api/v1";
 const TOKEN_KEY = "lumen.token";
 
+/** Fired on a 401, so the entrance can find out the session has ended. */
+export const UNAUTHORIZED_EVENT = "lumen:unauthorized";
+
 /**
  * The token is only needed when lumend runs with --token (a shared instance).
  * It can arrive once as ?token=… — we keep it locally and drop it from the URL
@@ -84,6 +87,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     const err = body?.error ?? {};
     throw new ApiError(res.status, err.code ?? "unknown", err.message ?? res.statusText);
   }

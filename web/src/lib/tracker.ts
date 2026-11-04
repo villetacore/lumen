@@ -32,6 +32,21 @@ export function allowedStatuses(p: TrackerProject, from: string) {
 export const issueUrl = (key: string) => `/issue/${encodeURIComponent(key)}`;
 export const projectUrl = (key: string) => `/tracker/${encodeURIComponent(key)}`;
 
+const TRANSLIT: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "j", к: "k", л: "l", м: "m", н: "n",
+  о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+
+/**
+ * suggestKey makes an issue key from a project name: the first letters of its
+ * words, or the start of a single word. Empty when no letter can start it.
+ */
+export function suggestKey(title: string): string {
+  const words = [...title.toLowerCase()].map((c) => TRANSLIT[c] ?? c).join("").match(/[a-z0-9]+/g) ?? [];
+  const key = (words.length > 1 ? words.map((w) => w[0]).join("") : (words[0] ?? "").slice(0, 4)).toUpperCase().slice(0, 10);
+  return /^[A-Z]/.test(key) ? key : "";
+}
+
 /** splitList turns "web, ui  board" into ["web", "ui", "board"]. */
 export function splitList(s: string): string[] {
   return s.split(/[,\s]+/).map((x) => x.trim().replace(/^#/, "")).filter(Boolean);

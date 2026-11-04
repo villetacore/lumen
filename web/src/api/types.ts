@@ -183,6 +183,7 @@ export interface PasswordItem {
   username?: string;
   uri?: string;
   folder?: string;
+  type?: string;
   fields: string[];
 }
 

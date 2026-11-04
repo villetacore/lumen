@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Spinner } from "@villetacore/velessoft-ui";
-import WorkspaceOverview from "../components/WorkspaceOverview";
+import WorkspaceOverview, { GettingStarted, MyTickets } from "../components/WorkspaceOverview";
+import NewProjectDialog from "../components/NewProjectDialog";
 import AsidePanel from "../components/AsidePanel";
-import NewNoteDialog from "../components/NewNoteDialog";
 import Icon from "../components/Icon";
 import { api } from "../api/client";
 import type { Task, ViewName } from "../api/types";
@@ -25,6 +25,15 @@ const TITLES: Record<string, string> = {
   all: "Все задачи",
 };
 
+const TABS: ViewName[] = ["today", "inbox", "week", "overdue", "upcoming", "someday", "all", "done"];
+
+function TaskTab({ view }: { view: ViewName }) {
+  const { data } = useQuery({ queryKey: ["tasks", "count", view], queryFn: () => api.tasks({ view, limit: 1 }) });
+  return <NavLink to={`/view/${view}`} className={({ isActive }) => "project-tab" + (isActive ? " active" : "")}>
+    {TITLES[view]}{view !== "done" && !!data?.total && <span className="tab-count">{data.total}</span>}
+  </NavLink>;
+}
+
 const HINTS: Record<string, string> = {
   inbox: "Быстрые записи, которые ещё не разобраны по проектам.",
   week: "Всё, что запланировано или должно быть сделано до конца недели.",
@@ -32,7 +41,7 @@ const HINTS: Record<string, string> = {
   upcoming: "Задачи с датой в будущем.",
   someday: "Открытые задачи без срока и плана.",
   done: "Закрытые задачи.",
-  all: "Все открытые задачи, сгруппированные по проектам и записям.",
+  all: "Все задачи, сгруппированные по проектам и записям.",
 };
 
 /** Views that group by the note holding the task; the others group by date. */
@@ -75,7 +84,10 @@ function groupTasks(tasks: Task[], view: string, title: (path: string) => string
 export default function TasksPage() {
   const { view = "today" } = useParams();
   const addInput = useRef<HTMLInputElement>(null);
-  const [creating, setCreating] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const { hash } = useLocation();
+  // "Создать → Задача" lands here with the field ready to type in.
+  useEffect(() => { if (hash === "#add") addInput.current?.focus(); }, [hash, view]);
   const notes = useNoteIndex();
   const { data, isLoading, error } = useQuery({
     queryKey: ["tasks", view],
@@ -90,6 +102,7 @@ export default function TasksPage() {
 
   const list = (
     <div className="task-content">
+      {todayView && <MyTickets />}
       {todayView && <div className="section-title"><h2>Задачи на сегодня</h2><Link to="/view/all">Все задачи <Icon name="chevron" size={14} /></Link></div>}
       <QuickAdd inputRef={addInput} note={view === "inbox" ? "00-inbox/inbox.md" : undefined} scheduled={todayView || view === "week" ? "today" : undefined} />
       {error && <Alert tone="error" title="Не удалось загрузить задачи">{errorText(error)}</Alert>}
@@ -130,31 +143,27 @@ export default function TasksPage() {
   return (
     <div className="page">
       {todayView ? (
-        <WorkspaceOverview onAdd={() => addInput.current?.focus()} onDocument={() => setCreating(true)} />
+        <WorkspaceOverview onAdd={() => addInput.current?.focus()} />
       ) : (
         <div className="page-head">
           <div>
-            <span className="kicker">Задачи / {data?.total ?? 0}</span>
-            <h1>{TITLES[view] ?? view}</h1>
-            {HINTS[view] && <span className="sub">{HINTS[view]}</span>}
+            <h1>Задачи</h1>
+            <span className="sub">Быстрые дела из заметок. Рабочие тикеты живут в проектах.</span>
+            <nav className="project-tabs" aria-label="Какие задачи показать">{TABS.map((t) => <TaskTab key={t} view={t} />)}</nav>
+            {HINTS[view] && <p className="hint view-hint">{HINTS[view]}</p>}
           </div>
         </div>
       )}
+      {todayView && <GettingStarted onProject={() => setCreatingProject(true)} />}
       {todayView ? (
         <div className="split">
           {list}
           <div className="aside-stack">
-            <section className="card quick-links" aria-label="Быстрые действия">
-              <div className="nav-title">Быстрые действия</div>
-              <button className="nav-item" onClick={() => setCreating(true)}><span className="icon"><Icon name="file" size={16} /></span>Новый документ</button>
-              <Link className="nav-item" to="/docs"><span className="icon"><Icon name="book" size={16} /></span>Документация</Link>
-              <Link className="nav-item" to="/integrations"><span className="icon"><Icon name="plug" size={16} /></span>Интеграции</Link>
-            </section>
             <AsidePanel />
           </div>
         </div>
       ) : list}
-      {creating && <NewNoteDialog onClose={() => setCreating(false)} />}
+      {creatingProject && <NewProjectDialog onClose={() => setCreatingProject(false)} />}
     </div>
   );
 }

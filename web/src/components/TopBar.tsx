@@ -1,24 +1,18 @@
 import Icon from "./Icon";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { IconButton, Input, Kbd } from "@villetacore/velessoft-ui";
+import { useQuery } from "@tanstack/react-query";
+import { Input, Kbd } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 
 export default function TopBar() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const input = useRef<HTMLInputElement>(null);
 
   const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: api.stats });
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
   const { data: inbox } = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications(), enabled: !!me?.username });
-
-  const reindex = useMutation({
-    mutationFn: api.reindex,
-    onSuccess: () => qc.invalidateQueries(),
-  });
 
   // Ctrl/Cmd+K focuses search, the way every other tool in this category works.
   useEffect(() => {
@@ -56,28 +50,13 @@ export default function TopBar() {
       </form>
 
       <div className="topbar-right">
-        {me?.mode === "oidc" &&
-          (me.authenticated ? (
-            <>
-              <span title={me.roles?.join(", ")}>{me.name}</span>
-              <a className="btn" href={me.logout_url}>Выйти</a>
-            </>
-          ) : (
-            <a className="btn primary" href={`${me.login_url}?return_to=${encodeURIComponent(location.pathname)}`}>
-              Войти
-            </a>
-          ))}
         {stats?.encrypted && (
           <span title="Данные зашифрованы"><Icon name="lock" size={16} /></span>
         )}
-        {stats && <span>открыто: {stats.open_tasks}</span>}
         {me?.username && <Link to="/inbox" className="bell" aria-label={`Уведомления${inbox?.unread ? `: ${inbox.unread} непрочитанных` : ""}`}>
           <Icon name="bell" size={18} />
           {!!inbox?.unread && <span className="bell-count">{inbox.unread > 99 ? "99+" : inbox.unread}</span>}
         </Link>}
-        {(!me?.role || me.role === "admin") && <IconButton label="Обновить данные" variant="ghost" onClick={() => reindex.mutate()} disabled={reindex.isPending}>
-          <Icon name="refresh" size={16} className={reindex.isPending ? "spinning" : ""} />
-        </IconButton>}
       </div>
     </header>
   );

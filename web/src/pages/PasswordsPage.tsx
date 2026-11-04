@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, Badge, Button, Dialog, EmptyState, Input, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
-import type { ConfigField, PasswordItem, PasswordKind, PasswordStore } from "../api/types";
+import type { PasswordItem, PasswordKind, PasswordStore } from "../api/types";
+import ConfigFields, { SECRET_HELP } from "../components/ConfigFields";
+import Icon from "../components/Icon";
+import { errorText } from "../lib/errors";
 
 /**
  * Раскрытые значения живут только в состоянии компонента и стираются при
@@ -14,19 +18,20 @@ const FIELD_LABEL: Record<string, string> = {
   totp: "Код 2FA",
   notes: "Заметка",
   uri: "Адрес",
+  cardholder: "Владелец карты",
+  number: "Номер карты",
+  code: "Код CVV",
+  exp_month: "Месяц",
+  exp_year: "Год",
+  public_key: "Открытый ключ",
+  private_key: "Закрытый ключ",
 };
+const TYPE_LABEL: Record<string, string> = { note: "Заметка", card: "Карта", identity: "Личные данные", ssh: "SSH-ключ" };
 
-function Secret({
-  storeId,
-  item,
-  field,
-  onError,
-}: {
-  storeId: string;
-  item: PasswordItem;
-  field: string;
-  onError: (m: string) => void;
-}) {
+/** A custom field arrives as "field:Имя", part of an identity as "identity:phone". */
+const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f.replace(/^(field|identity):/, "");
+
+function Secret({ storeId, item, field, onError }: { storeId: string; item: PasswordItem; field: string; onError: (m: string) => void }) {
   const [value, setValue] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -36,257 +41,96 @@ function Secret({
   const reveal = useMutation({
     mutationFn: () => api.revealPassword(storeId, item.id, field),
     onSuccess: (r) => setValue(r.value),
-    onError: (e) => onError(String((e as Error).message)),
+    onError: (e) => onError(errorText(e)),
   });
 
   const copy = async () => {
-    const v = value ?? (await api.revealPassword(storeId, item.id, field)).value;
-    await navigator.clipboard.writeText(v);
-    setCopied(true);
-    // Буфер обмена чистится сам: пароль не должен лежать там до конца дня.
-    window.setTimeout(() => {
-      navigator.clipboard.writeText("").catch(() => {});
-      setCopied(false);
-    }, 30_000);
+    try {
+      const v = field === "totp" || value === null ? (await api.revealPassword(storeId, item.id, field)).value : value;
+      await navigator.clipboard.writeText(v);
+      setCopied(true);
+      // Буфер обмена чистится сам: пароль не должен лежать там до конца дня.
+      window.setTimeout(() => {
+        navigator.clipboard.writeText("").catch(() => {});
+        setCopied(false);
+      }, 30_000);
+    } catch (e) {
+      onError(errorText(e));
+    }
   };
 
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
-      <span style={{ minWidth: 74, color: "var(--text-faint)", fontSize: 11.5 }}>
-        {FIELD_LABEL[field] ?? field}
-      </span>
-      <code
-        style={{
-          flex: 1,
-          fontFamily: "var(--mono)",
-          fontSize: 12.5,
-          background: "var(--bg-sunken)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius)",
-          padding: "2px 8px",
-          overflowWrap: "anywhere",
-          minHeight: 22,
-        }}
-      >
-        {value ?? "••••••••••••"}
-      </code>
-      {value === null ? (
-        <button className="btn" onClick={() => reveal.mutate()} disabled={reveal.isPending}>
-          Показать
-        </button>
-      ) : (
-        <button className="btn" onClick={() => setValue(null)}>
-          Скрыть
-        </button>
-      )}
-      <button className="btn" onClick={copy} title="Скопировать; буфер очистится через 30 секунд">
-        {copied ? "✓ 30с" : "Копировать"}
-      </button>
-    </div>
-  );
+  return <div className="secret-row">
+    <span className="secret-label">{fieldLabel(field)}</span>
+    <code className="secret-value">{value ?? "••••••••••••"}</code>
+    {value === null
+      ? <Button size="sm" onClick={() => reveal.mutate()} loading={reveal.isPending}>Показать</Button>
+      : <Button size="sm" onClick={() => setValue(null)}>Скрыть</Button>}
+    <Button size="sm" onClick={copy} title="Скопировать; буфер очистится через 30 секунд">{copied ? "Скопировано" : "Копировать"}</Button>
+  </div>;
 }
 
 function ItemRow({ storeId, item }: { storeId: string; item: PasswordItem }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
-
-  return (
-    <div style={{ borderBottom: "1px solid var(--border)", padding: "6px 0" }}>
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span style={{ color: "var(--text-faint)" }}>{open ? "▾" : "▸"}</span>
-        <strong>{item.name}</strong>
-        {item.username && <span style={{ color: "var(--text-dim)" }}>{item.username}</span>}
-        {item.folder && <span className="chip">{item.folder}</span>}
-        {item.uri && (
-          <a
-            href={item.uri}
-            target="_blank"
-            rel="noreferrer"
-            className="chip"
-            onClick={(e) => e.stopPropagation()}
-          >
-            ↗
-          </a>
-        )}
-      </div>
-
-      {open && (
-        <div style={{ padding: "4px 0 4px 22px" }}>
-          {item.fields.map((f) => (
-            <Secret key={f} storeId={storeId} item={item} field={f} onError={setError} />
-          ))}
-          {error && (
-            <div className="error" style={{ marginTop: 6 }}>
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <li className="secret-item">
+    <button className="secret-item-head" aria-expanded={open} onClick={() => setOpen((v) => !v)} disabled={!item.fields.length}>
+      <Icon name="chevron" size={14} className={open ? "is-open" : ""} />
+      <strong>{item.name}</strong>
+      {item.username && <span className="sub">{item.username}</span>}
+      {item.type && TYPE_LABEL[item.type] && <Badge tone="info">{TYPE_LABEL[item.type]}</Badge>}
+      {item.folder && <Badge tone="neutral">{item.folder}</Badge>}
+    </button>
+    {open && <div className="secret-fields">
+      {item.uri && /^https?:\/\//i.test(item.uri) && <a href={item.uri} target="_blank" rel="noreferrer">Открыть сайт</a>}
+      {item.fields.map((f) => <Secret key={f} storeId={storeId} item={item} field={f} onError={setError} />)}
+      {error && <Alert tone="error" title="Значение не получено">{error}</Alert>}
+    </div>}
+  </li>;
 }
 
-function Field({
-  field,
-  value,
-  onChange,
-}: {
-  field: ConfigField;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  if (field.type === "bool") {
-    return (
-      <label style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
-        <input
-          type="checkbox"
-          checked={value === "true"}
-          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-        />
-        <span>{field.label}</span>
-      </label>
-    );
-  }
-  return (
-    <label style={{ display: "block", padding: "4px 0" }}>
-      <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>
-        {field.label}
-        {field.required && <span style={{ color: "var(--overdue)" }}> *</span>}
-      </div>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={field.placeholder}
-        spellCheck={false}
-        style={{
-          width: "100%",
-          padding: "5px 8px",
-          background: "var(--bg-sunken)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius)",
-          outline: "none",
-        }}
-      />
-      {field.help && (
-        <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{field.help}</div>
-      )}
-    </label>
-  );
-}
-
-function AddStore({ kinds, onDone }: { kinds: PasswordKind[]; onDone: () => void }) {
+function AddDialog({ kinds, onClose }: { kinds: PasswordKind[]; onClose: () => void }) {
   const [kind, setKind] = useState(kinds[0]?.kind ?? "");
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const qc = useQueryClient();
   const schema = kinds.find((k) => k.kind === kind);
-
   const create = useMutation({
     mutationFn: () => api.addPasswordStore({ kind, name: name || schema?.title || kind, values }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["password-stores"] });
-      onDone();
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["password-stores"] }); onClose(); },
   });
+  const ready = !!schema && schema.fields.every((f) => !f.required || values[f.key]?.trim());
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        create.mutate();
-      }}
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius)",
-        padding: "12px 14px",
-        margin: "12px 0",
-        background: "var(--bg-panel)",
-      }}
-    >
-      <div className="section-head" style={{ marginTop: 0 }}>
-        Подключить хранилище
-      </div>
-
-      <label style={{ display: "block", padding: "4px 0" }}>
-        <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>Тип</div>
-        <select
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value);
-            setValues({});
-          }}
-          style={{
-            width: "100%",
-            padding: "5px 8px",
-            background: "var(--bg-sunken)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius)",
-          }}
-        >
-          {kinds.map((k) => (
-            <option key={k.kind} value={k.kind}>
-              {k.title}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <Field
-        field={{ key: "name", label: "Название", type: "text", required: false }}
-        value={name}
-        onChange={setName}
-      />
-      {schema?.fields.map((f) => (
-        <Field
-          key={f.key}
-          field={f}
-          value={values[f.key] ?? ""}
-          onChange={(v) => setValues((p) => ({ ...p, [f.key]: v }))}
-        />
-      ))}
-
-      {create.isError && (
-        <div className="error" style={{ marginTop: 8 }}>
-          {String((create.error as Error).message)}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button className="btn primary" type="submit" disabled={create.isPending}>
-          Подключить
-        </button>
-        <button className="btn" type="button" onClick={onDone}>
-          Отмена
-        </button>
-      </div>
+  return <Dialog open onClose={() => !create.isPending && onClose()} title="Подключить хранилище" footer={<>
+    <Button onClick={onClose} disabled={create.isPending}>Отмена</Button>
+    <Button type="submit" form="new-store" variant="primary" loading={create.isPending} disabled={!ready}>Подключить</Button>
+  </>}>
+    <form id="new-store" className="issue-form" onSubmit={(e) => { e.preventDefault(); if (ready) create.mutate(); }}>
+      <Select label="Тип" value={kind} onChange={(e) => { setKind(e.target.value); setValues({}); }}>
+        {kinds.map((k) => <option key={k.kind} value={k.kind}>{k.title}</option>)}
+      </Select>
+      <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} placeholder={schema?.title} />
+      {schema && <ConfigFields fields={schema.fields} values={values} onChange={setValues} />}
+      <p className="hint">{SECRET_HELP}</p>
+      {create.isError && <Alert tone="error" title="Не подключено">{errorText(create.error)}</Alert>}
     </form>
-  );
+  </Dialog>;
 }
 
 function StorePanel({ store }: { store: PasswordStore }) {
   const [passphrase, setPassphrase] = useState("");
   const [query, setQuery] = useState("");
   const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ["password-stores"] });
 
   const unlock = useMutation({
     mutationFn: () => api.unlockPasswordStore(store.id, passphrase),
-    onSuccess: () => {
-      setPassphrase(""); // мастер-пароль не задерживается в памяти вкладки
-      qc.invalidateQueries({ queryKey: ["password-stores"] });
-    },
+    onSuccess: () => { setPassphrase(""); refresh(); }, // мастер-пароль не задерживается в памяти вкладки
+    onError: () => { setPassphrase(""); refresh(); },
   });
-  const lock = useMutation({
-    mutationFn: () => api.lockPasswordStore(store.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["password-stores"] }),
-  });
-  const remove = useMutation({
-    mutationFn: () => api.deletePasswordStore(store.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["password-stores"] }),
-  });
+  const lock = useMutation({ mutationFn: () => api.lockPasswordStore(store.id), onSuccess: refresh });
+  const remove = useMutation({ mutationFn: () => api.deletePasswordStore(store.id), onSuccess: refresh });
 
-  const { data: items, isFetching } = useQuery({
+  const { data: items, isFetching, error } = useQuery({
     queryKey: ["password-items", store.id, query],
     queryFn: () => api.passwordItems(store.id, query),
     enabled: store.unlocked,
@@ -295,152 +139,69 @@ function StorePanel({ store }: { store: PasswordStore }) {
     staleTime: 0,
   });
 
-  return (
-    <section style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-        <span>{store.unlocked ? "🔓" : "🔒"}</span>
-        <strong>{store.name}</strong>
-        <span className="chip">{store.title}</span>
-        {store.locks_at && (
-          <span className="chip" title="Закроется само при простое">
-            до {new Date(store.locks_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
-          </span>
-        )}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          {store.unlocked && (
-            <button className="btn" onClick={() => lock.mutate()}>
-              Закрыть
-            </button>
-          )}
-          <button
-            className="btn"
-            onClick={() => {
-              if (confirm(`Убрать хранилище «${store.name}» из Lumen? Сама база не изменится.`)) {
-                remove.mutate();
-              }
-            }}
-          >
-            Удалить
-          </button>
-        </div>
+  return <section className="card service-row" aria-label={store.name}>
+    <div className="service-head">
+      <Icon name={store.unlocked ? "unlock" : "lock"} size={16} />
+      <strong>{store.name}</strong>
+      <Badge tone="neutral">{store.title}</Badge>
+      {store.locks_at && <span className="sub" title="Закроется само при простое">
+        до {new Date(store.locks_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+      </span>}
+      <div className="service-actions">
+        {store.unlocked && <Button size="sm" onClick={() => lock.mutate()}>Закрыть</Button>}
+        <Button size="sm" onClick={() => { if (confirm(`Убрать хранилище «${store.name}» из Lumen? Сама база не изменится.`)) remove.mutate(); }}>Отключить</Button>
       </div>
+    </div>
 
-      {store.last_error && <div className="error">{store.last_error}</div>}
+    {store.last_error && <Alert tone="error" title="Ошибка хранилища">{store.last_error}</Alert>}
 
-      {!store.unlocked ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            unlock.mutate();
-          }}
-          style={{ display: "flex", gap: 8, alignItems: "center" }}
-        >
-          {store.needs_passphrase && (
-            <input
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="Мастер-пароль"
-              autoComplete="off"
-              style={{
-                flex: "0 1 280px",
-                padding: "5px 8px",
-                background: "var(--bg-sunken)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius)",
-                outline: "none",
-              }}
-            />
-          )}
-          <button className="btn primary" type="submit" disabled={unlock.isPending}>
-            {unlock.isPending ? "Открываю…" : "Открыть"}
-          </button>
-          {!store.needs_passphrase && (
-            <span style={{ color: "var(--text-faint)", fontSize: 12 }}>
-              пароль не нужен — используется сессия из настроек
-            </span>
-          )}
+    {!store.unlocked
+      ? <form className="unlock-form" onSubmit={(e) => { e.preventDefault(); unlock.mutate(); }}>
+          {store.needs_passphrase && <Input label="Мастер-пароль" type="password" autoComplete="off" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} />}
+          <Button type="submit" variant="primary" loading={unlock.isPending} disabled={store.needs_passphrase && !passphrase}>Открыть</Button>
+          {!store.needs_passphrase && <span className="hint">Пароль не нужен: используется сессия из настроек.</span>}
         </form>
-      ) : (
-        <>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск по записям…"
-            style={{
-              width: "100%",
-              padding: "5px 8px",
-              marginBottom: 6,
-              background: "var(--bg-sunken)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              outline: "none",
-            }}
-          />
-          {isFetching && <div className="spinner">Загрузка…</div>}
-          {items?.items.length === 0 && !isFetching && <div className="empty">Ничего не найдено</div>}
-          {items?.items.map((it) => (
-            <ItemRow key={it.id} storeId={store.id} item={it} />
-          ))}
-        </>
-      )}
-    </section>
-  );
+      : <>
+          <Input label="Поиск" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Название, логин или адрес" />
+          {isFetching && !items && <Spinner label="Загрузка записей" />}
+          {error && <Alert tone="error" title="Записи не получены">{errorText(error)}</Alert>}
+          {items?.items.length === 0 && !isFetching && <p className="hint">Ничего не найдено.</p>}
+          {!!items?.items.length && <ul className="secret-list">{items.items.map((it) => <ItemRow key={it.id} storeId={store.id} item={it} />)}</ul>}
+        </>}
+  </section>;
 }
 
 export default function PasswordsPage() {
   const [adding, setAdding] = useState(false);
   const qc = useQueryClient();
-
   const { data, isLoading, error } = useQuery({
     queryKey: ["password-stores"],
     queryFn: api.passwordStores,
     refetchInterval: 30_000, // чтобы автозакрытие было видно
   });
   const { data: kinds } = useQuery({ queryKey: ["password-kinds"], queryFn: api.passwordKinds });
-
   const lockAll = useMutation({
     mutationFn: api.lockAllPasswordStores,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["password-stores"] }),
   });
 
-  return (
-    <>
-      <div className="page-head">
-        <div>
-          <span className="kicker">Сервисы</span>
-          <h1>Пароли</h1>
-          <span className="sub">Чтение из вашего менеджера паролей.</span>
-        </div>
-        <div className="head-actions">
-          <button className="btn" onClick={() => lockAll.mutate()}>
-            Закрыть все
-          </button>
-          <button className="btn primary" onClick={() => setAdding((v) => !v)}>
-            + Подключить
-          </button>
-        </div>
+  return <div className="page">
+    <div className="page-head">
+      <div>
+        <span className="kicker">Настройка</span>
+        <h1>Пароли</h1>
+        <span className="sub">Lumen только читает ваш менеджер паролей. Мастер-пароль не сохраняется, хранилище закрывается само через 15 минут простоя.</span>
       </div>
-
-      <div style={{ color: "var(--text-dim)", fontSize: 12.5, marginBottom: 8 }}>
-        Lumen ничего не записывает в вашу базу и не сохраняет мастер-пароль: он нужен один раз,
-        чтобы получить сессию, которая живёт только в памяти сервера и закрывается сама при простое.
-        Пароли не попадают ни в заметки, ни в поиск, ни в резервные копии.
+      <div className="head-actions">
+        {data?.items.some((s) => s.unlocked) && <Button onClick={() => lockAll.mutate()}>Закрыть все</Button>}
+        <Button variant="primary" disabled={!kinds} onClick={() => setAdding(true)}><Icon name="plus" size={16} />Подключить</Button>
       </div>
-
-      {error && <div className="error">{String((error as Error).message)}</div>}
-      {adding && kinds && kinds.items.length > 0 && (
-        <AddStore kinds={kinds.items} onDone={() => setAdding(false)} />
-      )}
-
-      {isLoading && <div className="spinner">Загрузка…</div>}
-      {!isLoading && data?.items.length === 0 && !adding && (
-        <div className="empty">Хранилища не подключены</div>
-      )}
-
-      {data?.items.map((s) => (
-        <StorePanel key={s.id} store={s} />
-      ))}
-    </>
-  );
+    </div>
+    {error && <Alert tone="error" title="Не загружено">{errorText(error)}</Alert>}
+    {isLoading && <Spinner label="Загрузка" />}
+    {data?.items.length === 0 && <EmptyState title="Хранилища не подключены" description="Подключите Vaultwarden: понадобятся адрес сервера и почта."
+      actions={<Button variant="primary" disabled={!kinds} onClick={() => setAdding(true)}>Подключить</Button>} />}
+    <div className="service-list">{data?.items.map((s) => <StorePanel key={s.id} store={s} />)}</div>
+    {adding && kinds && <AddDialog kinds={kinds.items} onClose={() => setAdding(false)} />}
+  </div>;
 }

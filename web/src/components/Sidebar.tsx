@@ -3,182 +3,121 @@ import Brand, { Signature } from "./Brand";
 import ThemeSwitch from "./ThemeSwitch";
 import Icon, { type IconName } from "./Icon";
 import { useState } from "react";
-import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
-import type { ViewName } from "../api/types";
-import { iso, today } from "../lib/date";
 import NewNoteDialog from "./NewNoteDialog";
 import NewIssueDialog from "./NewIssueDialog";
+import NewProjectDialog from "./NewProjectDialog";
 import { projectUrl } from "../lib/tracker";
-import { IconButton } from "@villetacore/velessoft-ui";
+import { IconButton, Menu } from "@villetacore/velessoft-ui";
 
-const VIEWS: { view: ViewName; label: string; icon: IconName }[] = [
-  { view: "today", label: "Сегодня", icon: "sun" },
-  { view: "inbox", label: "Входящие", icon: "inbox" },
-  { view: "week", label: "Неделя", icon: "calendar" },
-  { view: "overdue", label: "Просрочено", icon: "alert" },
-  { view: "upcoming", label: "Предстоит", icon: "arrow" },
-  { view: "someday", label: "Без даты", icon: "clock" },
-  { view: "all", label: "Все задачи", icon: "list" },
-  { view: "done", label: "Выполнено", icon: "check" },
-];
+const navClass = (active: boolean) => "nav-item" + (active ? " active" : "");
 
-function ViewLink({ view, label, icon }: { view: ViewName; label: string; icon: IconName }) {
-  const { data } = useQuery({
-    queryKey: ["tasks", "count", view],
-    queryFn: () => api.tasks({ view, limit: 1 }),
-  });
-  return (
-    <NavLink to={`/view/${view}`} className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-      <span className="icon"><Icon name={icon} /></span>
-      {label}
-      {data && data.total > 0 && <span className="count">{data.total}</span>}
-    </NavLink>
-  );
+function Item({ to, icon, label, count, end, active }: { to: string; icon: IconName; label: string; count?: number; end?: boolean; active?: boolean }) {
+  return <NavLink to={to} end={end} className={({ isActive }) => navClass(active ?? isActive)}>
+    <span className="icon"><Icon name={icon} /></span>
+    {label}
+    {!!count && <span className="count">{count}</span>}
+  </NavLink>;
 }
 
+/**
+ * Sidebar answers three questions: what do I do now, in which project, and
+ * where is the knowledge. Everything else is behind "Настройка" or on the page
+ * it belongs to: task views are tabs of "Задачи", tags are filters of "Заметки".
+ */
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [params] = useSearchParams();
-  const [creating, setCreating] = useState<"note" | "project" | null>(null);
-  // The daily note is created on first open, the way quick capture does it.
-  const daily = useMutation({
-    mutationFn: () => api.daily(iso(today()), true),
-    onSuccess: (n) => navigate(`/note/${n.path}`),
-  });
-  const { data: projects } = useQuery({
-    queryKey: ["notes", { type: "project" }],
-    queryFn: () => api.notes({ type: "project" }),
-  });
-  const { data: tags } = useQuery({ queryKey: ["tags"], queryFn: api.tags });
-  const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
-  const [newIssue, setNewIssue] = useState(false);
+  const [creating, setCreating] = useState<"note" | "issue" | "project" | null>(null);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const { data: plain } = useQuery({ queryKey: ["notes", { type: "project" }], queryFn: () => api.notes({ type: "project" }) });
+  const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
   const { data: proposals } = useQuery({ queryKey: ["proposals", "pending"], queryFn: () => api.proposals(true) });
-  const { data: inbox } = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications(), enabled: !!me?.username });
+  const { data: today } = useQuery({ queryKey: ["tasks", "count", "today"], queryFn: () => api.tasks({ view: "today", limit: 1 }) });
+
+  const admin = !me?.role || me.role === "admin";
+  const hasBoard = new Set(tracker?.items.map((p) => p.path));
+  const notePlain = plain?.items.filter((n) => !hasBoard.has(n.path)) ?? [];
+  const create = (what: "note" | "issue" | "project") => { setCreating(what); if (open) onClose(); };
 
   return (
     <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
       <div className="sidebar-brand"><Brand /><IconButton className="mobile-only" variant="ghost" onClick={onClose} label="Закрыть меню"><Icon name="close" size={16} /></IconButton></div>
+      <div className="sidebar-create">
+        <Menu variant="primary" className="create-menu" label={<><Icon name="plus" size={16} />Создать</>} items={[
+          { label: "Тикет в проекте", icon: <Icon name="board" size={16} />, disabled: !tracker?.items.length, onSelect: () => create("issue") },
+          { label: "Задача", icon: <Icon name="check" size={16} />, onSelect: () => navigate("/view/inbox#add") },
+          { label: "Документ", icon: <Icon name="file" size={16} />, onSelect: () => create("note") },
+          { type: "separator" },
+          { label: "Проект", icon: <Icon name="folder" size={16} />, onSelect: () => create("project") },
+        ]} />
+      </div>
       <div className="sidebar-scroll">
-      <div className="nav-group">
-      <div className="nav-title">Задачи</div>
-        {VIEWS.map((v) => (
-          <ViewLink key={v.view} {...v} />
-        ))}
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-title">
-          Трекер
-          <IconButton className="nav-add" size="sm" variant="ghost" label="Новый тикет" onClick={() => { setNewIssue(true); if (open) onClose(); }}>
-            <Icon name="plus" size={14} />
-          </IconButton>
+        <div className="nav-group">
+          <Item to="/view/today" icon="sun" label="Сегодня" count={today?.total} />
+          {me?.username && <Item to="/my" icon="user" label="Мои тикеты" />}
+          <Item to="/view/all" icon="list" label="Задачи" active={pathname.startsWith("/view/") && pathname !== "/view/today"} />
+          {!!proposals?.total && <Item to="/approvals" icon="check" label="Подтвердить" count={proposals.total} />}
         </div>
-        <NavLink to="/my" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="user" /></span>
-          Мои задачи
-        </NavLink>
-        <NavLink to="/inbox" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="bell" /></span>
-          Уведомления
-          {!!inbox?.unread && <span className="count">{inbox.unread}</span>}
-        </NavLink>
-        <NavLink to="/approvals" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="check" /></span>
-          Подтверждения
-          {!!proposals?.total && <span className="count">{proposals.total}</span>}
-        </NavLink>
-        <NavLink end to="/tracker" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="board" /></span>
-          Все проекты
-        </NavLink>
-        {tracker?.items.map((p) => (
-          <NavLink key={p.key} to={projectUrl(p.key)} className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-            <span className="icon nav-key">{p.key}</span>
-            {p.title}
-          </NavLink>
-        ))}
-      </div>
 
-      <div className="nav-group">
-        <div className="nav-title">
-          Проекты
-          <IconButton className="nav-add" size="sm" variant="ghost" label="Новый проект" onClick={() => { setCreating("project"); if (open) onClose(); }}>
-            <Icon name="plus" size={14} />
-          </IconButton>
+        <div className="nav-group">
+          <div className="nav-title">
+            Проекты
+            <IconButton className="nav-add" size="sm" variant="ghost" label="Новый проект" onClick={() => create("project")}>
+              <Icon name="plus" size={14} />
+            </IconButton>
+          </div>
+          {tracker?.items.map((p) => (
+            <NavLink key={p.key} to={`${projectUrl(p.key)}/board`} className={navClass(pathname.startsWith(projectUrl(p.key)))}>
+              <span className="icon nav-key">{p.key}</span>
+              {p.title}
+            </NavLink>
+          ))}
+          {notePlain.map((p) => (
+            <NavLink key={p.path} to={`/note/${p.path}`} className={({ isActive }) => navClass(isActive)}>
+              <span className="icon"><Icon name="folder" /></span>
+              {p.title}
+              {p.open_tasks > 0 && <span className="count">{p.open_tasks}</span>}
+            </NavLink>
+          ))}
+          {tracker && plain && !tracker.items.length && !notePlain.length && (
+            <button className="nav-item" onClick={() => create("project")}>
+              <span className="icon"><Icon name="plus" /></span>Создать первый проект
+            </button>
+          )}
         </div>
-        {projects?.items.map((p) => (
-          <NavLink
-            key={p.path}
-            to={`/note/${p.path}`}
-            className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
-          >
-            <span className="icon"><Icon name="folder" /></span>
-            {p.title}
-            {p.open_tasks > 0 && <span className="count">{p.open_tasks}</span>}
-          </NavLink>
-        ))}
-        {projects?.items.length === 0 && (
-          <div className="nav-item placeholder">нет проектов</div>
-        )}
-      </div>
 
-      <div className="nav-group">
-        <div className="nav-title">Обзор</div>
-        <button className="nav-item" onClick={() => daily.mutate()} disabled={daily.isPending}>
-          <span className="icon"><Icon name="sun" /></span>
-          Мой день
-        </button>
-        <button className="nav-item" onClick={() => { setCreating("note"); if (open) onClose(); }}>
-          <span className="icon"><Icon name="plus" /></span>
-          Новый документ
-        </button>
-        <NavLink to="/calendar" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="calendar" /></span>
-          Календарь
-        </NavLink>
-        <NavLink to="/docs" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}><span className="icon"><Icon name="book" /></span>Документация</NavLink>
-        <NavLink to="/notes" className={({ isActive }) => "nav-item" + (isActive && !params.get("section") && !params.get("tag") ? " active" : "")}>
-          <span className="icon"><Icon name="file" /></span>
-          Материалы
-        </NavLink>
-        <NavLink to="/people" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="users" /></span>
-          Команда
-        </NavLink>
-        <NavLink to="/integrations" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="plug" /></span>
-          Интеграции
-        </NavLink>
-        <NavLink to="/passwords" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
-          <span className="icon"><Icon name="key" /></span>
-          Пароли
-        </NavLink>
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-title">Теги</div>
-        {tags?.items.slice(0, 12).map((t) => (
-          <NavLink
-            key={t.tag}
-            to={`/notes?tag=${encodeURIComponent(t.tag)}`}
-            // NavLink compares paths only; the tag lives in the query string.
-            className={({ isActive }) =>
-              "nav-item" + (isActive && params.get("tag") === t.tag ? " active" : "")
-            }
-          >
-            <span className="icon"><Icon name="hash" /></span>
-            {t.tag}
-            <span className="count">{t.count}</span>
+        <div className="nav-group">
+          <div className="nav-title">Знания</div>
+          <Item to="/docs" icon="book" label="Документация" />
+          <NavLink to="/notes" className={({ isActive }) => navClass(isActive && !params.get("section"))}>
+            <span className="icon"><Icon name="file" /></span>Заметки
           </NavLink>
-        ))}
+          <Item to="/calendar" icon="calendar" label="Календарь" />
+        </div>
+
+        <div className="nav-group">
+          <div className="nav-title">Настройка</div>
+          <Item to="/people" icon="users" label="Команда" />
+          {admin && <Item to="/integrations" icon="plug" label="Интеграции" />}
+          {admin && <Item to="/passwords" icon="key" label="Пароли" />}
+        </div>
       </div>
+      <div className="sidebar-foot">
+        {me?.mode === "oidc" && me.authenticated
+          ? <div className="sidebar-user">
+              <span className="sidebar-user-name" title={me.email}>{me.name}</span>
+              <a href={me.logout_url}>Выйти</a>
+            </div>
+          : <Signature />}
+        <ThemeSwitch />
       </div>
-      <div className="sidebar-foot"><ThemeSwitch /><Signature /></div>
-      {creating && createPortal(<NewNoteDialog type={creating} onClose={() => setCreating(null)} />, document.body)}
-      {newIssue && createPortal(<NewIssueDialog onClose={() => setNewIssue(false)} />, document.body)}
+      {creating === "note" && createPortal(<NewNoteDialog onClose={() => setCreating(null)} />, document.body)}
+      {creating === "issue" && createPortal(<NewIssueDialog onClose={() => setCreating(null)} />, document.body)}
+      {creating === "project" && createPortal(<NewProjectDialog onClose={() => setCreating(null)} />, document.body)}
     </nav>
   );
 }

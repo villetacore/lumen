@@ -37,8 +37,7 @@ export default function NotesPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="kicker">Vault / {items.length}</span>
-          <h1>{tag ? `#${tag}` : "Материалы"}</h1>
+          <h1>{tag ? `#${tag}` : "Заметки"}</h1>
           <span className="sub">Все проекты, документы, записи и заметки из Markdown.</span>
         </div>
         <div className="head-actions">
@@ -55,11 +54,11 @@ export default function NotesPage() {
         {tag && <Tag onRemove={() => setParams({})} removeLabel={`Сбросить тег ${tag}`}>#{tag}</Tag>}
       </div>
 
-      {isLoading && <Spinner label="Загрузка материалов" />}
-      {error && <Alert tone="error" title="Не удалось загрузить материалы">{errorText(error)}</Alert>}
+      {isLoading && <Spinner label="Загрузка заметок" />}
+      {error && <Alert tone="error" title="Не удалось загрузить заметки">{errorText(error)}</Alert>}
       {!isLoading && !error && items.length === 0 && (
         <EmptyState icon={<Icon name="file" size={24} />}
-          title={needle || tag ? "Ничего не найдено" : "Материалов пока нет"}
+          title={needle || tag ? "Ничего не найдено" : "Заметок пока нет"}
           description={needle || tag ? "Измените запрос или сбросьте тег." : "Создайте документ или проект — они сохранятся как Markdown в vault."} />
       )}
 
