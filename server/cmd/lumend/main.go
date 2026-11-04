@@ -29,6 +29,7 @@ import (
 	"github.com/villetacore/lumen/server/internal/index"
 	"github.com/villetacore/lumen/server/internal/passwords"
 	"github.com/villetacore/lumen/server/internal/secrets"
+	"github.com/villetacore/lumen/server/internal/secretstore"
 	"github.com/villetacore/lumen/server/internal/service"
 	"github.com/villetacore/lumen/server/internal/state"
 	"github.com/villetacore/lumen/server/internal/vault"
@@ -155,6 +156,16 @@ func serve(args []string, log *slog.Logger) error {
 		log.Info("state migrated", "schema", st.Version(), "backup", b)
 	}
 
+	// Tokens pasted into settings forms stay out of the vault (ADR-0017).
+	resolver := secrets.New(nil)
+	keeper, err := secretstore.New(st.DB(), cfg.SecretsKey, cfg.StateDir)
+	if err != nil {
+		log.Warn("хранилище секретов недоступно: в настройках принимаются только ссылки", "err", err)
+		keeper = nil
+	} else {
+		resolver.Register(keeper.Provider())
+	}
+
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
@@ -191,14 +202,20 @@ func serve(args []string, log *slog.Logger) error {
 
 	tasks := service.NewTasks(v, store, ix, bus, log)
 	notes := service.NewNotes(v, store, ix, bus, log)
-	integrationsSvc := service.NewIntegrations(v, store, tasks, notes, ix, bus, secrets.New(nil), log)
+	integrationsSvc := service.NewIntegrations(v, store, tasks, notes, ix, bus, resolver, log)
+	if keeper != nil {
+		integrationsSvc.UseKeeper(keeper)
+	}
 	if err := integrationsSvc.Load(); err != nil {
 		log.Warn("не удалось прочитать конфигурацию интеграций", "err", err)
 	}
 	go integrationsSvc.Run(ctx)
 
 	// Хранилища паролей: конфигурация лежит в vault, сессии — только в памяти.
-	pwManager := passwords.NewManager(v.Root, nil, secrets.New(nil).Resolve)
+	pwManager := passwords.NewManager(v.Root, nil, resolver.Resolve)
+	if keeper != nil {
+		pwManager.UseKeeper(keeper)
+	}
 	if err := pwManager.Load(); err != nil {
 		log.Warn("не удалось прочитать конфигурацию хранилищ паролей", "err", err)
 	}

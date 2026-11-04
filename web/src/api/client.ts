@@ -245,6 +245,10 @@ export const api = {
     folder?: string;
     values: Record<string, string>;
   }) => request<Integration>("/integrations", { method: "POST", body: JSON.stringify(input) }),
+  promoteTask: (id: string, project: string) =>
+    request<Issue>(`/tasks/${encodeURIComponent(id)}/promote`, { method: "POST", body: JSON.stringify({ project }) }),
+  patchPasswordStore: (id: string, patch: { name?: string; values?: Record<string, string> }) =>
+    request<PasswordStore>(`/passwords/stores/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }),
   patchIntegration: (
     id: string,
     patch: { enabled?: boolean; name?: string; interval?: string; values?: Record<string, string> },

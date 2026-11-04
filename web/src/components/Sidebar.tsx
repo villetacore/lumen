@@ -31,7 +31,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [params] = useSearchParams();
-  const [creating, setCreating] = useState<"note" | "issue" | "project" | null>(null);
+  const [creating, setCreating] = useState<"note" | "entry" | "issue" | "project" | null>(null);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
   const { data: plain } = useQuery({ queryKey: ["notes", { type: "project" }], queryFn: () => api.notes({ type: "project" }) });
   const { data: tracker } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
@@ -41,7 +41,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const admin = !me?.role || me.role === "admin";
   const hasBoard = new Set(tracker?.items.map((p) => p.path));
   const notePlain = plain?.items.filter((n) => !hasBoard.has(n.path)) ?? [];
-  const create = (what: "note" | "issue" | "project") => { setCreating(what); if (open) onClose(); };
+  const create = (what: "note" | "entry" | "issue" | "project") => { setCreating(what); if (open) onClose(); };
 
   return (
     <nav id="workspace-navigation" className={`sidebar${open ? " open" : ""}`} aria-label="Основная навигация">
@@ -50,7 +50,8 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         <Menu variant="primary" className="create-menu" label={<><Icon name="plus" size={16} />Создать</>} items={[
           { label: "Тикет в проекте", icon: <Icon name="board" size={16} />, disabled: !tracker?.items.length, onSelect: () => create("issue") },
           { label: "Задача", icon: <Icon name="check" size={16} />, onSelect: () => navigate("/view/inbox#add") },
-          { label: "Документ", icon: <Icon name="file" size={16} />, onSelect: () => create("note") },
+          { label: "Заметка", icon: <Icon name="edit" size={16} />, onSelect: () => create("entry") },
+          { label: "Документ", icon: <Icon name="book" size={16} />, onSelect: () => create("note") },
           { type: "separator" },
           { label: "Проект", icon: <Icon name="folder" size={16} />, onSelect: () => create("project") },
         ]} />
@@ -115,6 +116,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           : <Signature />}
         <ThemeSwitch />
       </div>
+      {creating === "entry" && createPortal(<NewNoteDialog contentKind="entry" onClose={() => setCreating(null)} />, document.body)}
       {creating === "note" && createPortal(<NewNoteDialog onClose={() => setCreating(null)} />, document.body)}
       {creating === "issue" && createPortal(<NewIssueDialog onClose={() => setCreating(null)} />, document.body)}
       {creating === "project" && createPortal(<NewProjectDialog onClose={() => setCreating(null)} />, document.body)}

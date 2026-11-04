@@ -820,3 +820,81 @@ func (s *Issues) emit(ctx context.Context, events ...notify.Event) {
 		}
 	}
 }
+
+var taskPriorityToIssue = map[domain.Priority]string{"A": "highest", "B": "high", "C": "medium", "D": "low"}
+
+// PromoteTask turns a checkbox into a ticket of a project. The ticket comes
+// first: if anything fails before the line changes, the task is still there. The
+// line then becomes a link to the ticket, keeping its text (LUM-065).
+func (s *Issues) PromoteTask(ctx context.Context, taskID, project, actor string) (*domain.Issue, error) {
+	t, err := s.store.Task(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if t.Status == domain.StatusDone || t.Status == domain.StatusCancelled {
+		return nil, fmt.Errorf("%w: задача уже закрыта", ErrInvalid)
+	}
+	note, err := s.store.Note(ctx, t.NotePath)
+	if err != nil {
+		return nil, err
+	}
+	if note.Type == domain.TypeIssue {
+		return nil, fmt.Errorf("%w: это пункт чек-листа тикета", ErrInvalid)
+	}
+	if err := s.policy.CheckNote(ctx, note, policy.RoleMember); err != nil {
+		return nil, err
+	}
+	in := IssueInput{
+		Project: project, Title: titleWithoutTags(t.Text, t.Tags), Priority: taskPriorityToIssue[t.Priority], Labels: t.Tags,
+		Estimate: t.EstimateS, Description: "Из задачи в [[" + strings.TrimSuffix(path.Base(t.NotePath), ".md") + "]].",
+	}
+	if !t.Due.IsZero() {
+		in.Due = t.Due.String()
+	}
+	if !t.Start.IsZero() {
+		in.Start = t.Start.String()
+	} else if !t.Scheduled.IsZero() {
+		in.Start = t.Scheduled.String()
+	}
+	issue, err := s.Create(ctx, in, actor)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.replaceTaskLine(ctx, t, issue); err != nil {
+		// Two copies of one job are worse than a ticket that was not made.
+		if derr := s.Delete(ctx, issue.Key); derr != nil {
+			return nil, fmt.Errorf("%w; и тикет %s удалить не удалось: %v", err, issue.Key, derr)
+		}
+		return nil, err
+	}
+	return issue, nil
+}
+
+// titleWithoutTags removes "#tag" words: on a ticket they are labels.
+func titleWithoutTags(text string, tags []string) string {
+	for _, tag := range tags {
+		text = strings.ReplaceAll(text, "#"+tag, "")
+	}
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func (s *Issues) replaceTaskLine(ctx context.Context, t *domain.Task, issue *domain.Issue) error {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
+	data, err := s.vault.Read(t.NotePath)
+	if err != nil {
+		return err
+	}
+	eol, lines := splitLines(data)
+	n, err := locateTask(lines, t)
+	if err != nil {
+		return err
+	}
+	indent := lines[n][:len(lines[n])-len(strings.TrimLeft(lines[n], " \t"))]
+	lines[n] = indent + "- [[" + issue.Key + "]] " + t.Text
+	if err := s.vault.Write(t.NotePath, []byte(strings.Join(lines, eol))); err != nil {
+		return err
+	}
+	return s.ix.ReindexPath(ctx, t.NotePath)
+}

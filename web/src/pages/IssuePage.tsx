@@ -7,6 +7,7 @@ import type { Issue, IssuePatch, Task, TrackerProject } from "../api/types";
 import Crumbs from "../components/Crumbs";
 import Icon from "../components/Icon";
 import Markdown from "../components/Markdown";
+import RelatedContent from "../components/RelatedContent";
 import IssueHistory from "../components/IssueHistory";
 import { longDate } from "../lib/date";
 import { PeopleOptions } from "../lib/people";
@@ -152,6 +153,8 @@ export default function IssuePage() {
             ? <Markdown body={issue.description} tasks={issue.checklist ?? []} onToggleTask={(t) => toggleTask.mutate(t)} />
             : <p className="hint">Описания нет.</p>}
         </section>
+
+        <RelatedContent parent={`note:${issue.key}`} />
 
         {!!issue.links?.length && <section aria-labelledby="links-title">
           <h2 id="links-title" className="nav-title">Связи</h2>

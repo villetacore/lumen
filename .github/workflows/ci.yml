@@ -56,7 +56,7 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      - run: go test -race ./internal/state/... ./internal/people ./internal/notify ./internal/history ./internal/proposals ./internal/policy ./internal/service ./internal/httpapi
+      - run: go test -race ./internal/state/... ./internal/secretstore ./internal/people ./internal/notify ./internal/history ./internal/proposals ./internal/policy ./internal/service ./internal/httpapi
 
   web:
     runs-on: ubuntu-latest

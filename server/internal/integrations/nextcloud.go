@@ -27,7 +27,7 @@ func (*Nextcloud) ConfigSchema() []ConfigField {
 		{Key: "username", Label: "Пользователь", Type: FieldText, Required: true},
 		{Key: "password", Label: "Пароль приложения", Type: FieldSecret, Required: true,
 			Placeholder: "bitwarden:nextcloud-app-password",
-			Help: "Ссылка на секрет. В Nextcloud заведите отдельный пароль приложения, " +
+			Help: "Сохранится зашифрованным. В Nextcloud заведите отдельный пароль приложения, " +
 				"а не основной пароль учётной записи"},
 		{Key: "category", Label: "Только категория", Type: FieldText,
 			Help: "Пусто — брать все заметки"},
@@ -40,7 +40,7 @@ func (*Nextcloud) Validate(c Config) error {
 	for _, f := range []struct{ key, hint string }{
 		{"url", "адрес сервера Nextcloud"},
 		{"username", "имя пользователя"},
-		{"password", "ссылка на секрет с паролем приложения"},
+		{"password", "пароль приложения"},
 	} {
 		if err := requireValue(c, f.key, f.hint); err != nil {
 			return err

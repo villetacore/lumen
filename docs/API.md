@@ -91,6 +91,7 @@
 | `GET` | `/api/v1/issues` | Список в порядке доски, без описания и комментариев. Параметры: `project`, `status` (csv), `category` (`todo\|in_progress\|done`), `assignee` (`none` — без исполнителя, `me` — вызывающий), `watcher` (автор, исполнитель или наблюдатель; `me`), `type`, `label` (csv), `sprint`, `epic`, `q`, `limit`, `offset` |
 | `POST` | `/api/v1/issues` | `{project, title, issue_type?, status?, priority?, assignee?, labels?, epic?, parent?, sprint?, start?, due?, estimate?, points?, description?}`; ключ выдаёт сервер, `reporter` — вошедший пользователь |
 | `GET` | `/api/v1/issues/{key}` | Тикет с `description`, `checklist`, `comments` |
+| `POST` | `/api/v1/tasks/{id}/promote` | `{project}` — сделать из задачи тикет: строка в заметке становится ссылкой на него. Вернёт тикет |
 | `PATCH` | `/api/v1/issues/{key}` | Любые поля создания, а также `watchers`, `revision`; пустая строка/список очищает поле |
 | `POST` | `/api/v1/issues/{key}/move` | `{status?, before?, after?, sprint?, revision?}` — перенос на доске или в бэклоге: `before`/`after` — ключи соседей сверху/снизу; `sprint` — в спринт (`""` — в бэклог) |
 | `POST` | `/api/v1/issues/{key}/comments` | `{body}` → комментарий `{id, author, at, body}` |

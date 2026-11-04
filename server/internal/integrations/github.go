@@ -23,8 +23,8 @@ func (*GitHub) ConfigSchema() []ConfigField {
 		{Key: "repo", Label: "Репозиторий", Type: FieldText, Required: true,
 			Placeholder: "owner/name"},
 		{Key: "token", Label: "Токен", Type: FieldSecret,
-			Placeholder: "bitwarden:github-token",
-			Help:        "Ссылка на секрет, а не сам токен: env:, file:, command:, bitwarden:, keepass:"},
+			Placeholder: "",
+			Help:        "Вставьте токен: он сохранится зашифрованным. Можно и ссылкой: env:ИМЯ, file:/путь"},
 		{Key: "api_url", Label: "Адрес API", Type: FieldURL,
 			Placeholder: "https://api.github.com",
 			Help:        "Для Gitea/Forgejo: https://git.example.com/api/v1"},
@@ -93,7 +93,13 @@ func (gh *GitHub) Sync(ctx context.Context, in SyncInput) (SyncOutput, error) {
 	repo := in.Config.Value("repo", "")
 
 	query := url.Values{}
-	query.Set("state", in.Config.Value("state", "open"))
+	state := in.Config.Value("state", "open")
+	if state == "open" && in.State["since"] != "" {
+		// After the first run also ask for closed ones: otherwise an issue closed
+		// there would never be returned and would stay open here forever.
+		state = "all"
+	}
+	query.Set("state", state)
 	query.Set("per_page", "100")
 	query.Set("sort", "updated")
 	query.Set("direction", "desc")

@@ -27,7 +27,7 @@ func (*CalDAV) ConfigSchema() []ConfigField {
 		{Key: "username", Label: "Пользователь", Type: FieldText, Required: true},
 		{Key: "password", Label: "Пароль", Type: FieldSecret, Required: true,
 			Placeholder: "bitwarden:nextcloud-app-password",
-			Help:        "Ссылка на секрет; для Nextcloud лучше отдельный пароль приложения"},
+			Help:        "Сохранится зашифрованным; для Nextcloud лучше отдельный пароль приложения"},
 		{Key: "calendar", Label: "Название", Type: FieldText},
 		{Key: "allow_private", Label: "Разрешить приватные адреса", Type: FieldBool,
 			Help: "Нужно для сервера в домашней сети"},
@@ -38,7 +38,7 @@ func (*CalDAV) Validate(c Config) error {
 	for _, f := range []struct{ key, hint string }{
 		{"url", "адрес коллекции календаря"},
 		{"username", "имя пользователя"},
-		{"password", "ссылка на секрет с паролем"},
+		{"password", "пароль"},
 	} {
 		if err := requireValue(c, f.key, f.hint); err != nil {
 			return err

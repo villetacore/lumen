@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ type Integrations struct {
 	registry *integrations.Registry
 	cfgStore *integrations.Store
 	resolver *secrets.Resolver
+	keeper   secrets.Keeper
 
 	mu      sync.Mutex
 	configs []integrations.Config
@@ -72,6 +74,30 @@ func (s *Integrations) Load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.configs = configs
+	// A secret left in the file in the clear, which older versions allowed,
+	// moves to the keeper and leaves the file.
+	if s.keeper != nil {
+		moved := false
+		for i := range s.configs {
+			conn, err := s.registry.Get(s.configs[i].Kind)
+			if err != nil {
+				continue
+			}
+			for _, f := range conn.ConfigSchema() {
+				if v := s.configs[i].Values[f.Key]; f.Type == integrations.FieldSecret && v != "" && !secrets.IsReference(v) {
+					moved = true
+				}
+			}
+			if err := s.keepSecrets(&s.configs[i], conn); err != nil {
+				return err
+			}
+		}
+		if moved {
+			if err := s.cfgStore.Save(s.configs); err != nil {
+				return err
+			}
+		}
+	}
 	s.bootstrap = map[string]bool{}
 	for _, cfg := range configs {
 		s.bootstrap[cfg.ID] = true
@@ -127,15 +153,54 @@ func (s *Integrations) List() []Status {
 type Kind struct {
 	Kind   string                     `json:"kind"`
 	Title  string                     `json:"title"`
+	Group  string                     `json:"group"`
 	Fields []integrations.ConfigField `json:"fields"`
 }
 
 func (s *Integrations) Kinds() []Kind {
 	var out []Kind
 	for _, c := range s.registry.Kinds() {
-		out = append(out, Kind{Kind: c.Kind(), Title: c.Title(), Fields: c.ConfigSchema()})
+		out = append(out, Kind{Kind: c.Kind(), Title: c.Title(), Group: integrations.GroupOf(c.Kind()), Fields: c.ConfigSchema()})
 	}
 	return out
+}
+
+// UseKeeper lets settings forms accept pasted tokens (ADR-0017).
+func (s *Integrations) UseKeeper(k secrets.Keeper) { s.keeper = k }
+
+// keepSecrets replaces pasted values in secret fields by references. Without a
+// keeper a value is refused rather than written to a file in the vault.
+func (s *Integrations) keepSecrets(cfg *integrations.Config, conn integrations.Connector) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, f := range conn.ConfigSchema() {
+		v := strings.TrimSpace(cfg.Values[f.Key])
+		if f.Type != integrations.FieldSecret || v == "" || secrets.IsReference(v) {
+			continue
+		}
+		if s.keeper == nil {
+			return fmt.Errorf("поле «%s»: хранилище секретов недоступно, укажите ссылку env: или file:", f.Label)
+		}
+		ref, err := s.keeper.Keep(ctx, "integration:"+cfg.ID+":"+f.Key, v)
+		if err != nil {
+			return fmt.Errorf("поле «%s» не сохранено: %w", f.Label, err)
+		}
+		cfg.Values[f.Key] = ref
+	}
+	return nil
+}
+
+func (s *Integrations) forgetReplaced(old, updated integrations.Config) {
+	if s.keeper == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for k, v := range old.Values {
+		if updated.Values[k] != v && strings.HasPrefix(v, secrets.StoredScheme+":") {
+			_ = s.keeper.Forget(ctx, v)
+		}
+	}
 }
 
 // Add validates and stores a new integration.
@@ -170,6 +235,9 @@ func (s *Integrations) Add(cfg integrations.Config) (integrations.Config, error)
 			return cfg, fmt.Errorf("интеграция %q уже есть", cfg.ID)
 		}
 	}
+	if err := s.keepSecrets(&cfg, conn); err != nil {
+		return cfg, err
+	}
 	s.configs = append(s.configs, cfg)
 	sort.Slice(s.configs, func(i, j int) bool { return s.configs[i].ID < s.configs[j].ID })
 	return cfg, s.cfgStore.Save(s.configs)
@@ -184,7 +252,12 @@ func (s *Integrations) Update(id string, apply func(*integrations.Config)) (inte
 		if s.configs[i].ID != id {
 			continue
 		}
-		updated := s.configs[i]
+		old := s.configs[i]
+		updated := old
+		updated.Values = make(map[string]string, len(old.Values))
+		for k, v := range old.Values {
+			updated.Values[k] = v
+		}
 		apply(&updated)
 		if updated.Interval < integrations.MinInterval {
 			updated.Interval = integrations.MinInterval
@@ -196,6 +269,10 @@ func (s *Integrations) Update(id string, apply func(*integrations.Config)) (inte
 		if err := conn.Validate(updated); err != nil {
 			return updated, err
 		}
+		if err := s.keepSecrets(&updated, conn); err != nil {
+			return updated, err
+		}
+		s.forgetReplaced(old, updated)
 		s.configs[i] = updated
 		return updated, s.cfgStore.Save(s.configs)
 	}
@@ -212,9 +289,11 @@ func (s *Integrations) Delete(ctx context.Context, id string) error {
 	}
 	kept := s.configs[:0:0]
 	found := false
+	var gone integrations.Config
 	for _, c := range s.configs {
 		if c.ID == id {
 			found = true
+			gone = c
 			continue
 		}
 		kept = append(kept, c)
@@ -226,6 +305,7 @@ func (s *Integrations) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	s.configs = kept
+	s.forgetReplaced(gone, integrations.Config{})
 	delete(s.state, id)
 	delete(s.bootstrap, id)
 	stateErr := s.cfgStore.SaveState(s.copyStateLocked())

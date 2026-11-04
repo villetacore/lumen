@@ -135,6 +135,23 @@ func (a *API) handleCreateIssue(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, is)
 }
 
+// handlePromoteTask makes a ticket of a checkbox task.
+func (a *API) handlePromoteTask(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Project string `json:"project"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	is, err := a.issues.PromoteTask(r.Context(), r.PathValue("id"), req.Project, actor(r))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, is)
+}
+
 type patchIssueReq struct {
 	Title       *string   `json:"title"`
 	Type        *string   `json:"issue_type"`

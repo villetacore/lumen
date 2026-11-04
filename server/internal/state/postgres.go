@@ -176,6 +176,7 @@ var importTables = []struct {
 	{name: "issue_snapshots", blobs: []string{"fields"}},
 	{name: "issue_events", blobs: []string{"old", "new"}, seq: true},
 	{name: "proposals", blobs: []string{"args", "preview"}},
+	{name: "stored_secrets", blobs: []string{"value"}},
 }
 
 // ImportSQLite copies an existing SQLite database into an empty PostgreSQL one,

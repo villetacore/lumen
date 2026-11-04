@@ -128,7 +128,7 @@ func runStatePostgres(ctx context.Context, cmd, file, url string) error {
 			return err
 		}
 		fmt.Println("данные перенесены:")
-		for _, t := range []string{"project_members", "users", "user_groups", "notifications", "issue_snapshots", "issue_events", "proposals"} {
+		for _, t := range []string{"project_members", "users", "user_groups", "notifications", "issue_snapshots", "issue_events", "proposals", "stored_secrets"} {
 			fmt.Printf("  %s: %d\n", t, counts[t])
 		}
 		return nil

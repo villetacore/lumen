@@ -616,3 +616,8 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 .login-otp > summary { font-size: .875em; color: var(--vs-muted); cursor: pointer; }
 .login-otp[open] > summary { margin-bottom: 8px; }
 .login-sso { justify-self: center; font-size: .875em; }
+
+.system-map { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0 0 10px; }
+.system-map dt { font-weight: 700; }
+.system-map dd { margin: 0; }
+@media (max-width: 480px) { .system-map { grid-template-columns: 1fr; } .system-map dd { margin-bottom: 6px; } }

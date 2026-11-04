@@ -137,6 +137,7 @@ export interface ConfigField {
 export interface IntegrationKind {
   kind: string;
   title: string;
+  group?: string;
   fields: ConfigField[];
 }
 

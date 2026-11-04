@@ -31,7 +31,7 @@ export default function NewNoteDialog({ type = "note", parent, contentKind = "do
     queryFn: () => api.notes({ type: "project" }),
     enabled: pickContext,
   });
-  const label = type === "project" ? "Новый проект" : contentKind === "entry" ? "Новая запись" : "Новый документ";
+  const label = type === "project" ? "Новый проект" : contentKind === "entry" ? "Новая заметка" : "Новый документ";
   const dirty = !!(title || body);
   const create = useMutation({
     mutationFn: () => api.createNote({ title: title.trim(), type, parent: parent ?? (context || undefined),

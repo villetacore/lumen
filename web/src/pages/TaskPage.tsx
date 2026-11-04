@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Spinner } from "@villetacore/velessoft-ui";
+import { Alert, Badge, Button, Dialog, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import type { TaskStatus } from "../api/types";
 import { PRIORITY_TONE, STATUS_LABEL, TaskEditor, dueTone, nextStatus } from "../components/TaskRow";
@@ -12,6 +12,7 @@ import Icon from "../components/Icon";
 import { longDate, parseDate, relativeDue } from "../lib/date";
 import { errorText } from "../lib/errors";
 import { noteLabel, useNoteIndex } from "../lib/notes";
+import { issueUrl } from "../lib/tracker";
 
 const MARK: Record<TaskStatus, string> = { todo: "", doing: "/", done: "✓", cancelled: "×", deferred: ">" };
 
@@ -26,6 +27,7 @@ export default function TaskPage() {
   const qc = useQueryClient();
   const notes = useNoteIndex();
   const [editing, setEditing] = useState(false);
+  const [promoting, setPromoting] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const { data: task, error, isLoading } = useQuery({ queryKey: ["task", id], queryFn: () => api.task(id) });
   const status = useMutation({
@@ -52,6 +54,7 @@ export default function TaskPage() {
       </div>
       {!editing && <div className="head-actions">
         <Button onClick={() => navigate(noteUrl)}><Icon name={note?.type === "project" ? "folder" : "file"} size={16} />{note?.type === "project" ? "К проекту" : "К записи"}</Button>
+        {(task.status === "todo" || task.status === "doing") && note?.type !== "issue" && <Button onClick={() => setPromoting(true)}><Icon name="board" size={16} />Сделать тикетом</Button>}
         <Button variant="primary" onClick={() => setEditing(true)}><Icon name="edit" size={16} />Изменить</Button>
       </div>}
     </div>
@@ -77,5 +80,33 @@ export default function TaskPage() {
 
     <TaskDescription key={`description-${task.id}`} parent={`task:${task.id}`} externalDirty={editorDirty} />
     <RelatedContent parent={`task:${task.id}`} />
+  {promoting && <PromoteDialog taskId={task.id} title={task.text} onClose={() => setPromoting(false)} />}
   </div>;
+}
+
+/** The checkbox becomes a ticket; its line in the note becomes a link to it. */
+function PromoteDialog({ taskId, title, onClose }: { taskId: string; title: string; onClose: () => void }) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { data: projects } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
+  const [project, setProject] = useState("");
+  const chosen = project || projects?.items[0]?.key || "";
+  const promote = useMutation({
+    mutationFn: () => api.promoteTask(taskId, chosen),
+    onSuccess: (issue) => { qc.invalidateQueries(); navigate(issueUrl(issue.key), { replace: true }); },
+  });
+  return <Dialog open onClose={() => !promote.isPending && onClose()} title="Сделать тикетом" footer={<>
+    <Button onClick={onClose} disabled={promote.isPending}>Отмена</Button>
+    <Button variant="primary" loading={promote.isPending} disabled={!chosen} onClick={() => promote.mutate()}>Создать тикет</Button>
+  </>}>
+    <div className="issue-form">
+      <p>«{title}» станет тикетом: срок, приоритет и метки перейдут в него, а в заметке останется ссылка.</p>
+      {projects && !projects.items.length
+        ? <Alert tone="info" title="Нет проектов">Сначала создайте проект: «Создать → Проект».</Alert>
+        : <Select label="Проект" value={chosen} onChange={(e) => setProject(e.target.value)}>
+            {projects?.items.map((p) => <option key={p.key} value={p.key}>{p.key} · {p.title}</option>)}
+          </Select>}
+      {promote.isError && <Alert tone="error" title="Тикет не создан">{errorText(promote.error)}</Alert>}
+    </div>
+  </Dialog>;
 }

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Dialog, EmptyState, Input, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import type { PasswordItem, PasswordKind, PasswordStore } from "../api/types";
-import ConfigFields, { SECRET_HELP } from "../components/ConfigFields";
+import ConfigFields, { requiredFilled } from "../components/ConfigFields";
 import Icon from "../components/Icon";
 import { errorText } from "../lib/errors";
 
@@ -98,7 +98,7 @@ function AddDialog({ kinds, onClose }: { kinds: PasswordKind[]; onClose: () => v
     mutationFn: () => api.addPasswordStore({ kind, name: name || schema?.title || kind, values }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["password-stores"] }); onClose(); },
   });
-  const ready = !!schema && schema.fields.every((f) => !f.required || values[f.key]?.trim());
+  const ready = !!schema && requiredFilled(schema.fields, values);
 
   return <Dialog open onClose={() => !create.isPending && onClose()} title="Подключить хранилище" footer={<>
     <Button onClick={onClose} disabled={create.isPending}>Отмена</Button>
@@ -110,13 +110,37 @@ function AddDialog({ kinds, onClose }: { kinds: PasswordKind[]; onClose: () => v
       </Select>
       <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} placeholder={schema?.title} />
       {schema && <ConfigFields fields={schema.fields} values={values} onChange={setValues} />}
-      <p className="hint">{SECRET_HELP}</p>
       {create.isError && <Alert tone="error" title="Не подключено">{errorText(create.error)}</Alert>}
     </form>
   </Dialog>;
 }
 
-function StorePanel({ store }: { store: PasswordStore }) {
+function EditDialog({ store, kind, onClose }: { store: PasswordStore; kind?: PasswordKind; onClose: () => void }) {
+  const [name, setName] = useState(store.name);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const qc = useQueryClient();
+  const fields = kind?.fields ?? [];
+  const save = useMutation({
+    // An empty secret field means "keep it"; the rest is sent as typed.
+    mutationFn: () => api.patchPasswordStore(store.id, { name, values: Object.fromEntries(Object.entries(values).filter(([k, v]) => v || fields.find((f) => f.key === k)?.type !== "secret")) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["password-stores"] }); onClose(); },
+  });
+  const ready = requiredFilled(fields, values, store.values);
+  return <Dialog open onClose={() => !save.isPending && onClose()} title={`Настройки: ${store.name}`} footer={<>
+    <Button onClick={onClose} disabled={save.isPending}>Отмена</Button>
+    <Button type="submit" form="edit-store" variant="primary" loading={save.isPending} disabled={!ready}>Сохранить</Button>
+  </>}>
+    <form id="edit-store" className="issue-form" onSubmit={(e) => { e.preventDefault(); if (ready) save.mutate(); }}>
+      <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} />
+      <ConfigFields fields={fields} values={values} saved={store.values} onChange={setValues} />
+      <p className="hint">После сохранения хранилище нужно открыть заново.</p>
+      {save.isError && <Alert tone="error" title="Не сохранено">{errorText(save.error)}</Alert>}
+    </form>
+  </Dialog>;
+}
+
+function StorePanel({ store, kind }: { store: PasswordStore; kind?: PasswordKind }) {
+  const [editing, setEditing] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [query, setQuery] = useState("");
   const qc = useQueryClient();
@@ -149,6 +173,7 @@ function StorePanel({ store }: { store: PasswordStore }) {
       </span>}
       <div className="service-actions">
         {store.unlocked && <Button size="sm" onClick={() => lock.mutate()}>Закрыть</Button>}
+        <Button size="sm" onClick={() => setEditing(true)}>Настроить</Button>
         <Button size="sm" onClick={() => { if (confirm(`Убрать хранилище «${store.name}» из Lumen? Сама база не изменится.`)) remove.mutate(); }}>Отключить</Button>
       </div>
     </div>
@@ -168,6 +193,7 @@ function StorePanel({ store }: { store: PasswordStore }) {
           {items?.items.length === 0 && !isFetching && <p className="hint">Ничего не найдено.</p>}
           {!!items?.items.length && <ul className="secret-list">{items.items.map((it) => <ItemRow key={it.id} storeId={store.id} item={it} />)}</ul>}
         </>}
+    {editing && <EditDialog store={store} kind={kind} onClose={() => setEditing(false)} />}
   </section>;
 }
 
@@ -201,7 +227,7 @@ export default function PasswordsPage() {
     {isLoading && <Spinner label="Загрузка" />}
     {data?.items.length === 0 && <EmptyState title="Хранилища не подключены" description="Подключите Vaultwarden: понадобятся адрес сервера и почта."
       actions={<Button variant="primary" disabled={!kinds} onClick={() => setAdding(true)}>Подключить</Button>} />}
-    <div className="service-list">{data?.items.map((s) => <StorePanel key={s.id} store={s} />)}</div>
+    <div className="service-list">{data?.items.map((s) => <StorePanel key={s.id} store={s} kind={kinds?.items.find((k) => k.kind === s.kind)} />)}</div>
     {adding && kinds && <AddDialog kinds={kinds.items} onClose={() => setAdding(false)} />}
   </div>;
 }

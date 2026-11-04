@@ -19,7 +19,7 @@ export default function RelatedContent({ parent }: { parent: string }) {
     <div className="section-head">Документы и записи {entries.length > 0 && <span>{entries.length}</span>}
       <div className="head-actions">
         <Button size="sm" onClick={() => setCreating("document")}><Icon name="plus" size={14} />Документ</Button>
-        <Button size="sm" onClick={() => setCreating("entry")}><Icon name="plus" size={14} />Запись</Button>
+        <Button size="sm" onClick={() => setCreating("entry")}><Icon name="plus" size={14} />Заметка</Button>
       </div>
     </div>
     {isLoading && <Spinner label="Загрузка материалов" />}
@@ -29,7 +29,7 @@ export default function RelatedContent({ parent }: { parent: string }) {
       {entries.map((n) => <div className="note-row" key={n.id}>
         <Icon name={n.content_kind === "document" ? "book" : "file"} size={16} />
         <Link to={`/note/${n.path}`}>{n.title}</Link>
-        <Badge tone={n.content_kind === "document" ? "info" : "neutral"}>{n.content_kind === "document" ? "документ" : "запись"}</Badge>
+        <Badge tone={n.content_kind === "document" ? "info" : "neutral"}>{n.content_kind === "document" ? "документ" : "заметка"}</Badge>
         {n.open_tasks > 0 && <Badge>{n.open_tasks} задач</Badge>}
         <span className="path">{n.updated?.slice(0, 10)}</span>
       </div>)}

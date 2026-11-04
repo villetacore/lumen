@@ -20,6 +20,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/villetacore/lumen/server/internal/secrets"
 )
 
 var (
@@ -159,6 +161,7 @@ type Manager struct {
 	order    []string
 	runner   Runner
 	resolve  SecretResolver
+	keeper   secrets.Keeper
 	autoLock time.Duration
 
 	mu       sync.Mutex
@@ -196,7 +199,11 @@ func (m *Manager) Register(b Backend) {
 // SetAutoLock changes the idle timeout; zero disables automatic locking.
 func (m *Manager) SetAutoLock(d time.Duration) { m.autoLock = d }
 
-// Load reads the configured stores from the vault.
+// UseKeeper lets settings forms accept pasted tokens (ADR-0017).
+func (m *Manager) UseKeeper(k secrets.Keeper) { m.keeper = k }
+
+// Load reads the configured stores from the vault. A secret left there in the
+// clear, which older versions allowed, moves to the keeper and leaves the file.
 func (m *Manager) Load() error {
 	configs, err := m.store.Load()
 	if err != nil {
@@ -204,8 +211,65 @@ func (m *Manager) Load() error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	moved := false
+	for i := range configs {
+		b, ok := m.backends[configs[i].Kind]
+		if !ok || m.keeper == nil {
+			continue
+		}
+		for _, f := range b.ConfigSchema() {
+			v := configs[i].Values[f.Key]
+			if f.Type != FieldSecret || v == "" || secrets.IsReference(v) {
+				continue
+			}
+			if err := m.keepSecrets(&configs[i], b); err != nil {
+				return err
+			}
+			moved = true
+			break
+		}
+	}
 	m.configs = configs
+	if moved {
+		return m.store.Save(m.configs)
+	}
 	return nil
+}
+
+// keepSecrets replaces pasted values in secret fields by references. Without a
+// keeper a value is refused rather than written to a file in the vault.
+func (m *Manager) keepSecrets(cfg *Config, b Backend) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, f := range b.ConfigSchema() {
+		v := strings.TrimSpace(cfg.Values[f.Key])
+		if f.Type != FieldSecret || v == "" || secrets.IsReference(v) {
+			continue
+		}
+		if m.keeper == nil {
+			return fmt.Errorf("поле «%s»: хранилище секретов недоступно, укажите ссылку env: или file:", f.Label)
+		}
+		ref, err := m.keeper.Keep(ctx, "password-store:"+cfg.ID+":"+f.Key, v)
+		if err != nil {
+			return fmt.Errorf("поле «%s» не сохранено: %w", f.Label, err)
+		}
+		cfg.Values[f.Key] = ref
+	}
+	return nil
+}
+
+// forgetReplaced drops stored values the new settings no longer use.
+func (m *Manager) forgetReplaced(old, updated Config) {
+	if m.keeper == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for k, v := range old.Values {
+		if updated.Values[k] != v && strings.HasPrefix(v, secrets.StoredScheme+":") {
+			_ = m.keeper.Forget(ctx, v)
+		}
+	}
 }
 
 func (m *Manager) Kinds() []KindInfo {
@@ -268,6 +332,9 @@ func (m *Manager) Add(cfg Config) (Config, error) {
 			return cfg, fmt.Errorf("хранилище %q уже есть", cfg.ID)
 		}
 	}
+	if err := m.keepSecrets(&cfg, b); err != nil {
+		return cfg, err
+	}
 	m.configs = append(m.configs, cfg)
 	sort.Slice(m.configs, func(i, j int) bool { return m.configs[i].ID < m.configs[j].ID })
 	return cfg, m.store.Save(m.configs)
@@ -280,7 +347,12 @@ func (m *Manager) Update(id string, apply func(*Config)) (Config, error) {
 		if m.configs[i].ID != id {
 			continue
 		}
-		updated := m.configs[i]
+		old := m.configs[i]
+		updated := old
+		updated.Values = make(map[string]string, len(old.Values))
+		for k, v := range old.Values {
+			updated.Values[k] = v
+		}
 		apply(&updated)
 		b, ok := m.backends[updated.Kind]
 		if !ok {
@@ -289,6 +361,10 @@ func (m *Manager) Update(id string, apply func(*Config)) (Config, error) {
 		if err := b.Validate(updated); err != nil {
 			return updated, err
 		}
+		if err := m.keepSecrets(&updated, b); err != nil {
+			return updated, err
+		}
+		m.forgetReplaced(old, updated)
 		m.configs[i] = updated
 		// Настройки изменились — прежняя сессия может быть уже не про то.
 		delete(m.sessions, id)
@@ -302,9 +378,11 @@ func (m *Manager) Delete(id string) error {
 	defer m.mu.Unlock()
 	kept := m.configs[:0:0]
 	found := false
+	var gone Config
 	for _, c := range m.configs {
 		if c.ID == id {
 			found = true
+			gone = c
 			continue
 		}
 		kept = append(kept, c)
@@ -313,6 +391,7 @@ func (m *Manager) Delete(id string) error {
 		return ErrNotFound
 	}
 	m.configs = kept
+	m.forgetReplaced(gone, Config{})
 	delete(m.sessions, id)
 	delete(m.errors, id)
 	return m.store.Save(m.configs)
