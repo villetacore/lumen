@@ -146,6 +146,7 @@ func NewRegistry() *Registry {
 	r.Register(&CalDAV{})
 	r.Register(&Nextcloud{})
 	r.Register(&GitHub{})
+	r.Register(&GitLab{})
 	return r
 }
 
