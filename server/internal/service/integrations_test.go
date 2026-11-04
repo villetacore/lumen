@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/integrations"
-	"github.com/alexpyslar/lumen/server/internal/secrets"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/integrations"
+	"github.com/villetacore/lumen/server/internal/secrets"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 // fakeConnector returns whatever the test puts in it, so the mapper can be

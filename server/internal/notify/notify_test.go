@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
 )
 
 func TestMentions(t *testing.T) {
@@ -17,10 +17,7 @@ func TestMentions(t *testing.T) {
 
 func TestEmitDedupAndRead(t *testing.T) {
 	ctx := context.Background()
-	st, err := state.Open(ctx, t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := statetest.Open(t)
 	defer st.Close()
 	var pushed []string
 	s := New(st.DB(), func(r, issue string) { pushed = append(pushed, r+":"+issue) })

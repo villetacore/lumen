@@ -22,17 +22,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/auth"
-	"github.com/alexpyslar/lumen/server/internal/config"
-	"github.com/alexpyslar/lumen/server/internal/history"
-	"github.com/alexpyslar/lumen/server/internal/httpapi"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/passwords"
-	"github.com/alexpyslar/lumen/server/internal/secrets"
-	"github.com/alexpyslar/lumen/server/internal/service"
-	"github.com/alexpyslar/lumen/server/internal/state"
-	"github.com/alexpyslar/lumen/server/internal/vault"
-	"github.com/alexpyslar/lumen/server/internal/webui"
+	"github.com/villetacore/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/config"
+	"github.com/villetacore/lumen/server/internal/history"
+	"github.com/villetacore/lumen/server/internal/httpapi"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/passwords"
+	"github.com/villetacore/lumen/server/internal/secrets"
+	"github.com/villetacore/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/webui"
 )
 
 // version is overridden at build time: -ldflags "-X main.version=..."
@@ -141,7 +141,12 @@ func serve(args []string, log *slog.Logger) error {
 
 	// Operational state lives outside the vault and is backed up on its own
 	// (ADR-0011). Opening it migrates the schema, copying the old one first.
-	st, err := state.Open(context.Background(), cfg.StateDir, v.Codec())
+	var st *state.Store
+	if cfg.DatabaseURL != "" {
+		st, err = state.OpenPostgres(context.Background(), cfg.DatabaseURL, v.Codec())
+	} else {
+		st, err = state.Open(context.Background(), cfg.StateDir, v.Codec())
+	}
 	if err != nil {
 		return fmt.Errorf("операционная БД: %w", err)
 	}
@@ -170,6 +175,18 @@ func serve(args []string, log *slog.Logger) error {
 	oidcProvider, err := setupOIDC(ctx, cfg, log)
 	if err != nil {
 		return fmt.Errorf("keycloak/oidc: %w", err)
+	}
+	if cfg.RedisURL != "" {
+		if oidcProvider == nil {
+			log.Warn("LUMEN_REDIS_URL задан, но вход через OIDC выключен: Redis не используется")
+		} else if sessions, err := auth.NewRedisSessions(ctx, cfg.RedisURL); err != nil {
+			// Redis keeps sign-ins across restarts; without it Lumen still works.
+			log.Warn("Redis недоступен, сессии останутся в памяти", "err", err)
+		} else {
+			defer sessions.Close()
+			oidcProvider.UseSessionStore(sessions)
+			log.Info("сессии хранятся в Redis")
+		}
 	}
 
 	tasks := service.NewTasks(v, store, ix, bus, log)

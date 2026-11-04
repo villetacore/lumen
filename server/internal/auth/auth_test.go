@@ -24,6 +24,9 @@ type fakeKeycloak struct {
 	key   *rsa.PrivateKey
 	kid   string
 	realm string
+
+	revoked string // refresh token passed to logout
+	lastOTP string
 }
 
 func newFakeKeycloak(t *testing.T) *fakeKeycloak {
@@ -50,9 +53,30 @@ func newFakeKeycloak(t *testing.T) *fakeKeycloak {
 		fmt.Fprintf(w, `{"keys":[{"kid":%q,"kty":"RSA","alg":"RS256","use":"sig","n":%q,"e":%q}]}`,
 			fk.kid, n, e)
 	})
+	mux.HandleFunc("/realms/main/protocol/openid-connect/logout", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		fk.revoked = r.Form.Get("refresh_token")
+	})
 	mux.HandleFunc("/realms/main/protocol/openid-connect/token", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
-		if r.Form.Get("code_verifier") == "" {
+		if r.Form.Get("grant_type") == "password" {
+			fk.lastOTP = r.Form.Get("totp")
+			switch r.Form.Get("password") {
+			case "disabled":
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, `{"error":"unauthorized_client","error_description":"Client not allowed for direct access grants"}`)
+				return
+			case "setup":
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, `{"error":"invalid_grant","error_description":"Account is not fully set up"}`)
+				return
+			case "верный", "нужен-код":
+			default:
+				w.WriteHeader(http.StatusUnauthorized)
+				fmt.Fprint(w, `{"error":"invalid_grant","error_description":"Invalid user credentials"}`)
+				return
+			}
+		} else if r.Form.Get("code_verifier") == "" {
 			http.Error(w, `{"error":"invalid_request","error_description":"PKCE required"}`, http.StatusBadRequest)
 			return
 		}

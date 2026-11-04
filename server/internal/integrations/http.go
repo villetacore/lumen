@@ -101,7 +101,7 @@ func Fetch(ctx context.Context, client *http.Client, url string, headers map[str
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Set("User-Agent", "Lumen/0.1 (+https://github.com/alexpyslar/lumen)")
+	req.Header.Set("User-Agent", "Lumen/0.1 (+https://github.com/villetacore/lumen)")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}

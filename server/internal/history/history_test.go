@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
-	"github.com/alexpyslar/lumen/server/internal/policy"
-	"github.com/alexpyslar/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
 )
 
 func note(t *testing.T, src string) *domain.Note {
@@ -38,11 +38,8 @@ func summary(events []Event) string {
 
 func TestJournalRecordsOnlyRealChanges(t *testing.T) {
 	ctx := context.Background()
-	dir := t.TempDir()
-	st, err := state.Open(ctx, dir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	open := statetest.Opener(t)
+	st := open()
 	j := New(st.DB(), st)
 	alice := policy.With(ctx, &policy.Principal{ID: "s-a", Username: "alice", Role: policy.RoleMember})
 
@@ -63,10 +60,7 @@ func TestJournalRecordsOnlyRealChanges(t *testing.T) {
 	st.Close()
 
 	// Restart: a new journal over the same database, the same file.
-	st, err = state.Open(ctx, dir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st = open()
 	defer st.Close()
 	j = New(st.DB(), st)
 	j.Observe(ctx, note(t, v3), true)
@@ -114,10 +108,7 @@ func flip(b []byte) []byte {
 
 func TestJournalSealsValues(t *testing.T) {
 	ctx := context.Background()
-	st, err := state.Open(ctx, t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := statetest.Open(t)
 	defer st.Close()
 	j := New(st.DB(), xor{})
 	j.Observe(ctx, note(t, v1), true)

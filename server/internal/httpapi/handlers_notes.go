@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/service"
 )
 
 // noteSummary is the list representation: everything but the body.

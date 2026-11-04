@@ -40,7 +40,13 @@ type Config struct {
 	AdminRoles  []string
 	ViewerRoles []string
 	OIDCScopes  []string
-	SessionTTL  time.Duration
+	// OIDCPasswordLogin shows Lumen's own sign-in form; Keycloak still checks the password.
+	OIDCPasswordLogin bool
+	// DatabaseURL moves the operational store to PostgreSQL (ADR-0015).
+	DatabaseURL string
+	// RedisURL keeps browser sessions in Redis, so they survive a restart.
+	RedisURL   string
+	SessionTTL time.Duration
 
 	// PassphraseRef is a secrets reference that unlocks an encrypted vault,
 	// for example "bitwarden:lumen-vault" or "keepass:db.kdbx#Lumen/vault".
@@ -84,6 +90,12 @@ func Load(args []string) (*Config, error) {
 	fs.StringVar(&roles, "oidc-roles", env("LUMEN_OIDC_ROLES", ""),
 		"comma separated roles or groups; a user needs at least one")
 	fs.StringVar(&scopes, "oidc-scopes", env("LUMEN_OIDC_SCOPES", "openid,profile,email"), "comma separated OIDC scopes")
+	fs.BoolVar(&c.OIDCPasswordLogin, "oidc-password-login", envBool("LUMEN_OIDC_PASSWORD_LOGIN", true),
+		"sign in with a form inside Lumen; the OIDC client needs Direct Access Grants")
+	fs.StringVar(&c.DatabaseURL, "database-url", env("LUMEN_DATABASE_URL", ""),
+		"PostgreSQL URL for the operational store; empty: SQLite in --state. Prefer the variable: flags are visible in ps")
+	fs.StringVar(&c.RedisURL, "redis-url", env("LUMEN_REDIS_URL", ""),
+		"Redis URL for browser sessions; empty: sessions end with the process. Prefer the variable")
 	fs.StringVar(&adminRoles, "admin-roles", env("LUMEN_ADMIN_ROLES", ""),
 		"comma separated roles or groups that make a workspace admin; empty: everyone admitted is admin")
 	fs.StringVar(&viewerRoles, "viewer-roles", env("LUMEN_VIEWER_ROLES", ""),

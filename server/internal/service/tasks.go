@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
-	"github.com/alexpyslar/lumen/server/internal/policy"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 var (

@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/alexpyslar/lumen/server/internal/crypt"
-	"github.com/alexpyslar/lumen/server/internal/service"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/crypt"
+	"github.com/villetacore/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 const cryptUsage = `lumend crypt <команда> [флаги]

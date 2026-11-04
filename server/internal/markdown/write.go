@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 // TaskPatch describes a change to a single checkbox line. Only the parts named

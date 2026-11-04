@@ -6,19 +6,19 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/alexpyslar/lumen/server/internal/auth"
-	"github.com/alexpyslar/lumen/server/internal/config"
-	"github.com/alexpyslar/lumen/server/internal/history"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/notify"
-	"github.com/alexpyslar/lumen/server/internal/passwords"
-	"github.com/alexpyslar/lumen/server/internal/people"
-	"github.com/alexpyslar/lumen/server/internal/policy"
-	"github.com/alexpyslar/lumen/server/internal/proposals"
-	"github.com/alexpyslar/lumen/server/internal/service"
-	"github.com/alexpyslar/lumen/server/internal/state"
-	"github.com/alexpyslar/lumen/server/internal/vault"
-	"github.com/alexpyslar/lumen/server/internal/webui"
+	"github.com/villetacore/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/config"
+	"github.com/villetacore/lumen/server/internal/history"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/notify"
+	"github.com/villetacore/lumen/server/internal/passwords"
+	"github.com/villetacore/lumen/server/internal/people"
+	"github.com/villetacore/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/proposals"
+	"github.com/villetacore/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/webui"
 )
 
 // API bundles everything the handlers need.
@@ -44,6 +44,9 @@ type API struct {
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
+
+	logins      *loginLimiter
+	loginOrigin *http.CrossOriginProtection
 }
 
 func New(
@@ -56,6 +59,8 @@ func New(
 		integrations: integrations,
 		oidc:         oidc,
 		passwords:    pw,
+		logins:       newLoginLimiter(),
+		loginOrigin:  http.NewCrossOriginProtection(),
 	}
 	a.wire(policy.New(st, nil))
 	return a
@@ -110,6 +115,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/me", a.handleMe)
 	mux.HandleFunc("GET /auth/login", a.handleLogin)
 	mux.HandleFunc("GET /auth/callback", a.handleCallback)
+	mux.HandleFunc("POST /auth/password", a.handlePasswordLogin)
 	mux.HandleFunc("GET /auth/logout", a.handleLogout)
 	mux.HandleFunc("POST /auth/logout", a.handleLogout)
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 // bearer adds an Authorization header to every request of the MCP client.

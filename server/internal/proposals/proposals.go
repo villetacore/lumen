@@ -13,6 +13,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/villetacore/lumen/server/internal/state"
 )
 
 var (
@@ -63,11 +65,11 @@ type Sealer interface {
 }
 
 type Store struct {
-	db   *sql.DB
+	db   *state.DB
 	seal Sealer
 }
 
-func New(db *sql.DB, seal Sealer) *Store { return &Store{db: db, seal: seal} }
+func New(db *state.DB, seal Sealer) *Store { return &Store{db: db, seal: seal} }
 
 var nowFunc = time.Now
 

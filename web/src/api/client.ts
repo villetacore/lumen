@@ -105,6 +105,17 @@ function query(params: Record<string, unknown>): string {
 }
 
 export const api = {
+  /** Signs in with Lumen's own form; the server checks the password with Keycloak. */
+  passwordLogin: async (input: { username: string; password: string; otp?: string }): Promise<{ ok: boolean }> => {
+    const res = await fetch("/auth/password", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new ApiError(res.status, body?.error?.code ?? "unknown", body?.error?.message ?? res.statusText);
+    return body;
+  },
+
   stats: () => request<Stats>("/stats"),
   reindex: () => request<{ notes: number }>("/reindex", { method: "POST" }),
 

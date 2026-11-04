@@ -7,13 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/auth"
-	"github.com/alexpyslar/lumen/server/internal/config"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/service"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/config"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 // С включённым SSO статический токен остаётся запасным входом: его пускает
@@ -91,5 +93,106 @@ func TestCallbackFailureRedirectsToExplanation(t *testing.T) {
 		if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != "/?auth_error=failed" {
 			t.Errorf("%s: %d → %q", query, resp.StatusCode, resp.Header.Get("Location"))
 		}
+	}
+}
+
+func postLogin(t *testing.T, base, body string, headers map[string]string) (*http.Response, string) {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodPost, base+"/auth/password", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	return resp, string(data)
+}
+
+func TestPasswordLoginThroughTheForm(t *testing.T) {
+	f := newOIDCFixture(t, map[string]string{"a.md": "# a\n"})
+
+	// Nothing is visible before signing in.
+	resp, err := http.Get(f.srv.URL + "/api/v1/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("без входа: %d", resp.StatusCode)
+	}
+
+	resp, body := postLogin(t, f.srv.URL, `{"username":"boss","password":"не тот"}`, nil)
+	if resp.StatusCode != http.StatusUnauthorized || !strings.Contains(body, "invalid_credentials") || len(resp.Cookies()) != 0 {
+		t.Fatalf("неверный пароль: %d %s", resp.StatusCode, body)
+	}
+	if strings.Contains(body, "не тот") {
+		t.Error("пароль в ответе")
+	}
+
+	resp, body = postLogin(t, f.srv.URL, `{"username":"boss","password":"верный"}`, nil)
+	if resp.StatusCode != http.StatusOK || len(resp.Cookies()) != 1 {
+		t.Fatalf("вход: %d %s", resp.StatusCode, body)
+	}
+	cookie := resp.Cookies()[0]
+	if !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("cookie: %+v", cookie)
+	}
+	req, _ := http.NewRequest(http.MethodGet, f.srv.URL+"/api/v1/me", nil)
+	req.AddCookie(cookie)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var me struct {
+		Authenticated bool   `json:"authenticated"`
+		Username      string `json:"username"`
+		PasswordLogin bool   `json:"password_login"`
+	}
+	json.NewDecoder(resp.Body).Decode(&me)
+	resp.Body.Close()
+	if !me.Authenticated || me.Username != "boss" || !me.PasswordLogin {
+		t.Errorf("me: %+v", me)
+	}
+
+	// A form on another site must not sign anyone in.
+	resp, _ = postLogin(t, f.srv.URL, `{"username":"boss","password":"верный"}`, map[string]string{"Origin": "https://evil.example", "Sec-Fetch-Site": "cross-site"})
+	if resp.StatusCode != http.StatusForbidden || len(resp.Cookies()) != 0 {
+		t.Errorf("с чужого сайта: %d", resp.StatusCode)
+	}
+	if resp, _ = postLogin(t, f.srv.URL, `{"username":"","password":""}`, nil); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("пустой: %d", resp.StatusCode)
+	}
+}
+
+func TestPasswordGuessingIsLimitedPerLogin(t *testing.T) {
+	f := newOIDCFixture(t, map[string]string{"a.md": "# a\n"})
+	for i := range loginMaxFails {
+		if resp, _ := postLogin(t, f.srv.URL, `{"username":"Boss","password":"нет"}`, nil); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("попытка %d: %d", i, resp.StatusCode)
+		}
+	}
+	// Even the right password waits now, and case does not make a new login.
+	if resp, _ := postLogin(t, f.srv.URL, `{"username":"boss","password":"верный"}`, nil); resp.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("сверх лимита: %d", resp.StatusCode)
+	}
+	if resp, _ := postLogin(t, f.srv.URL, `{"username":"alice","password":"верный"}`, nil); resp.StatusCode != http.StatusOK {
+		t.Errorf("другой логин: %d", resp.StatusCode)
+	}
+	l := newLoginLimiter()
+	start := time.Now()
+	l.now = func() time.Time { return start }
+	for range loginMaxFails {
+		l.fail("x")
+	}
+	if l.allow("x") {
+		t.Error("лимит не сработал")
+	}
+	l.now = func() time.Time { return start.Add(loginWindow + time.Second) }
+	if !l.allow("x") {
+		t.Error("окно не прошло")
 	}
 }

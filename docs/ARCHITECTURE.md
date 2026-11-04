@@ -25,7 +25,8 @@ flowchart LR
 В режиме разработки Vite работает отдельно и проксирует API на Go-сервер.
 Нет обязательной внешней БД, очереди или поискового кластера: операционное
 состояние — встроенный SQLite (pure Go) в каталоге `--state` вне vault
-([ADR-0011](adr/0011-operational-state.md)).
+([ADR-0011](adr/0011-operational-state.md)) или, по настройке, PostgreSQL; сессии —
+в памяти или в Redis ([ADR-0015](adr/0015-postgres-redis.md)).
 
 ## Границы модулей
 

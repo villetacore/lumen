@@ -163,6 +163,8 @@ export interface Identity {
   role?: WorkspaceRole;
   login_url?: string;
   logout_url?: string;
+  /** Lumen's own sign-in form is available. */
+  password_login?: boolean;
 }
 
 export interface PasswordStore {

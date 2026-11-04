@@ -2,12 +2,13 @@ package policy
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/villetacore/lumen/server/internal/state"
 )
 
 // Member is one row of a closed project's access list.
@@ -23,14 +24,14 @@ type Member struct {
 // Members keeps project access lists in the operational store and caches
 // them: the table is small and read on every request.
 type Members struct {
-	db    *sql.DB
+	db    *state.DB
 	mu    sync.RWMutex
 	cache map[string][]Member // by project; nil until loaded
 }
 
 // NewMembers works on db; a nil db keeps lists in memory only (tests and
 // installations without a state store — every project is then open).
-func NewMembers(db *sql.DB) *Members { return &Members{db: db} }
+func NewMembers(db *state.DB) *Members { return &Members{db: db} }
 
 func (m *Members) load(ctx context.Context) (map[string][]Member, error) {
 	m.mu.RLock()

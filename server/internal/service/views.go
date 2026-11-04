@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
 )
 
 // Views turns the named UI views into task queries. Views are queries, not

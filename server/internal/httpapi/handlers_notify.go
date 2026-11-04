@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alexpyslar/lumen/server/internal/notify"
-	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/notify"
+	"github.com/villetacore/lumen/server/internal/policy"
 )
 
 // notificationView adds what the reader may see of the issue. Rows store only

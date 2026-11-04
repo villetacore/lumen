@@ -5,11 +5,12 @@ package notify
 
 import (
 	"context"
-	"database/sql"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/villetacore/lumen/server/internal/state"
 )
 
 type Kind string
@@ -46,11 +47,11 @@ type Notification struct {
 // Store writes and reads notifications. A nil *Store drops everything, so
 // the tracker works without an operational database.
 type Store struct {
-	db      *sql.DB
+	db      *state.DB
 	publish func(recipient, issue string) // SSE nudge; optional
 }
 
-func New(db *sql.DB, publish func(recipient, issue string)) *Store {
+func New(db *state.DB, publish func(recipient, issue string)) *Store {
 	return &Store{db: db, publish: publish}
 }
 
@@ -68,8 +69,8 @@ func (s *Store) Emit(ctx context.Context, e Event) (int, error) {
 		if r == "" || r == e.Actor {
 			continue
 		}
-		res, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO notifications(recipient, kind, issue, ref, actor, dedup, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`, r, string(e.Kind), e.Issue, e.Ref, e.Actor, e.Dedup+"|"+r, ts)
+		res, err := s.db.ExecContext(ctx, `INSERT INTO notifications(recipient, kind, issue, ref, actor, dedup, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, r, string(e.Kind), e.Issue, e.Ref, e.Actor, e.Dedup+"|"+r, ts)
 		if err != nil {
 			return added, err
 		}

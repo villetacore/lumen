@@ -3,8 +3,8 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/alexpyslar/lumen/server/internal/people"
-	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/people"
+	"github.com/villetacore/lumen/server/internal/policy"
 )
 
 // handleListUsers serves the directory for pickers and the team page. Every

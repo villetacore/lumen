@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/integrations"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/integrations"
 )
 
 func TestSyncDoesNotCommitCursorOnPartialApply(t *testing.T) {

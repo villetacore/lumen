@@ -6,15 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
 )
 
 func open(t *testing.T) *Store {
 	t.Helper()
-	st, err := state.Open(context.Background(), t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := statetest.Open(t)
 	t.Cleanup(func() { st.Close() })
 	return New(st.DB(), st)
 }

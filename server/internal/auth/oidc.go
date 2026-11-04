@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -41,6 +43,7 @@ type Provider struct {
 	mu       sync.Mutex
 	pending  map[string]pendingAuth // state → PKCE
 	sessions map[string]*Session
+	store    SessionStore // nil: sessions end with the process
 }
 
 type pendingAuth struct {
@@ -56,11 +59,24 @@ type Session struct {
 	AccessToken  string
 	RefreshToken string
 	Expiry       time.Time
+	// Direct marks a sign-in through Lumen's own form: the browser has no
+	// Keycloak page to return to on logout.
+	Direct bool
 }
+
+var (
+	// ErrBadCredentials is a wrong login, password or one-time code.
+	ErrBadCredentials = errors.New("неверный логин или пароль")
+	// ErrAccountSetup means Keycloak wants something done first, such as a new password.
+	ErrAccountSetup = errors.New("учётная запись не настроена до конца: войдите через страницу Keycloak")
+	// ErrPasswordLoginDisabled means the client has no Direct Access Grants.
+	ErrPasswordLoginDisabled = errors.New("в Keycloak для этого клиента выключен вход по паролю (Direct access grants)")
+)
 
 const (
 	pendingTTL        = 10 * time.Minute
 	defaultSessionTTL = 12 * time.Hour
+	storeTimeout      = 2 * time.Second
 	// SessionCookie is the name of the cookie holding the session id.
 	SessionCookie = "lumen_session"
 )
@@ -92,6 +108,9 @@ func NewProvider(ctx context.Context, cfg Config, client *http.Client) (*Provide
 		sessions:  map[string]*Session{},
 	}, nil
 }
+
+// UseSessionStore makes sessions outlive the process.
+func (p *Provider) UseSessionStore(st SessionStore) { p.store = st }
 
 func (p *Provider) Config() Config       { return p.cfg }
 func (p *Provider) Discovery() Discovery { return p.discovery }
@@ -190,58 +209,17 @@ func (p *Provider) Exchange(ctx context.Context, state, code string) (*Session, 
 		form.Set("client_secret", p.cfg.ClientSecret)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		p.discovery.TokenURL, strings.NewReader(form.Encode()))
+	tr, err := p.tokenRequest(ctx, form)
 	if err != nil {
 		return nil, "", err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("обмен кода на токен: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var tr tokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return nil, "", fmt.Errorf("ответ %s: %w", p.discovery.TokenURL, err)
 	}
 	if tr.Error != "" {
 		return nil, "", fmt.Errorf("%s: %s %s", p.discovery.TokenURL, tr.Error, tr.ErrorDesc)
 	}
-	if tr.IDToken == "" {
-		return nil, "", fmt.Errorf("%s не вернул id_token", p.discovery.TokenURL)
-	}
-
-	claims, err := p.verifier.Verify(ctx, tr.IDToken)
+	session, err := p.newSession(ctx, tr, false)
 	if err != nil {
 		return nil, "", err
 	}
-	if err := p.Authorize(claims); err != nil {
-		return nil, "", err
-	}
-
-	id, err := randomString(32)
-	if err != nil {
-		return nil, "", err
-	}
-	expiry := time.Now().Add(p.cfg.SessionTTL)
-	if tr.ExpiresIn > 0 {
-		if tokenExpiry := time.Now().Add(time.Duration(tr.ExpiresIn) * time.Second); tokenExpiry.Before(expiry) {
-			// Сессия не должна пережить сам токен больше, чем на TTL.
-			expiry = time.Now().Add(p.cfg.SessionTTL)
-		}
-	}
-	session := &Session{
-		ID: id, Claims: claims, AccessToken: tr.AccessToken,
-		RefreshToken: tr.RefreshToken, Expiry: expiry,
-	}
-
-	p.mu.Lock()
-	p.sessions[id] = session
-	p.mu.Unlock()
-
 	returnTo := pend.returnTo
 	if returnTo == "" {
 		returnTo = "/"
@@ -249,28 +227,154 @@ func (p *Provider) Exchange(ctx context.Context, state, code string) (*Session, 
 	return session, returnTo, nil
 }
 
-// Session looks up a live session.
+// PasswordLogin signs in through Lumen's own form: Keycloak checks the password
+// (Direct Access Grant) and the browser never leaves Lumen. The password is used
+// for this one request and is not kept or logged.
+func (p *Provider) PasswordLogin(ctx context.Context, username, password, otp string) (*Session, error) {
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", p.cfg.ClientID)
+	form.Set("username", username)
+	form.Set("password", password)
+	form.Set("scope", strings.Join(p.cfg.Scopes, " "))
+	if otp != "" {
+		form.Set("totp", otp)
+	}
+	if p.cfg.ClientSecret != "" {
+		form.Set("client_secret", p.cfg.ClientSecret)
+	}
+	tr, err := p.tokenRequest(ctx, form)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case tr.Error == "":
+	case tr.Error == "unauthorized_client" || tr.Error == "invalid_client" || strings.Contains(tr.ErrorDesc, "direct access"):
+		return nil, ErrPasswordLoginDisabled
+	case tr.Error == "invalid_grant" && strings.Contains(strings.ToLower(tr.ErrorDesc), "not fully set up"):
+		return nil, ErrAccountSetup
+	case tr.Error == "invalid_grant":
+		return nil, ErrBadCredentials
+	default:
+		return nil, fmt.Errorf("вход отклонён: %s", tr.Error)
+	}
+	return p.newSession(ctx, tr, true)
+}
+
+func (p *Provider) tokenRequest(ctx context.Context, form url.Values) (*tokenResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		p.discovery.TokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("обмен на токен: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var tr tokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		return nil, fmt.Errorf("ответ %s: %w", p.discovery.TokenURL, err)
+	}
+	return &tr, nil
+}
+
+// newSession checks the token and whether this user may enter, then records
+// the sign-in.
+func (p *Provider) newSession(ctx context.Context, tr *tokenResponse, direct bool) (*Session, error) {
+	if tr.IDToken == "" {
+		return nil, fmt.Errorf("%s не вернул id_token", p.discovery.TokenURL)
+	}
+	claims, err := p.verifier.Verify(ctx, tr.IDToken)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.Authorize(claims); err != nil {
+		return nil, err
+	}
+	id, err := randomString(32)
+	if err != nil {
+		return nil, err
+	}
+	session := &Session{
+		ID: id, Claims: claims, AccessToken: tr.AccessToken,
+		RefreshToken: tr.RefreshToken, Expiry: time.Now().Add(p.cfg.SessionTTL), Direct: direct,
+	}
+	p.mu.Lock()
+	p.sessions[id] = session
+	p.mu.Unlock()
+	if p.store != nil {
+		// Losing this write costs a re-login after a restart, not this sign-in.
+		saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), storeTimeout)
+		defer cancel()
+		if err := p.store.Save(saveCtx, session); err != nil {
+			slog.Warn("сессия не сохранена в хранилище", "err", err)
+		}
+	}
+	return session, nil
+}
+
+// Session looks up a live session: in memory, then in the store, so a sign-in
+// survives a restart of lumend.
 func (p *Provider) Session(id string) (*Session, bool) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	s, ok := p.sessions[id]
-	if !ok {
-		return nil, false
-	}
-	if time.Now().After(s.Expiry) {
+	if ok && time.Now().After(s.Expiry) {
 		delete(p.sessions, id)
+		p.mu.Unlock()
 		return nil, false
 	}
+	p.mu.Unlock()
+	if ok {
+		return s, true
+	}
+	if p.store == nil {
+		return nil, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), storeTimeout)
+	defer cancel()
+	s, err := p.store.Load(ctx, id)
+	if err != nil {
+		slog.Warn("сессия не прочитана из хранилища", "err", err)
+		return nil, false
+	}
+	if s == nil || time.Now().After(s.Expiry) {
+		return nil, false
+	}
+	p.mu.Lock()
+	p.sessions[id] = s
+	p.mu.Unlock()
 	return s, true
 }
 
-// EndSession drops a session and returns where to send the browser to also log
-// out of Keycloak, if the provider supports it.
+// EndSession drops a session and returns where to send the browser next. A
+// sign-in through Keycloak's page continues there, to end its browser session;
+// a sign-in through Lumen's form ends the Keycloak session from the server.
 func (p *Provider) EndSession(id, redirectTo string) string {
 	p.mu.Lock()
+	s := p.sessions[id]
 	delete(p.sessions, id)
 	p.mu.Unlock()
 
+	ctx, cancel := context.WithTimeout(context.Background(), storeTimeout)
+	defer cancel()
+	if p.store != nil && id != "" {
+		if s == nil {
+			s, _ = p.store.Load(ctx, id)
+		}
+		if err := p.store.Delete(ctx, id); err != nil {
+			slog.Warn("сессия не удалена из хранилища", "err", err)
+		}
+	}
+	if s != nil && s.Direct {
+		if s.RefreshToken != "" && p.discovery.EndSessionURL != "" {
+			p.revoke(ctx, s.RefreshToken)
+		}
+		return redirectTo
+	}
 	if p.discovery.EndSessionURL == "" {
 		return redirectTo
 	}
@@ -280,6 +384,24 @@ func (p *Provider) EndSession(id, redirectTo string) string {
 		q.Set("post_logout_redirect_uri", redirectTo)
 	}
 	return p.discovery.EndSessionURL + "?" + q.Encode()
+}
+
+// revoke is best effort: the Lumen session is already gone either way.
+func (p *Provider) revoke(ctx context.Context, refresh string) {
+	form := url.Values{}
+	form.Set("client_id", p.cfg.ClientID)
+	form.Set("refresh_token", refresh)
+	if p.cfg.ClientSecret != "" {
+		form.Set("client_secret", p.cfg.ClientSecret)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.discovery.EndSessionURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if resp, err := p.client.Do(req); err == nil {
+		resp.Body.Close()
+	}
 }
 
 // Cookie builds the session cookie with the right flags for the deployment.

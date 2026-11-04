@@ -239,3 +239,31 @@ func TestBackupDirWhileRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Both engines must describe the same schema history (ADR-0015).
+func TestEnginesHaveTheSameMigrations(t *testing.T) {
+	sqlite, err := migrations(migrationSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	postgres, err := migrations(postgresMigration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sqlite) != len(postgres) {
+		t.Fatalf("SQLite %d, PostgreSQL %d", len(sqlite), len(postgres))
+	}
+	for i := range sqlite {
+		if sqlite[i].name != postgres[i].name {
+			t.Errorf("%d: %s и %s", sqlite[i].version, sqlite[i].name, postgres[i].name)
+		}
+	}
+}
+
+func TestRebindLeavesLiteralsAlone(t *testing.T) {
+	got := rebind(`SELECT '?', x FROM t WHERE a = ? AND b = 'да?' AND c = ?`)
+	want := `SELECT '?', x FROM t WHERE a = $1 AND b = 'да?' AND c = $2`
+	if got != want {
+		t.Errorf("%s", got)
+	}
+}

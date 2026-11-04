@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 func TestNoteResolvesLikeWikilink(t *testing.T) {
