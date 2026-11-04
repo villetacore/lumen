@@ -3,7 +3,7 @@ import Brand, { Signature } from "./Brand";
 import ThemeSwitch from "./ThemeSwitch";
 import Icon, { type IconName } from "./Icon";
 import { useState } from "react";
-import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, useQueryParams } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import NewNoteDialog from "./NewNoteDialog";
@@ -15,7 +15,7 @@ import { IconButton, Menu } from "@villetacore/velessoft-ui";
 const navClass = (active: boolean) => "nav-item" + (active ? " active" : "");
 
 function Item({ to, icon, label, count, end, active }: { to: string; icon: IconName; label: string; count?: number; end?: boolean; active?: boolean }) {
-  return <NavLink to={to} end={end} className={({ isActive }) => navClass(active ?? isActive)}>
+  return <NavLink href={to} end={end} className={({ isActive }) => navClass(active ?? isActive)}>
     <span className="icon"><Icon name={icon} /></span>
     {label}
     {!!count && <span className="count">{count}</span>}
@@ -30,7 +30,7 @@ function Item({ to, icon, label, count, end, active }: { to: string; icon: IconN
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [params] = useSearchParams();
+  const [params] = useQueryParams();
   const [creating, setCreating] = useState<"note" | "entry" | "issue" | "project" | null>(null);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
   const { data: plain } = useQuery({ queryKey: ["notes", { type: "project" }], queryFn: () => api.notes({ type: "project" }) });
@@ -72,13 +72,13 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
             </IconButton>
           </div>
           {tracker?.items.map((p) => (
-            <NavLink key={p.key} to={`${projectUrl(p.key)}/board`} className={navClass(pathname.startsWith(projectUrl(p.key)))}>
+            <NavLink key={p.key} href={`${projectUrl(p.key)}/board`} className={navClass(pathname.startsWith(projectUrl(p.key)))}>
               <span className="icon nav-key">{p.key}</span>
               {p.title}
             </NavLink>
           ))}
           {notePlain.map((p) => (
-            <NavLink key={p.path} to={`/note/${p.path}`} className={({ isActive }) => navClass(isActive)}>
+            <NavLink key={p.path} href={`/note/${p.path}`} className={({ isActive }) => navClass(isActive)}>
               <span className="icon"><Icon name="folder" /></span>
               {p.title}
               {p.open_tasks > 0 && <span className="count">{p.open_tasks}</span>}
@@ -94,7 +94,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         <div className="nav-group">
           <div className="nav-title">Знания</div>
           <Item to="/docs" icon="book" label="Документация" />
-          <NavLink to="/notes" className={({ isActive }) => navClass(isActive && !params.get("section"))}>
+          <NavLink href="/notes" className={({ isActive }) => navClass(isActive && !params.get("section"))}>
             <span className="icon"><Icon name="file" /></span>Заметки
           </NavLink>
           <Item to="/calendar" icon="calendar" label="Календарь" />

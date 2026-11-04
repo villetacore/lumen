@@ -1,5 +1,7 @@
+"use client";
+
 import { useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useRouteParam, useQueryParams } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Avatar, Badge, Button, IconButton, Input, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -24,9 +26,9 @@ type Target = { status: string; lane: string; index: number };
  * mouse, or from the keyboard with Alt+arrows on a focused card.
  */
 export default function BoardPage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const qc = useQueryClient();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useQueryParams();
   const filter = filterFromParams(params);
   const laneBy = (params.get("lanes") as LaneBy) || "none";
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -156,7 +158,7 @@ export default function BoardPage() {
       <strong>{shownSprint.name}</strong>
       {shownSprint.start && <span className="sub">{longDate(parseDate(shownSprint.start))} — {shownSprint.end ? longDate(parseDate(shownSprint.end)) : "…"}</span>}
       {shownSprint.goal && <span>{shownSprint.goal}</span>}
-      <Link to={`/tracker/${encodeURIComponent(project.key)}/backlog`}>{shownSprint.state === "active" ? "Завершить в бэклоге" : "Бэклог"}</Link>
+      <Link href={`/tracker/${encodeURIComponent(project.key)}/backlog`}>{shownSprint.state === "active" ? "Завершить в бэклоге" : "Бэклог"}</Link>
     </div>}
     {!active && sprintScope === "all" && !!sprints?.items.length && <p className="hint">Активного спринта нет — доска показывает все тикеты проекта.</p>}
     <p id="board-keys" className="sr-only">Перетащите карточку или нажмите на ней Alt+←/→ (колонка) и Alt+↑/↓ (порядок).</p>
@@ -227,7 +229,7 @@ function IssueCard({ issue, project, dragging, onDragStart, onDragEnd, onKeyDown
   return <article className={`board-card${dragging ? " is-dragging" : ""}`} draggable
     onDragStart={(e) => { e.dataTransfer.setData("text/plain", issue.key); e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
     onDragEnd={onDragEnd}>
-    <Link to={issueUrl(issue.key)} className="board-card-link" data-card={issue.key} onKeyDown={onKeyDown}
+    <Link href={issueUrl(issue.key)} className="board-card-link" data-card={issue.key} onKeyDown={onKeyDown}
       draggable={false} aria-describedby="board-keys">
       <span className="board-card-title">{issue.title}</span>
     </Link>

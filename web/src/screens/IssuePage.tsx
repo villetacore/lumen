@@ -1,5 +1,8 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useRouteParam } from "../lib/navigation";
+import { useLeaveGuard } from "../lib/navigationGuard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Input, Select, Spinner, Textarea } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -13,14 +16,14 @@ import { longDate } from "../lib/date";
 import { PeopleOptions } from "../lib/people";
 import { errorText, isConflict, isNotFound } from "../lib/errors";
 import {
-  CATEGORY_TONE, PRIORITIES, allowedStatuses, issueUrl, projectUrl, splitList, statusName, typeLabel, useDraftGuard,
+  CATEGORY_TONE, PRIORITIES, allowedStatuses, issueUrl, projectUrl, splitList, statusName, typeLabel,
 } from "../lib/tracker";
 
 /** A draft remembers the issue revision and text it was started from. */
 type Draft = { text: string; baseRevision: number; baseText: string };
 
 export default function IssuePage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -42,7 +45,7 @@ export default function IssuePage() {
   const [comment, setComment] = useState("");
   const descDirty = !!desc && desc.text !== desc.baseText;
   const titleDirty = title !== null && title.trim() !== issue?.title;
-  useDraftGuard(descDirty || titleDirty || !!comment.trim());
+  useLeaveGuard(descDirty || titleDirty || !!comment.trim());
   useEffect(() => { setDesc(null); setTitle(null); setComment(""); }, [key]);
   // A notification links to a comment by #id; it exists only after loading.
   useEffect(() => {
@@ -159,7 +162,7 @@ export default function IssuePage() {
         {!!issue.links?.length && <section aria-labelledby="links-title">
           <h2 id="links-title" className="nav-title">Связи</h2>
           <ul className="issue-links">{issue.links.map((l) =>
-            <li key={l.type + l.target}><span className="sub">{LINK_LABEL[l.type] ?? l.type}</span> <Link className="issue-key" to={issueUrl(l.target)}>{l.target}</Link></li>)}
+            <li key={l.type + l.target}><span className="sub">{LINK_LABEL[l.type] ?? l.type}</span> <Link className="issue-key" href={issueUrl(l.target)}>{l.target}</Link></li>)}
           </ul>
         </section>}
 

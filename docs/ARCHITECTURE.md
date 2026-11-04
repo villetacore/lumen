@@ -21,7 +21,7 @@ flowchart LR
     Connectors --> External[ICS / CalDAV / Nextcloud / GitHub / Gitea / GitLab]
 ```
 
-`make app` встраивает статический экспорт Next.js в `lumend` через `go:embed`
+`make app` встраивает статический экспорт Next.js (App Router) в `lumend` через `go:embed`
 ([ADR-0018](adr/0018-nextjs-static-export.md)). В режиме разработки `next dev`
 работает отдельно и проксирует API на Go-сервер.
 Нет обязательной внешней БД, очереди или поискового кластера: операционное
@@ -77,7 +77,7 @@ Cursor сохраняется после полного применения р�
 
 ## Клиент и доступ
 
-React Router управляет маршрутами, TanStack Query — серверными данными, React
+Next.js App Router управляет маршрутами, TanStack Query — серверными данными, React
 state — локальным состоянием интерфейса. Markdown-редактор использует textarea;
 CodeMirror запланирован отдельно. API-типы поддерживаются вручную.
 Стили, темы и шрифты описаны в [дизайн-системе](../web/src/design/README.md).

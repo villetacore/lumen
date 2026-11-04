@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, SegmentedControl, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -68,6 +70,6 @@ export default function InboxPage() {
         </button>
       </li>)}
     </ul>}
-    <p className="hint"><Icon name="eye" size={14} /> Следить за тикетом можно кнопкой «Следить» в его карточке; автор и исполнитель следят автоматически. <Link to="/my">Мои задачи</Link></p>
+    <p className="hint"><Icon name="eye" size={14} /> Следить за тикетом можно кнопкой «Следить» в его карточке; автор и исполнитель следят автоматически. <Link href="/my">Мои задачи</Link></p>
   </div>;
 }

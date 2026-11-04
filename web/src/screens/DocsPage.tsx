@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import { useQueries } from "@tanstack/react-query";
 import { Alert, Badge, Button, EmptyState, IconButton, Input, SegmentedControl, Spinner, Switch } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -118,7 +120,7 @@ export default function DocsPage() {
               <section key={g.key} id={`docs-${encodeURIComponent(g.key)}`} className="docs-group list-group" aria-label={g.label}>
                 <div className="group-head">
                   <Icon name={g.icon} size={16} />
-                  {g.to ? <Link to={g.to}>{g.label}</Link> : g.label}
+                  {g.to ? <Link href={g.to}>{g.label}</Link> : g.label}
                   <span className="count">{g.docs.length}</span>
                   {g.key !== "knowledge" && (
                     <IconButton size="sm" variant="ghost" label={`Новый документ: ${g.label}`} style={{ marginLeft: "auto" }}
@@ -131,9 +133,9 @@ export default function DocsPage() {
                   {g.docs.map((d) => (
                     <div key={d.id} className="note-row">
                       <Icon name={d.content_kind === "document" ? "book" : "file"} size={16} />
-                      <Link to={`/note/${d.path}`}>{d.title}</Link>
+                      <Link href={`/note/${d.path}`}>{d.title}</Link>
                       {d.open_tasks > 0 && <Badge tone="info">{d.open_tasks} задач</Badge>}
-                      {d.tags.slice(0, 3).map((t) => <Link key={t} className="md-tag" to={`/notes?tag=${encodeURIComponent(t)}`}>#{t}</Link>)}
+                      {d.tags.slice(0, 3).map((t) => <Link key={t} className="md-tag" href={`/notes?tag=${encodeURIComponent(t)}`}>#{t}</Link>)}
                       <span className="path">{d.updated?.slice(0, 10)}</span>
                     </div>
                   ))}

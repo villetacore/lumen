@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import { Link } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -19,7 +21,7 @@ export function IssueList({ items, empty, statusName }: { items: Issue[]; empty:
     {items.map((i) => {
       const p = priorityOf(i.priority);
       return <li key={i.key}>
-        <Link to={issueUrl(i.key)} className="my-issue">
+        <Link href={issueUrl(i.key)} className="my-issue">
           <span className="issue-key">{i.key}</span>
           <span className="my-issue-title">{i.title}</span>
           <span className="my-issue-meta">

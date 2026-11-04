@@ -1,5 +1,7 @@
+"use client";
+
 import { useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useRouteParam } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Dialog, Input, Select, Spinner, Textarea } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -25,7 +27,7 @@ type Move = { key: string; sprint: string; before?: string; after?: string };
  * Alt+↑/↓ on a row reorders it. Each move rewrites only that issue's file.
  */
 export default function BacklogPage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -171,7 +173,7 @@ function BacklogRow({ issue, project, sprints, dragging, onDragStart, onDragEnd,
     onDragEnd={onDragEnd}>
     <span className="backlog-grip" aria-hidden="true">⋮⋮</span>
     <span className="issue-key">{issue.key}</span>
-    <Link className="backlog-row-title" to={issueUrl(issue.key)} data-row={issue.key} onKeyDown={onKeyDown}
+    <Link className="backlog-row-title" href={issueUrl(issue.key)} data-row={issue.key} onKeyDown={onKeyDown}
       draggable={false} aria-describedby="backlog-keys">{issue.title}</Link>
     <span className="backlog-row-meta">
       <span className="board-card-type">{typeLabel(issue.issue_type)}</span>

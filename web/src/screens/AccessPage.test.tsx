@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { startAt } from "../test/routes";
 import { api } from "../api/client";
 import type { ProjectAccess, TrackerProject } from "../api/types";
 import AccessPage from "./AccessPage";
@@ -25,9 +25,8 @@ function show(access: ProjectAccess) {
   vi.spyOn(api, "users").mockResolvedValue({ items: [{ username: "alice", name: "Алиса", groups: [], role: "member", first_seen: "", last_seen: "" }], total: 1, limit: 0, offset: 0 });
   vi.spyOn(api, "groups").mockResolvedValue({ items: [{ name: "designers", users: 2 }], total: 1, limit: 0, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/tracker/SEC/access"]}>
-    <Routes><Route path="/tracker/:key/access" element={<AccessPage />} /></Routes>
-  </MemoryRouter></QueryClientProvider>);
+  startAt("/tracker/SEC/access");
+  render(<QueryClientProvider client={client}><AccessPage /></QueryClientProvider>);
 }
 
 test("adding the first member warns that the project closes", async () => {

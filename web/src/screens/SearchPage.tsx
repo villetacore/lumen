@@ -1,4 +1,6 @@
-import { Link, useSearchParams } from "react-router-dom";
+"use client";
+
+import { Link, useQueryParams } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -7,7 +9,7 @@ import Icon from "../components/Icon";
 import { noteLabel, useNoteIndex } from "../lib/notes";
 
 export default function SearchPage() {
-  const [params] = useSearchParams();
+  const [params] = useQueryParams();
   const q = params.get("q") ?? "";
   const notes = useNoteIndex();
 
@@ -52,7 +54,7 @@ export default function SearchPage() {
           <div className="note-list">
             {data.items.map((hit) => (
               <div key={hit.path} className="note-row" style={{ display: "block" }}>
-                <Link to={`/note/${hit.path}`}>{hit.title}</Link>
+                <Link href={`/note/${hit.path}`}>{hit.title}</Link>
                 <div className="hint mono">{hit.snippet}</div>
               </div>
             ))}

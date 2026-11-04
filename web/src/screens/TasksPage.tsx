@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useLocation, useParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useRouteParam } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import WorkspaceOverview, { GettingStarted, MyTickets } from "../components/WorkspaceOverview";
@@ -29,7 +31,7 @@ const TABS: ViewName[] = ["today", "inbox", "week", "overdue", "upcoming", "some
 
 function TaskTab({ view }: { view: ViewName }) {
   const { data } = useQuery({ queryKey: ["tasks", "count", view], queryFn: () => api.tasks({ view, limit: 1 }) });
-  return <NavLink to={`/view/${view}`} className={({ isActive }) => "project-tab" + (isActive ? " active" : "")}>
+  return <NavLink href={`/view/${view}`} className={({ isActive }) => "project-tab" + (isActive ? " active" : "")}>
     {TITLES[view]}{view !== "done" && !!data?.total && <span className="tab-count">{data.total}</span>}
   </NavLink>;
 }
@@ -82,7 +84,7 @@ function groupTasks(tasks: Task[], view: string, title: (path: string) => string
 }
 
 export default function TasksPage() {
-  const { view = "today" } = useParams();
+  const view = useRouteParam(1) || "today";
   const addInput = useRef<HTMLInputElement>(null);
   const [creatingProject, setCreatingProject] = useState(false);
   const { hash } = useLocation();
@@ -103,7 +105,7 @@ export default function TasksPage() {
   const list = (
     <div className="task-content">
       {todayView && <MyTickets />}
-      {todayView && <div className="section-title"><h2>Задачи на сегодня</h2><Link to="/view/all">Все задачи <Icon name="chevron" size={14} /></Link></div>}
+      {todayView && <div className="section-title"><h2>Задачи на сегодня</h2><Link href="/view/all">Все задачи <Icon name="chevron" size={14} /></Link></div>}
       <QuickAdd inputRef={addInput} note={view === "inbox" ? "00-inbox/inbox.md" : undefined} scheduled={todayView || view === "week" ? "today" : undefined} />
       {error && <Alert tone="error" title="Не удалось загрузить задачи">{errorText(error)}</Alert>}
       {isLoading && <Spinner label="Загрузка задач" />}
@@ -125,7 +127,7 @@ export default function TasksPage() {
                 {g.path ? (
                   <>
                     <Icon name={notes.byPath.get(g.path)?.type === "project" ? "folder" : "file"} size={16} />
-                    <Link to={`/note/${g.path}`}>{g.label}</Link>
+                    <Link href={`/note/${g.path}`}>{g.label}</Link>
                   </>
                 ) : g.label}
                 <span className="count">{g.tasks.length}</span>

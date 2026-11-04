@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Dialog, EmptyState, Input, Select, Spinner, Switch } from "@villetacore/velessoft-ui";

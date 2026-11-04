@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { startAt, TestRoutes } from "../test/routes";
 import { api } from "../api/client";
 import type { Issue, TrackerProject } from "../api/types";
 import TimelinePage from "./TimelinePage";
@@ -27,14 +27,11 @@ async function setup() {
   vi.spyOn(api, "users").mockResolvedValue({ items: [], total: 0, limit: 0, offset: 0 });
   vi.spyOn(api, "issues").mockResolvedValue({ items: list, total: list.length, limit: 1000, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([
-    { path: "/tracker/:key/timeline", element: <TimelinePage /> },
-    { path: "/issue/:key", element: <p>Карточка</p> },
-  ], { initialEntries: ["/tracker/WEB/timeline"] });
-  const view = render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+  startAt("/tracker/WEB/timeline");
+  const view = render(<QueryClientProvider client={client}><TestRoutes routes={{ "/tracker/:key/timeline": <TimelinePage />, "/issue/:key": <p>Карточка</p> }} /></QueryClientProvider>);
   await screen.findByText("Без дат");
   const bar = (key: string) => view.container.querySelector<HTMLElement>(`[data-bar="${key}"]`)!;
-  return { view, router, bar };
+  return { view, bar };
 }
 
 test("shows bars for dated issues, keeps undated ones apart and marks a broken link", async () => {
@@ -82,7 +79,7 @@ test("a refused change puts the bar back and says why", async () => {
 });
 
 test("Enter opens the issue", async () => {
-  const { bar, router } = await setup();
+  const { bar } = await setup();
   fireEvent.keyDown(bar("WEB-1"), { key: "Enter" });
-  await waitFor(() => expect(router.state.location.pathname).toBe("/issue/WEB-1"));
+  await waitFor(() => expect(window.location.pathname).toBe("/issue/WEB-1"));
 });

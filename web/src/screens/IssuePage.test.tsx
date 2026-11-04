@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { navigateTo, startAt, TestRoutes } from "../test/routes";
 import { api } from "../api/client";
 import type { Issue, TrackerProject } from "../api/types";
 import IssuePage from "./IssuePage";
@@ -28,16 +28,13 @@ async function setup() {
   vi.spyOn(api, "trackerProject").mockResolvedValue(project);
   vi.spyOn(api, "users").mockResolvedValue({ items: [], total: 0, limit: 0, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([
-    { path: "/issue/:key", element: <IssuePage /> },
-    { path: "/away", element: <p>Другой экран</p> },
-  ], { initialEntries: ["/issue/WEB-1"] });
-  render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+  startAt("/issue/WEB-1");
+  render(<QueryClientProvider client={client}><TestRoutes routes={{ "/issue/:key": <IssuePage />, "/away": <p>Другой экран</p> }} /></QueryClientProvider>);
   await screen.findByText("Доска");
   fireEvent.click(screen.getByText("Изменить"));
   const editor = screen.getByRole("textbox", { name: "Описание тикета" }) as HTMLTextAreaElement;
   fireEvent.change(editor, { target: { value: "Мой черновик" } });
-  return { client, router, editor };
+  return { client, editor };
 }
 
 test("status select offers only the workflow's allowed moves", async () => {
@@ -72,9 +69,9 @@ test("a description changed elsewhere warns, keeps the draft and blocks a stale 
 
 test("leaving with a draft asks first", async () => {
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  const { router, editor } = await setup();
-  await act(async () => { await router.navigate("/away"); });
+  const { editor } = await setup();
+  act(() => navigateTo("/away"));
   expect(confirm).toHaveBeenCalled();
-  expect(router.state.location.pathname).toBe("/issue/WEB-1");
+  expect(window.location.pathname).toBe("/issue/WEB-1");
   expect(editor.value).toBe("Мой черновик");
 });

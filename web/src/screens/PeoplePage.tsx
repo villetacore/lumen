@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Avatar, Badge, EmptyState, Input, Spinner, Table } from "@villetacore/velessoft-ui";

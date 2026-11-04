@@ -1,5 +1,7 @@
+"use client";
+
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { CalendarEvent } from "../api/types";
@@ -119,7 +121,7 @@ export default function CalendarPage() {
                 >
                   {!e.all_day && <span style={{ opacity: 0.7 }}>{e.start.slice(11, 16)} </span>}
                   {e.path ? (
-                    <Link to={`/note/${e.path}`}>{e.title}</Link>
+                    <Link href={`/note/${e.path}`}>{e.title}</Link>
                   ) : e.url ? (
                     <a href={e.url} target="_blank" rel="noreferrer">
                       {e.title}

@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useRouteParam } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Dialog, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -22,7 +24,7 @@ function DateValue({ value }: { value: string | null }) {
 }
 
 export default function TaskPage() {
-  const { id = "" } = useParams();
+  const id = useRouteParam(1);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notes = useNoteIndex();
@@ -72,8 +74,8 @@ export default function TaskPage() {
         <div><dt>Приоритет</dt><dd>{task.priority ? <Badge tone={PRIORITY_TONE[task.priority]}>!{task.priority}</Badge> : "—"}</dd></div>
         <div><dt>Оценка</dt><dd>{task.estimate || "—"}</dd></div>
         <div><dt>Проект</dt><dd>{task.project || "—"}</dd></div>
-        <div><dt>Где записана</dt><dd><Link to={noteUrl}>{noteTitle}</Link></dd></div>
-        {!!task.tags?.length && <div><dt>Теги</dt><dd>{task.tags.map((t) => <Link key={t} className="md-tag" to={`/notes?tag=${encodeURIComponent(t)}`} style={{ marginRight: 6 }}>#{t}</Link>)}</dd></div>}
+        <div><dt>Где записана</dt><dd><Link href={noteUrl}>{noteTitle}</Link></dd></div>
+        {!!task.tags?.length && <div><dt>Теги</dt><dd>{task.tags.map((t) => <Link key={t} className="md-tag" href={`/notes?tag=${encodeURIComponent(t)}`} style={{ marginRight: 6 }}>#{t}</Link>)}</dd></div>}
         {task.done && <div><dt>Закрыта</dt><dd>{longDate(parseDate(task.done))}</dd></div>}
       </dl>
     )}

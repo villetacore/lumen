@@ -2,7 +2,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
 import { api } from "../api/client";
 import type { Proposal } from "../api/types";
 import ApprovalsPage from "./ApprovalsPage";
@@ -18,7 +17,7 @@ function show(items: Proposal[]) {
   vi.spyOn(api, "me").mockResolvedValue({ authenticated: true, mode: "oidc", username: "alice" });
   vi.spyOn(api, "proposals").mockResolvedValue({ items, total: items.length, limit: 0, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><MemoryRouter><ApprovalsPage /></MemoryRouter></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><ApprovalsPage /></QueryClientProvider>);
 }
 
 test("a pending proposal shows its exact change and is applied on confirmation", async () => {

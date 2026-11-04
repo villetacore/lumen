@@ -1,6 +1,9 @@
+"use client";
+
 import Icon from "../components/Icon";
 import { useEffect, useRef, useState } from "react";
-import { Link, Navigate, useBeforeUnload, useBlocker, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "../lib/navigation";
+import { useLeaveGuard } from "../lib/navigationGuard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { Note, NoteType, Task } from "../api/types";
@@ -66,17 +69,7 @@ export default function NotePage() {
   const deletedOnDisk = !!edit && isNotFound(error);
   const changedOnDisk = !!edit && !!note && note.revision !== edit.baseRevision;
 
-  useBeforeUnload((e) => {
-    if (dirty) e.preventDefault();
-  });
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    dirty && currentLocation.pathname !== nextLocation.pathname,
-  );
-  useEffect(() => {
-    if (blocker.state !== "blocked") return;
-    if (window.confirm("Есть несохранённые изменения. Уйти и потерять их?")) blocker.proceed();
-    else blocker.reset();
-  }, [blocker.state]);
+  useLeaveGuard(dirty);
 
   const startEdit = (n: Note) => setEdit({ draft: n.body, baseRevision: n.revision, baseBody: n.body });
 
@@ -130,8 +123,8 @@ export default function NotePage() {
   }
 
   // A link to the file of a ticket or sprint means the ticket or the sprint.
-  if (note?.type === "issue") return <Navigate to={issueUrl(note.id)} replace />;
-  if (note?.type === "sprint" && note.frontmatter?.project) return <Navigate to={`${projectUrl(String(note.frontmatter.project))}/backlog`} replace />;
+  if (note?.type === "issue") return <Navigate href={issueUrl(note.id)} />;
+  if (note?.type === "sprint" && note.frontmatter?.project) return <Navigate href={`${projectUrl(String(note.frontmatter.project))}/backlog`} />;
 
   const title = note?.title ?? path;
   const projectKey = note?.type === "project" && note.frontmatter?.key ? String(note.frontmatter.key) : undefined;
@@ -274,7 +267,7 @@ export default function NotePage() {
           {backlinks.items.map((b) => (
             <div key={b.path} className="note-row">
               <span style={{ color: "var(--text-faint)" }}>←</span>
-              <Link to={`/note/${b.path}`}>{b.title}</Link>
+              <Link href={`/note/${b.path}`}>{b.title}</Link>
 
             </div>
           ))}
@@ -371,7 +364,7 @@ function Properties({ note }: { note: Note }) {
               <td>
                 {note.tags.length
                   ? note.tags.map((t) => (
-                      <Link key={t} className="md-tag" to={`/notes?tag=${encodeURIComponent(t)}`} style={{ marginRight: 6 }}>
+                      <Link key={t} className="md-tag" href={`/notes?tag=${encodeURIComponent(t)}`} style={{ marginRight: 6 }}>
                         #{t}
                       </Link>
                     ))

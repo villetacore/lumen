@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useRouteParam, useQueryParams } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, EmptyState, Input, Select, Spinner, Table } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -19,9 +21,9 @@ import {
 
 /** IssuesPage is a project's issue list with filters kept in the URL. */
 export default function IssuesPage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useQueryParams();
   const filter = filterFromParams(params);
   const [creating, setCreating] = useState(false);
   const [saved, setSaved] = useState<SavedFilter[]>(() => loadSavedFilters(key));
@@ -53,9 +55,9 @@ export default function IssuesPage() {
 
   const columns = [
     { key: "key", header: "Ключ", sortValue: (i: Issue) => Number(i.key.split("-").pop()),
-      render: (i: Issue) => <Link className="issue-key" to={issueUrl(i.key)}>{i.key}</Link> },
+      render: (i: Issue) => <Link className="issue-key" href={issueUrl(i.key)}>{i.key}</Link> },
     { key: "title", header: "Название", sortValue: (i: Issue) => i.title.toLowerCase(),
-      render: (i: Issue) => <Link className="issue-title-link" to={issueUrl(i.key)}>{i.title}</Link> },
+      render: (i: Issue) => <Link className="issue-title-link" href={issueUrl(i.key)}>{i.title}</Link> },
     { key: "type", header: "Тип", render: (i: Issue) => typeLabel(i.issue_type) },
     { key: "status", header: "Статус", sortValue: (i: Issue) => project?.workflow.findIndex((s) => s.id === i.status) ?? 0,
       render: (i: Issue) => <Badge tone={CATEGORY_TONE[i.status_category ?? "todo"]}>{statusName(project, i.status)}</Badge> },

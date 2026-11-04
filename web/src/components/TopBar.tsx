@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Kbd } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -53,7 +53,7 @@ export default function TopBar() {
         {stats?.encrypted && (
           <span title="Данные зашифрованы"><Icon name="lock" size={16} /></span>
         )}
-        {me?.username && <Link to="/inbox" className="bell" aria-label={`Уведомления${inbox?.unread ? `: ${inbox.unread} непрочитанных` : ""}`}>
+        {me?.username && <Link href="/inbox" className="bell" aria-label={`Уведомления${inbox?.unread ? `: ${inbox.unread} непрочитанных` : ""}`}>
           <Icon name="bell" size={18} />
           {!!inbox?.unread && <span className="bell-count">{inbox.unread > 99 ? "99+" : inbox.unread}</span>}
         </Link>}

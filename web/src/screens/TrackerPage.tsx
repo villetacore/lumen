@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -30,7 +32,7 @@ export default function TrackerPage() {
       actions={<Button variant="primary" onClick={() => setCreating(true)}>Создать проект</Button>} />}
     {!!data?.items.length && <ul className="tracker-projects">
       {data.items.map((p) => <li key={p.key}>
-        <Link to={`${projectUrl(p.key)}/board`} className="tracker-project">
+        <Link href={`${projectUrl(p.key)}/board`} className="tracker-project">
           <span className="issue-key">{p.key}</span>
           <strong>{p.title}</strong>
           <span className="sub">{openBy.get(p.key) ?? 0} открыто · {p.workflow.map((s) => s.name).join(" → ")}</span>

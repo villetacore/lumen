@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useRouteParam } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, EmptyState, IconButton, Input, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -18,7 +20,7 @@ const ROLES: WorkspaceRole[] = ["viewer", "member", "admin"];
  * that (ADR-0012). Adding the first member closes an open project.
  */
 export default function AccessPage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const qc = useQueryClient();
   const { data: project, error: projectError } = useQuery({ queryKey: ["tracker", "project", key], queryFn: () => api.trackerProject(key) });
   const { data: access, error, isLoading } = useQuery({ queryKey: ["access", key], queryFn: () => api.projectAccess(key) });

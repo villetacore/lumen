@@ -1,6 +1,6 @@
 # Веб-клиент Lumen
 
-React 19, TypeScript, Next.js (статический экспорт), React Router и TanStack Query.
+React 19, TypeScript, Next.js (App Router, статический экспорт) и TanStack Query.
 Клиент работает с API `lumend`; production-сборка встраивается в Go-бинарник
 ([ADR-0018](../docs/adr/0018-nextjs-static-export.md)).
 
@@ -30,8 +30,9 @@ refetch, конфликте и уходе. Полный браузерный E2E
 
 ## Устройство
 
-- `src/app/` — оболочка Next: layout и catch-all-маршрут, отдающий одну страницу.
-- `src/ClientApp.tsx`, `src/App.tsx` — провайдеры и маршруты React Router.
+- `src/app/` — маршруты: тонкие `page.tsx`, каждый отдаёт экран из `src/screens/`.
+- `src/Shell.tsx` — провайдеры, вход и оболочка рабочего места.
+- `src/lib/navigation.tsx`, `navigationGuard.ts` — навигация и защита черновиков.
 - `src/proxy.dev.ts` — добавляет `LUMEN_TOKEN` к запросам API, только в `next dev`.
 - `src/api/` — HTTP-клиент, DTO, SSE.
 - `src/hooks/` — запросы и live-обновления через инвалидацию кэша.
@@ -42,9 +43,14 @@ refetch, конфликте и уходе. Полный браузерный E2E
 - `src/design/` — как Lumen использует Velessoft UI; `vendor/` — архивы `@villetacore/velessoft-ui` и `-tokens`.
 - `public/fonts/` — локальные Manrope и JetBrains Mono с OFL-лицензиями.
 
-Новые экраны добавляются маршрутом в `src/App.tsx`, а не файлом в `src/app/`:
-экспорт статический, SSR, route handlers и server actions в нём недоступны.
-Каталог не называется `src/pages`, потому что Next считает его Pages Router.
+Правила из-за статического экспорта ([ADR-0018](../docs/adr/0018-nextjs-static-export.md)):
+
+- Новый экран — `src/screens/XPage.tsx` с `"use client"` и `src/app/x/page.tsx`.
+- Маршрут с параметром экспортирует `generateStaticParams` с заглушкой `_`, параметр
+  читается через `useRouteParam`, а не `useParams`.
+- Ссылки и переходы — только из `lib/navigation`, иначе они минуют защиту черновика.
+- SSR, route handlers и server actions недоступны.
+- Каталог не называется `src/pages`: Next считает его Pages Router.
 
 Светлая, тёмная и системная темы применяются до рендера. На узком экране sidebar
 превращается в меню с управлением фокусом и Escape. Детали и ограничения переноса

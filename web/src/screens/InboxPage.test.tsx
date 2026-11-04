@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { useLocation } from "../lib/navigation";
+import { startAt, TestRoutes } from "../test/routes";
 import { api } from "../api/client";
 import type { Identity, Inbox } from "../api/types";
 import InboxPage from "./InboxPage";
@@ -18,9 +19,8 @@ function show(me: Identity, inbox: Inbox) {
   vi.spyOn(api, "me").mockResolvedValue(me);
   vi.spyOn(api, "notifications").mockResolvedValue(inbox);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/inbox"]}>
-    <Routes><Route path="/inbox" element={<InboxPage />} /><Route path="/issue/:key" element={<Where />} /></Routes>
-  </MemoryRouter></QueryClientProvider>);
+  startAt("/inbox");
+  render(<QueryClientProvider client={client}><TestRoutes routes={{ "/inbox": <InboxPage />, "/issue/:key": <Where /> }} /></QueryClientProvider>);
 }
 
 test("opening a notification marks it read and jumps to the comment", async () => {

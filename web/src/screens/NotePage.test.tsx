@@ -2,7 +2,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { navigateTo, startAt, TestRoutes } from "../test/routes";
 import { api, ApiError } from "../api/client";
 import type { Note } from "../api/types";
 import NotePage from "./NotePage";
@@ -18,15 +18,12 @@ async function setup() {
   vi.spyOn(api, "notes").mockResolvedValue({ items: [], total: 0, limit: 2000, offset: 0 });
   vi.spyOn(api, "backlinks").mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  const router = createMemoryRouter([
-    { path: "/note/*", element: <NotePage /> },
-    { path: "/notes", element: <div>Все заметки</div> },
-  ], { initialEntries: ["/note/test.md"] });
-  render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+  startAt("/note/test.md");
+  render(<QueryClientProvider client={client}><TestRoutes routes={{ "/note/*": <NotePage />, "/notes": <div>Все заметки</div> }} /></QueryClientProvider>);
   fireEvent.click(await screen.findByRole("button", { name: "Редактировать" }));
   const editor = screen.getByRole("textbox", { name: "Текст документа" }) as HTMLTextAreaElement;
   fireEvent.change(editor, { target: { value: "Мой текст" } });
-  return { client, router, editor };
+  return { client, editor };
 }
 
 test("refetch preserves draft and explicit overwrite uses the latest revision", async () => {
@@ -77,9 +74,9 @@ test("server failure is shown as a save error and preserves the draft", async ()
 
 test("declining navigation keeps the unsaved draft", async () => {
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  const { router, editor } = await setup();
-  await act(async () => { await router.navigate("/notes"); });
+  const { editor } = await setup();
+  act(() => navigateTo("/notes"));
   expect(confirm).toHaveBeenCalled();
-  expect(router.state.location.pathname).toBe("/note/test.md");
+  expect(window.location.pathname).toBe("/note/test.md");
   expect(editor.value).toBe("Мой текст");
 });

@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import { Link } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, EmptyState, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -47,13 +49,13 @@ export default function ApprovalsPage() {
   const card = (p: Proposal) => <li key={p.id} className={`proposal is-${p.state}`}>
     <div className="proposal-head">
       <strong>{KIND[p.kind]}</strong>
-      {p.target && <Link className="issue-key" to={p.kind === "create_issue" ? `/tracker/${encodeURIComponent(p.target)}` : issueUrl(p.target)}>{p.target}</Link>}
+      {p.target && <Link className="issue-key" href={p.kind === "create_issue" ? `/tracker/${encodeURIComponent(p.target)}` : issueUrl(p.target)}>{p.target}</Link>}
       <Badge tone={STATE[p.state].tone}>{STATE[p.state].label}</Badge>
       <span className="sub">{at(p.created_at)}{p.state === "pending" ? ` · до ${at(p.expires_at)}` : p.decided_at ? ` · решено ${at(p.decided_at)}` : ""}</span>
     </div>
     <pre className="proposal-preview">{p.preview}</pre>
     {p.error && <Alert tone={p.state === "stale" ? "warning" : "error"} title={p.state === "stale" ? "Не применено: данные изменились" : "Не применено"}>{p.error}</Alert>}
-    {p.state === "applied" && p.result && <p className="sub">Готово: <Link to={issueUrl(p.result)}>{p.result}</Link></p>}
+    {p.state === "applied" && p.result && <p className="sub">Готово: <Link href={issueUrl(p.result)}>{p.result}</Link></p>}
     {p.state === "pending" && <div className="proposal-actions">
       <Button variant="primary" onClick={() => approve.mutate(p.id)} disabled={busy}>Подтвердить</Button>
       <Button onClick={() => reject.mutate(p.id)} disabled={busy}>Отклонить</Button>

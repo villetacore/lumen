@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useBeforeUnload, useBlocker } from "react-router-dom";
+
 import type { IssueFilter, StatusCategory, TrackerProject } from "../api/types";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "error";
@@ -92,22 +91,4 @@ export function loadSavedFilters(project: string): SavedFilter[] {
 
 export function storeSavedFilters(project: string, list: SavedFilter[]) {
   try { localStorage.setItem(savedKey(project), JSON.stringify(list)); } catch { /* Storage is optional. */ }
-}
-
-/**
- * useDraftGuard asks before leaving a page with unsaved text. React Router
- * allows one blocker at a time, so a page combines its drafts into one flag.
- */
-export function useDraftGuard(dirty: boolean) {
-  useBeforeUnload((e) => {
-    if (dirty) e.preventDefault();
-  });
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    dirty && currentLocation.pathname !== nextLocation.pathname,
-  );
-  useEffect(() => {
-    if (blocker.state !== "blocked") return;
-    if (window.confirm("Есть несохранённые изменения. Уйти и потерять их?")) blocker.proceed();
-    else blocker.reset();
-  }, [blocker.state]);
 }

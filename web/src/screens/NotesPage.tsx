@@ -1,6 +1,8 @@
+"use client";
+
 import Icon from "../components/Icon";
 import { useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useQueryParams } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, EmptyState, Input, SegmentedControl, Spinner, Tag } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -33,7 +35,7 @@ function inView(n: NoteSummary, view: View): boolean {
 }
 
 export default function NotesPage() {
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useQueryParams();
   const tag = params.get("tag") ?? undefined;
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<Sort>("folder");
@@ -46,7 +48,7 @@ export default function NotesPage() {
   });
 
   // The old documentation filter lives on its own page now.
-  if (params.get("section") === "documents") return <Navigate to="/docs" replace />;
+  if (params.get("section") === "documents") return <Navigate href="/docs" />;
 
   const needle = filter.trim().toLowerCase();
   const items = (data?.items ?? []).filter((n) =>
@@ -111,11 +113,11 @@ function NoteRow({ note: n }: { note: NoteSummary }) {
   return (
     <div className="note-row">
       <Icon name={n.type === "project" ? "folder" : n.content_kind === "document" ? "book" : "file"} size={16} />
-      <Link to={`/note/${n.path}`}>{n.title}</Link>
+      <Link href={`/note/${n.path}`}>{n.title}</Link>
       {kind && <Badge tone={n.type === "project" ? "info" : "neutral"}>{kind}</Badge>}
       {n.open_tasks > 0 && <Badge>{n.open_tasks} задач</Badge>}
       {n.tags.slice(0, 3).map((t) => (
-        <Link key={t} className="md-tag" to={`/notes?tag=${encodeURIComponent(t)}`}>#{t}</Link>
+        <Link key={t} className="md-tag" href={`/notes?tag=${encodeURIComponent(t)}`}>#{t}</Link>
       ))}
       <span className="path">{n.updated ? n.updated.slice(0, 10) : ""}</span>
     </div>

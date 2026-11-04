@@ -1,8 +1,7 @@
-import { useRouteError } from "react-router-dom";
+"use client";
 
 /** CrashScreen replaces a blank page when rendering fails. Files on disk are untouched. */
-export default function CrashScreen() {
-  const err = useRouteError();
+export default function CrashScreen({ error: err }: { error: unknown }) {
   return (
     <div className="empty" style={{ maxWidth: 560, margin: "12vh auto", textAlign: "left" }}>
       <h2 style={{ color: "var(--text)" }}>Интерфейс споткнулся</h2>

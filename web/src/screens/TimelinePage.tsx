@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useRouteParam, useQueryParams } from "../lib/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, Input, SegmentedControl, Select, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -34,10 +36,10 @@ const previewOf = (d: Drag): Dates =>
  * change; undated issues get their dates by drawing on their row.
  */
 export default function TimelinePage() {
-  const { key = "" } = useParams();
+  const key = useRouteParam(1);
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [params, setParams] = useQueryParams();
   const filter = filterFromParams(params);
   const zoom = (ZOOMS.some((z) => z.value === params.get("zoom")) ? params.get("zoom") : "day") as Zoom;
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -227,9 +229,9 @@ export default function TimelinePage() {
       return <div key={row.id} className="tl-row tl-group" role="row">
         <div className="tl-label" role="rowheader">
           {row.issue
-            ? <Link to={issueUrl(row.issue.key)}><span className="issue-key">{row.issue.key}</span> <strong>{row.label}</strong></Link>
+            ? <Link href={issueUrl(row.issue.key)}><span className="issue-key">{row.issue.key}</span> <strong>{row.label}</strong></Link>
             : row.label === row.id.slice(5)
-              ? <Link to={issueUrl(row.label)} className="issue-key">{row.label}</Link>
+              ? <Link href={issueUrl(row.label)} className="issue-key">{row.label}</Link>
               : <strong>{row.label}</strong>}
         </div>
         <div className="tl-track">
@@ -241,7 +243,7 @@ export default function TimelinePage() {
     const done = row.issue.status_category === "done";
     return <div key={row.id} className="tl-row" role="row">
       <div className={`tl-label${done ? " is-done" : ""}`} role="rowheader">
-        <Link to={issueUrl(row.issue.key)} title={`${row.issue.title} · ${typeLabel(row.issue.issue_type)}`}>
+        <Link href={issueUrl(row.issue.key)} title={`${row.issue.title} · ${typeLabel(row.issue.issue_type)}`}>
           <span className="issue-key">{row.issue.key}</span> {row.issue.title}
         </Link>
       </div>
