@@ -133,6 +133,22 @@ type Connector interface {
 	Sync(ctx context.Context, in SyncInput) (SyncOutput, error)
 }
 
+// secretHelp is the common note on secret fields.
+const secretHelp = "Вставьте значение: оно сохранится зашифрованным. Можно и ссылкой: env:ИМЯ, file:/путь"
+
+// GroupOf files a connector under a heading of the catalog.
+func GroupOf(kind string) string {
+	switch kind {
+	case "gitlab", "github", "jira":
+		return "Код и задачи"
+	case "ics", "caldav":
+		return "Календари"
+	case "nextcloud":
+		return "Заметки и файлы"
+	}
+	return "Любой сервис"
+}
+
 // Registry holds the connectors this build knows about.
 type Registry struct {
 	byKind map[string]Connector
@@ -147,6 +163,9 @@ func NewRegistry() *Registry {
 	r.Register(&Nextcloud{})
 	r.Register(&GitHub{})
 	r.Register(&GitLab{})
+	r.Register(&Jira{})
+	r.Register(&REST{})
+	r.Register(&Feed{})
 	return r
 }
 

@@ -3,6 +3,7 @@ package passwords
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -336,4 +337,81 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+type memKeeper struct {
+	kept      map[string]string
+	forgotten []string
+}
+
+func (k *memKeeper) Keep(_ context.Context, _, value string) (string, error) {
+	if k.kept == nil {
+		k.kept = map[string]string{}
+	}
+	ref := fmt.Sprintf("stored:%d", len(k.kept)+1)
+	k.kept[ref] = value
+	return ref, nil
+}
+
+func (k *memKeeper) Forget(_ context.Context, ref string) error {
+	k.forgotten = append(k.forgotten, ref)
+	return nil
+}
+
+// The bug report: a key pasted into its field was taken for a file name, printed
+// in the error, and stayed in a file in the vault.
+func TestPastedSecretLeavesTheVaultFile(t *testing.T) {
+	const pasted = "НеНастоящийКлючИзФормы"
+	dir := t.TempDir()
+
+	// A file an older version left behind.
+	file := filepath.Join(dir, ".lumen", "passwords.yaml")
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := "stores:\n  - id: seif\n    kind: vaultwarden\n    name: Сейф\n    values:\n      server: https://v.example.com\n      email: a@b.c\n      client_id: user.1\n      client_secret: " + pasted + "\n"
+	if err := os.WriteFile(file, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	k := &memKeeper{}
+	m := NewManager(dir, &fakeRunner{}, func(context.Context, string) ([]byte, error) { return nil, errors.New("не нужен") })
+	m.UseKeeper(k)
+	if err := m.Load(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(file)
+	if strings.Contains(string(data), pasted) {
+		t.Errorf("значение осталось в файле:\n%s", data)
+	}
+	if k.kept["stored:1"] != pasted {
+		t.Errorf("перенесено: %v", k.kept)
+	}
+	if got := m.List()[0].Values["client_secret"]; got != "stored:1" {
+		t.Errorf("в настройках: %s", got)
+	}
+
+	// Replacing it through the form drops the old value.
+	if _, err := m.Update("seif", func(c *Config) { c.Values["client_secret"] = "новый" }); err != nil {
+		t.Fatal(err)
+	}
+	if len(k.forgotten) != 1 || k.forgotten[0] != "stored:1" || k.kept["stored:2"] != "новый" {
+		t.Errorf("замена: %v, %v", k.forgotten, k.kept)
+	}
+	if err := m.Delete("seif"); err != nil {
+		t.Fatal(err)
+	}
+	if len(k.forgotten) != 2 || k.forgotten[1] != "stored:2" {
+		t.Errorf("удаление: %v", k.forgotten)
+	}
+
+	// Without a keeper a pasted value is refused, not written down.
+	bare := NewManager(t.TempDir(), &fakeRunner{}, nil)
+	if err := bare.Load(); err != nil {
+		t.Fatal(err)
+	}
+	all := map[string]string{"server": "https://v.example.com", "email": "a@b.c", "client_id": "user.1", "client_secret": pasted}
+	if _, err := bare.Add(Config{Kind: "vaultwarden", Values: all}); err == nil || strings.Contains(err.Error(), pasted) {
+		t.Errorf("без хранилища: %v", err)
+	}
 }

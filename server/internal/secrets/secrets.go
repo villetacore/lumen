@@ -72,6 +72,37 @@ func Parse(ref string) (Spec, error) {
 	return spec, nil
 }
 
+// StoredScheme names secrets kept encrypted by Lumen itself (internal/secretstore).
+const StoredScheme = "stored"
+
+// Keeper takes what a settings form received and returns what the settings may
+// hold; internal/secretstore implements it.
+type Keeper interface {
+	Keep(ctx context.Context, owner, value string) (string, error)
+	Forget(ctx context.Context, ref string) error
+}
+
+var referenceSchemes = []string{"env:", "file:", "command:", "bitwarden:", "keepass:", "literal:", StoredScheme + ":"}
+
+// IsReference tells a pointer to a secret from a secret. Anything else in a
+// secret field is treated as the value itself: people paste tokens, and reading
+// one as a file name would print it in the error.
+func IsReference(value string) bool {
+	v := strings.TrimSpace(value)
+	if strings.HasPrefix(v, "/") || strings.HasPrefix(v, "./") {
+		return true
+	}
+	if len(v) > 2 && v[1] == ':' && (v[2] == '\\' || v[2] == '/') {
+		return true // a Windows path
+	}
+	for _, scheme := range referenceSchemes {
+		if strings.HasPrefix(strings.ToLower(v), scheme) {
+			return true
+		}
+	}
+	return false
+}
+
 // Provider turns one reference into a secret.
 type Provider interface {
 	// Scheme is the prefix this provider answers to.

@@ -43,8 +43,8 @@ func (*Vaultwarden) ConfigSchema() []Field {
 			Placeholder: "user.xxxxxxxx-xxxx-…",
 			Help:        "Настройки аккаунта → Безопасность → Ключи → API-ключ. Нужен, если включена двухфакторная защита"},
 		{Key: "client_secret", Label: "API-ключ: client_secret", Type: FieldSecret,
-			Placeholder: "env:VAULTWARDEN_CLIENT_SECRET",
-			Help:        "Ссылка на секрет, а не сам ключ: env:, file:, command:"},
+			Placeholder: "",
+			Help:        "Вставьте значение: оно сохранится зашифрованным. Можно и ссылкой: env:ИМЯ"},
 		{Key: "allow_http", Label: "Разрешить HTTP без шифрования", Type: FieldBool,
 			Help: "Только для внутренней сети: по соединению идут хеш пароля и токены"},
 	}

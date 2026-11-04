@@ -44,6 +44,8 @@ type Config struct {
 	OIDCPasswordLogin bool
 	// DatabaseURL moves the operational store to PostgreSQL (ADR-0015).
 	DatabaseURL string
+	// SecretsKey encrypts pasted tokens; empty: a generated key file in StateDir.
+	SecretsKey string
 	// RedisURL keeps browser sessions in Redis, so they survive a restart.
 	RedisURL   string
 	SessionTTL time.Duration
@@ -94,6 +96,8 @@ func Load(args []string) (*Config, error) {
 		"sign in with a form inside Lumen; the OIDC client needs Direct Access Grants")
 	fs.StringVar(&c.DatabaseURL, "database-url", env("LUMEN_DATABASE_URL", ""),
 		"PostgreSQL URL for the operational store; empty: SQLite in --state. Prefer the variable: flags are visible in ps")
+	fs.StringVar(&c.SecretsKey, "secrets-key", env("LUMEN_SECRETS_KEY", ""),
+		"key for tokens pasted into settings; empty: a generated file in --state. Prefer the variable")
 	fs.StringVar(&c.RedisURL, "redis-url", env("LUMEN_REDIS_URL", ""),
 		"Redis URL for browser sessions; empty: sessions end with the process. Prefer the variable")
 	fs.StringVar(&adminRoles, "admin-roles", env("LUMEN_ADMIN_ROLES", ""),
