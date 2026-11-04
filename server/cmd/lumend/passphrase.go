@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/secrets"
+	"github.com/villetacore/lumen/server/internal/secrets"
 	"golang.org/x/term"
 )
 

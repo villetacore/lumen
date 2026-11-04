@@ -3,12 +3,12 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
-	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/policy"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/auth"
 )
 
 type statusWriter struct {

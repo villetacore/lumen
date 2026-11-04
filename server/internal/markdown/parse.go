@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 var dailyRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)

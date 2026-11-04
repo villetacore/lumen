@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/markdown"
 )
 
 // Memory is a straightforward in-memory index. A personal vault of tens of

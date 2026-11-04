@@ -6,9 +6,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/markdown"
 )
 
 // Policy answers access questions. It reads the unfiltered index to work out

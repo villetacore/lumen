@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 func TestParseTaskLine(t *testing.T) {

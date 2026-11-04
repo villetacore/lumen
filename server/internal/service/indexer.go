@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
-	"github.com/alexpyslar/lumen/server/internal/vault"
-	"github.com/alexpyslar/lumen/server/internal/watch"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/watch"
 )
 
 // Indexer keeps the index in step with the files on disk.

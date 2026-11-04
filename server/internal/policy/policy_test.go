@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
-	"github.com/alexpyslar/lumen/server/internal/state"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
 )
 
 func TestRoleMapping(t *testing.T) {
@@ -100,11 +100,8 @@ func TestParentChainAndDeletedPaths(t *testing.T) {
 
 func TestMembersSurviveRestart(t *testing.T) {
 	ctx := context.Background()
-	dir := t.TempDir()
-	st, err := state.Open(ctx, dir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	open := statetest.Opener(t)
+	st := open()
 	m := NewMembers(st.DB())
 	if _, err := m.Set(ctx, "SEC", "group", "/designers", RoleViewer, "boss"); err != nil {
 		t.Fatal(err)
@@ -117,10 +114,7 @@ func TestMembersSurviveRestart(t *testing.T) {
 	}
 	st.Close()
 
-	st, err = state.Open(ctx, dir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st = open()
 	defer st.Close()
 	list, err := NewMembers(st.DB()).List(ctx, "SEC")
 	if err != nil || len(list) != 1 || list[0].Name != "designers" || list[0].Role != "member" || list[0].AddedBy != "boss" {

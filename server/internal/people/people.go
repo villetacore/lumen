@@ -5,13 +5,14 @@ package people
 
 import (
 	"context"
-	"database/sql"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/policy"
+
+	"github.com/villetacore/lumen/server/internal/state"
 )
 
 // User is a directory entry.
@@ -34,7 +35,7 @@ type Group struct {
 
 // Directory reads and refreshes the users table.
 type Directory struct {
-	db    *sql.DB
+	db    *state.DB
 	every time.Duration
 
 	mu   sync.Mutex
@@ -50,7 +51,7 @@ type seenEntry struct {
 // this period unless their name, role or groups change.
 const refreshEvery = 5 * time.Minute
 
-func New(db *sql.DB) *Directory {
+func New(db *state.DB) *Directory {
 	return &Directory{db: db, every: refreshEvery, seen: map[string]seenEntry{}}
 }
 

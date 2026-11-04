@@ -22,14 +22,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/auth"
-	"github.com/alexpyslar/lumen/server/internal/config"
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/history"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/service"
-	"github.com/alexpyslar/lumen/server/internal/state"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/config"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/history"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 // idp is a minimal Keycloak: discovery and keys, so tokens signed here pass
@@ -59,6 +59,17 @@ func newIDP(t *testing.T) *idp {
 		e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes())
 		fmt.Fprintf(w, `{"keys":[{"kid":"k1","kty":"RSA","alg":"RS256","use":"sig","n":%q,"e":%q}]}`, n, e)
 	})
+	// Direct Access Grant: the password names the outcome.
+	mux.HandleFunc("/realms/main/token", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		if r.Form.Get("grant_type") != "password" || r.Form.Get("password") != "верный" {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, `{"error":"invalid_grant","error_description":"Invalid user credentials"}`)
+			return
+		}
+		tok := i.signed(t, r.Form.Get("username"), []string{"lumen-admin"}, nil)
+		json.NewEncoder(w).Encode(map[string]any{"access_token": tok, "id_token": tok, "refresh_token": "r", "expires_in": 300})
+	})
 	i.Server = httptest.NewServer(mux)
 	i.realm = i.Server.URL + "/realms/main"
 	t.Cleanup(i.Close)
@@ -66,6 +77,10 @@ func newIDP(t *testing.T) *idp {
 }
 
 func (i *idp) token(t *testing.T, user string, roles, groups []string) string {
+	return i.signed(t, user, roles, groups)
+}
+
+func (i *idp) signed(t *testing.T, user string, roles, groups []string) string {
 	t.Helper()
 	claims := map[string]any{
 		"sub": "sub-" + user, "iss": i.realm, "aud": "lumen", "preferred_username": user,
@@ -119,10 +134,7 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
-	st, err := state.Open(context.Background(), filepath.Join(dir, "state"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := statetest.Open(t)
 	t.Cleanup(func() { st.Close() })
 	journal := history.New(st.DB(), st)
 	ix.SetObserver(journal)
@@ -137,7 +149,7 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}}
+	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}, OIDCPasswordLogin: true}
 	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).WithHistory(journal).Handler())
 	t.Cleanup(srv.Close)
 	return &oidcFixture{srv: srv, t: t, tokens: map[string]string{

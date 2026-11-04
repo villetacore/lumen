@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/alexpyslar/lumen/server/internal/crypt"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/crypt"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 // MigrationResult reports what a vault-wide conversion did.

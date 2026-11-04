@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/history"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/policy"
-	"github.com/alexpyslar/lumen/server/internal/state"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/history"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/state/statetest"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 // TestHistoryThroughIndexer follows an issue through Lumen writes, an edit
@@ -21,10 +21,7 @@ import (
 func TestHistoryThroughIndexer(t *testing.T) {
 	ctx := context.Background()
 	_, _, _, dir := newTestVault(t, map[string]string{"20-projects/web.md": trackerProject})
-	st, err := state.Open(ctx, t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := statetest.Open(t)
 	defer st.Close()
 	v, _ := vault.Open(dir)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))

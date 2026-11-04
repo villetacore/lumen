@@ -34,11 +34,15 @@ var (
 	ErrTooNew = errors.New("state database is newer than this lumend")
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.sql migrations_postgres/*.sql
 var migrationFS embed.FS
 
-// migrationSource is the set of migrations; tests swap in their own.
-var migrationSource fs.FS = mustSub(migrationFS, "migrations")
+// migrationSource is the set of migrations; tests swap in their own. PostgreSQL
+// has its own files with the same numbers and the same meaning (ADR-0015).
+var (
+	migrationSource   fs.FS = mustSub(migrationFS, "migrations")
+	postgresMigration fs.FS = mustSub(migrationFS, "migrations_postgres")
+)
 
 func mustSub(f fs.FS, dir string) fs.FS {
 	sub, err := fs.Sub(f, dir)
@@ -57,8 +61,8 @@ type Codec interface {
 
 // Store is an open operational database.
 type Store struct {
-	Dir     string
-	db      *sql.DB
+	Dir     string // empty in PostgreSQL
+	db      *DB
 	codec   Codec
 	unlock  func()
 	version int
@@ -71,8 +75,8 @@ type migration struct {
 	sql     string
 }
 
-func migrations() ([]migration, error) {
-	entries, err := fs.ReadDir(migrationSource, ".")
+func migrations(source fs.FS) ([]migration, error) {
+	entries, err := fs.ReadDir(source, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +87,7 @@ func migrations() ([]migration, error) {
 		if !ok || err != nil || v <= 0 {
 			return nil, fmt.Errorf("bad migration file name %q", e.Name())
 		}
-		body, err := fs.ReadFile(migrationSource, e.Name())
+		body, err := fs.ReadFile(source, e.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +104,7 @@ func migrations() ([]migration, error) {
 
 // Latest is the schema version this binary knows.
 func Latest() int {
-	ms, err := migrations()
+	ms, err := migrations(migrationSource)
 	if err != nil {
 		return 0
 	}
@@ -122,7 +126,7 @@ func Open(ctx context.Context, dir string, codec Codec) (*Store, error) {
 		unlock()
 		return nil, err
 	}
-	s := &Store{Dir: dir, db: db, codec: codec, unlock: unlock}
+	s := &Store{Dir: dir, db: &DB{sql: db}, codec: codec, unlock: unlock}
 	if err := s.migrate(ctx); err != nil {
 		s.Close()
 		return nil, err
@@ -151,7 +155,7 @@ func openDB(path string, readOnly bool) (*sql.DB, error) {
 	return db, nil
 }
 
-func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
+func schemaVersion(ctx context.Context, db *DB) (int, error) {
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`); err != nil {
 		return 0, err
@@ -164,7 +168,11 @@ func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
 }
 
 func (s *Store) migrate(ctx context.Context) error {
-	ms, err := migrations()
+	source := migrationSource
+	if s.db.postgres {
+		source = postgresMigration
+	}
+	ms, err := migrations(source)
 	if err != nil {
 		return err
 	}
@@ -175,7 +183,7 @@ func (s *Store) migrate(ctx context.Context) error {
 	if cur > len(ms) {
 		return fmt.Errorf("%w: schema %d, this binary knows %d — run the newer lumend or restore a backup", ErrTooNew, cur, len(ms))
 	}
-	if cur > 0 && cur < len(ms) {
+	if cur > 0 && cur < len(ms) && !s.db.postgres {
 		name := fmt.Sprintf("pre-%04d-%s.db", ms[cur].version, time.Now().UTC().Format("20060102T150405Z"))
 		s.backup = filepath.Join(s.Dir, backupsDir, name)
 		if err := s.Backup(ctx, s.backup); err != nil {
@@ -205,7 +213,15 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 // DB is the database handle for feature packages.
-func (s *Store) DB() *sql.DB { return s.db }
+func (s *Store) DB() *DB { return s.db }
+
+// Location says where the data lives, without credentials.
+func (s *Store) Location() string {
+	if s.db.postgres {
+		return "PostgreSQL"
+	}
+	return s.Dir
+}
 
 // Version is the applied schema version.
 func (s *Store) Version() int { return s.version }
@@ -225,7 +241,7 @@ func (s *Store) Ping(ctx context.Context) error { return s.db.PingContext(ctx) }
 
 // Close releases the database and the directory lock.
 func (s *Store) Close() error {
-	err := s.db.Close()
+	err := s.db.sql.Close()
 	if s.unlock != nil {
 		s.unlock()
 		s.unlock = nil
@@ -253,6 +269,9 @@ func (s *Store) Unseal(ref string, stored []byte) ([]byte, error) {
 // Backup writes a consistent copy of the live database to dst, which must
 // not exist yet.
 func (s *Store) Backup(ctx context.Context, dst string) error {
+	if s.db.postgres {
+		return ErrBackupByServer
+	}
 	if _, err := os.Stat(dst); err == nil {
 		return fmt.Errorf("%s already exists", dst)
 	}

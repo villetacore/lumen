@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/policy"
-	"github.com/alexpyslar/lumen/server/internal/proposals"
-	"github.com/alexpyslar/lumen/server/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/proposals"
+	"github.com/villetacore/lumen/server/internal/service"
 )
 
 // Confirmed writes (ADR-0013 §6). An MCP tool records a proposal with a

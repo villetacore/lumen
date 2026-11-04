@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/vault"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/vault"
 )
 
 func newIndexer(t *testing.T) (*Indexer, index.Store, *Bus, string) {

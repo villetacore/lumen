@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/integrations"
-	"github.com/alexpyslar/lumen/server/internal/service"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/integrations"
+	"github.com/villetacore/lumen/server/internal/service"
 )
 
 // integrationDTO renders durations as "15m" instead of nanoseconds, and never

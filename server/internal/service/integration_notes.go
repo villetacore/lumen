@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/integrations"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/integrations"
+	"github.com/villetacore/lumen/server/internal/markdown"
 )
 
 // upsertNote refreshes the owned source projection and retains local text.

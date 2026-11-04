@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 	"gopkg.in/yaml.v3"
 )
 

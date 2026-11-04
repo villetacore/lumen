@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/index"
 )
 
 // Scoped is the index as the caller in ctx may see it (ADR-0012 §6): lists

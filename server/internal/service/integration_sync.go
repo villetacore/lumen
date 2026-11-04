@@ -7,8 +7,8 @@ import (
 	"maps"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/index"
-	"github.com/alexpyslar/lumen/server/internal/integrations"
+	"github.com/villetacore/lumen/server/internal/index"
+	"github.com/villetacore/lumen/server/internal/integrations"
 )
 
 // SyncResult reports one run.

@@ -16,9 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
-	"github.com/alexpyslar/lumen/server/internal/markdown"
-	"github.com/alexpyslar/lumen/server/internal/policy"
+	"github.com/villetacore/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/markdown"
+	"github.com/villetacore/lumen/server/internal/policy"
+
+	"github.com/villetacore/lumen/server/internal/state"
 )
 
 // Sealer protects content-bearing values; *state.Store implements it.
@@ -43,12 +45,12 @@ type Event struct {
 
 // Journal writes issue history to the operational store.
 type Journal struct {
-	db   *sql.DB
+	db   *state.DB
 	seal Sealer
 	mu   sync.Mutex // one comparison at a time: snapshot read and write stay together
 }
 
-func New(db *sql.DB, seal Sealer) *Journal { return &Journal{db: db, seal: seal} }
+func New(db *state.DB, seal Sealer) *Journal { return &Journal{db: db, seal: seal} }
 
 var nowFunc = time.Now
 

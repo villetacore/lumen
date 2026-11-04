@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/alexpyslar/lumen/server/internal/passwords"
+	"github.com/villetacore/lumen/server/internal/passwords"
 )
 
 // guardPasswords refuses to serve password data from a server that is reachable

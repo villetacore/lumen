@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/alexpyslar/lumen/server/internal/domain"
+	"github.com/villetacore/lumen/server/internal/domain"
 )
 
 func TestProjectDocumentsAndNestedEntriesSurviveReindex(t *testing.T) {
