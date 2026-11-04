@@ -609,3 +609,10 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 .more-filters > summary { display: inline-flex; align-items: center; min-height: var(--vs-control-height, 40px); padding: 0 12px; border: 1px solid var(--vs-border); background: var(--vs-surface); font-size: .875em; cursor: pointer; }
 .more-filters[open] { flex-basis: 100%; }
 .more-filters-body { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 12px; }
+
+/* Sign-in form */
+.login-form { display: grid; gap: 12px; }
+.login-form .vs-field { margin: 0; }
+.login-otp > summary { font-size: .875em; color: var(--vs-muted); cursor: pointer; }
+.login-otp[open] > summary { margin-bottom: 8px; }
+.login-sso { justify-self: center; font-size: .875em; }
