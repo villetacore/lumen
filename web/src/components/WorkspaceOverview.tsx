@@ -1,39 +1,60 @@
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Stat } from "@villetacore/velessoft-ui";
-import type { Tone } from "@villetacore/velessoft-ui";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
-import type { ViewName } from "../api/types";
 import Icon from "./Icon";
-import { longDate, today } from "../lib/date";
+import { iso, longDate, today } from "../lib/date";
+import { IssueList, byDue } from "../pages/MyIssuesPage";
 
-const metrics: { view: ViewName; label: string; delta: string; tone?: Tone }[] = [
-  { view: "today", label: "На сегодня", delta: "план и сроки" },
-  { view: "inbox", label: "Входящие", delta: "не разобрано", tone: "info" },
-  { view: "overdue", label: "Просрочено", delta: "срок прошёл", tone: "error" },
-  { view: "done", label: "Выполнено", delta: "всего закрыто", tone: "success" },
-];
-
-function Metric({ view, label, delta, tone }: typeof metrics[number]) {
-  const { data, isError } = useQuery({ queryKey: ["tasks", "count", view], queryFn: () => api.tasks({ view, limit: 1 }) });
-  return <Link to={`/view/${view}`}>
-    <Stat label={label} value={data?.total ?? "—"} delta={isError ? "не удалось загрузить" : delta} tone={data?.total ? tone : undefined} />
-  </Link>;
+/** The head of the home page: the date and the two things people start a day with. */
+export default function WorkspaceOverview({ onAdd }: { onAdd: () => void }) {
+  const navigate = useNavigate();
+  // The daily note is created on first open, the way quick capture does it.
+  const daily = useMutation({
+    mutationFn: () => api.daily(iso(today()), true),
+    onSuccess: (n) => navigate(`/note/${n.path}`),
+  });
+  return <div className="page-head">
+    <div>
+      <span className="kicker">{longDate(today())}</span>
+      <h1>Сегодня</h1>
+    </div>
+    <div className="head-actions">
+      <Button onClick={() => daily.mutate()} disabled={daily.isPending}><Icon name="file" size={16} />Заметка дня</Button>
+      <Button variant="primary" onClick={onAdd}><Icon name="plus" size={16} />Новая задача</Button>
+    </div>
+  </div>;
 }
 
-export default function WorkspaceOverview({ onAdd, onDocument }: { onAdd: () => void; onDocument: () => void }) {
-  return <>
-    <div className="page-head">
-      <div>
-        <span className="kicker">Рабочее пространство / {longDate(today())}</span>
-        <h1>Сегодня</h1>
-        <span className="sub">Задачи, сроки и материалы студии в одном месте.</span>
-      </div>
-      <div className="head-actions">
-        <Button onClick={onDocument}><Icon name="file" size={16} />Документ</Button>
-        <Button variant="primary" onClick={onAdd}><Icon name="plus" size={16} />Новая задача</Button>
-      </div>
-    </div>
-    <section className="stats" aria-label="Обзор задач">{metrics.map((m) => <Metric key={m.view} {...m} />)}</section>
-  </>;
+const SHOWN = 5;
+
+/** What is assigned to me across projects, soonest first. Nothing without a login. */
+export function MyTickets() {
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const enabled = !!me?.username;
+  const { data } = useQuery({ queryKey: ["issues", "my", "assigned"], queryFn: () => api.issues({ assignee: "me" }), enabled });
+  const { data: projects } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects, enabled });
+  if (!enabled || !data) return null;
+  const mine = data.items.filter((i) => i.status_category !== "done").sort(byDue);
+  if (!mine.length) return null;
+  const statusName = (key: string, id: string) => projects?.items.find((p) => p.key === key)?.workflow.find((s) => s.id === id)?.name ?? id;
+  return <section className="today-tickets" aria-label="Мои тикеты">
+    <div className="section-title"><h2>Мои тикеты</h2>{mine.length > SHOWN && <Link to="/my">Все {mine.length} <Icon name="chevron" size={14} /></Link>}</div>
+    <IssueList items={mine.slice(0, SHOWN)} empty="" statusName={(i) => statusName(i.project, i.status)} />
+  </section>;
+}
+
+/** The first-run path, until the workspace has a project. */
+export function GettingStarted({ onProject }: { onProject: () => void }) {
+  const { data: projects } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
+  if (!projects || projects.items.length) return null;
+  return <section className="card getting-started" aria-label="С чего начать">
+    <h2>С чего начать</h2>
+    <ol>
+      <li><button className="link-button" onClick={onProject}>Создайте проект</button> — у него сразу будет доска.</li>
+      <li>Добавьте тикеты и назначьте исполнителей.</li>
+      <li>Подключите <Link to="/integrations">календарь и GitLab</Link>, если они нужны.</li>
+    </ol>
+    <p className="hint">Для личных дел есть задачи: поле ниже, без всякого проекта.</p>
+  </section>;
 }

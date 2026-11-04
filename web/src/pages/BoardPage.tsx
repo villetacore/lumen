@@ -122,14 +122,17 @@ export default function BoardPage() {
   };
 
   return <div className="page board-page">
-    <Crumbs items={[{ label: "Трекер", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
+    <Crumbs items={[{ label: "Проекты", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
     <div className="page-head">
-      <div><span className="kicker">Проект {project.key}</span><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
+      <div><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
       <div className="head-actions"><Button variant="primary" onClick={() => setCreating(project.workflow[0].id)}><Icon name="plus" size={16} />Тикет</Button></div>
     </div>
 
     <div className="toolbar issue-filters" role="search" aria-label="Фильтр доски">
       <div className="grow"><Input label="Поиск" placeholder="Название или ключ" value={filter.q ?? ""} onChange={(e) => update({ q: e.target.value })} /></div>
+      <details className="more-filters" open={!!(filter.type || filter.assignee || filter.label?.length || filter.sprint || laneBy !== "none") || undefined}>
+      <summary>Фильтры и дорожки</summary>
+      <div className="more-filters-body">
       <Select label="Тип" value={filter.type ?? ""} onChange={(e) => update({ type: e.target.value })}>
         <option value="">Все</option>
         {project.issue_types.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
@@ -146,6 +149,8 @@ export default function BoardPage() {
         <option value="assignee">По исполнителю</option>
         <option value="epic">По эпику</option>
       </Select>
+      </div>
+      </details>
     </div>
     {shownSprint && <div className="sprint-banner">
       <strong>{shownSprint.name}</strong>
@@ -154,7 +159,7 @@ export default function BoardPage() {
       <Link to={`/tracker/${encodeURIComponent(project.key)}/backlog`}>{shownSprint.state === "active" ? "Завершить в бэклоге" : "Бэклог"}</Link>
     </div>}
     {!active && sprintScope === "all" && !!sprints?.items.length && <p className="hint">Активного спринта нет — доска показывает все тикеты проекта.</p>}
-    <p id="board-keys" className="hint board-hint">Перетащите карточку или нажмите на ней Alt+←/→ (колонка) и Alt+↑/↓ (порядок).</p>
+    <p id="board-keys" className="sr-only">Перетащите карточку или нажмите на ней Alt+←/→ (колонка) и Alt+↑/↓ (порядок).</p>
 
     {isLoading && <Spinner label="Загрузка тикетов" />}
     {error && <Alert tone="error" title="Тикеты не загружены">{errorText(error)}</Alert>}

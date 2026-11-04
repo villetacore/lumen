@@ -214,6 +214,58 @@ func TestIssueUpdateKeepsUnknownFieldsAndComments(t *testing.T) {
 	}
 }
 
+func TestIssueDatesEditChangesOnlyTheirLinesInOneFile(t *testing.T) {
+	s, dir := trackerVault(t)
+	ctx := context.Background()
+	for _, title := range []string{"Первый", "Второй"} {
+		if _, err := s.Create(ctx, IssueInput{Project: "WEB", Title: title, Start: "2026-11-02", Due: "2026-11-05"}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first := filepath.Join(dir, "20-projects/WEB/issues/WEB-1.md")
+	second := filepath.Join(dir, "20-projects/WEB/issues/WEB-2.md")
+	read := func(p string) string {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	// A hand-written link and a comment must outlive the edit.
+	withLink := strings.Replace(read(first), "---\n", "---\nlinks:\n  - blocks: WEB-2\n", 1) + "\n## Комментарии\n\n### 2026-11-02 12:30 · alice ^c-1\nТекст\n"
+	if err := os.WriteFile(first, []byte(withLink), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ix.ReindexPath(ctx, "20-projects/WEB/issues/WEB-1.md"); err != nil {
+		t.Fatal(err)
+	}
+	otherBefore := read(second)
+
+	start, due := "2026-11-03", "2026-11-06"
+	got, err := s.Update(ctx, "WEB-1", IssueUpdate{Start: &start, Due: &due})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Start.String() != start || got.Due.String() != due || len(got.Links) != 1 {
+		t.Fatalf("got %+v", got)
+	}
+	if read(second) != otherBefore {
+		t.Fatal("another issue's file changed")
+	}
+	strip := func(s string) string {
+		var out []string
+		for _, l := range strings.Split(s, "\n") {
+			if !strings.HasPrefix(l, "start:") && !strings.HasPrefix(l, "due:") && !strings.HasPrefix(l, "updated:") {
+				out = append(out, l)
+			}
+		}
+		return strings.Join(out, "\n")
+	}
+	if strip(read(first)) != strip(withLink) {
+		t.Fatalf("other lines changed:\n%s", read(first))
+	}
+}
+
 func TestIssueRevisionConflictAndExternalEdit(t *testing.T) {
 	s, dir := trackerVault(t)
 	ctx := context.Background()

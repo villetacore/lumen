@@ -76,3 +76,20 @@ func TestStaticTokenAlongsideOIDC(t *testing.T) {
 		t.Fatalf("stats без токена: %d", code)
 	}
 }
+
+// A failed login must lead a person to an explanation, not to raw JSON, and the
+// reason must not echo what the provider or the query string said.
+func TestCallbackFailureRedirectsToExplanation(t *testing.T) {
+	f := newOIDCFixture(t, map[string]string{"a.md": "# a\n"})
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	for _, query := range []string{"error=access_denied&error_description=%3Cscript%3E", "state=forged&code=x"} {
+		resp, err := client.Get(f.srv.URL + "/auth/callback?" + query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != "/?auth_error=failed" {
+			t.Errorf("%s: %d → %q", query, resp.StatusCode, resp.Header.Get("Location"))
+		}
+	}
+}

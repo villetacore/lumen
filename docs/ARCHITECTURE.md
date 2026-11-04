@@ -18,7 +18,7 @@ flowchart LR
     Files --> Watch[fsnotify / polling]
     Watch --> Services
     Services --> Connectors[Коннекторы]
-    Connectors --> External[ICS / CalDAV / Nextcloud / GitHub / Gitea]
+    Connectors --> External[ICS / CalDAV / Nextcloud / GitHub / Gitea / GitLab]
 ```
 
 `make app` встраивает production-сборку Vite в `lumend` через `go:embed`.
@@ -39,7 +39,7 @@ flowchart LR
 | `watch` | Изменения файлов, debounce и запасной polling |
 | `httpapi`, `auth` | REST, SSE, Bearer-токены и OIDC-сессии |
 | `integrations` | Коннекторы, конфигурация и cursor/state |
-| `secrets`, `passwords` | Разрешение ссылок на секреты и чтение внешних хранилищ |
+| `secrets`, `passwords` | Разрешение ссылок на секреты и чтение внешних хранилищ; Vaultwarden — напрямую по API ([ADR-0014](adr/0014-vaultwarden-api.md)) |
 | `webui` | Встроенные статические файлы и fallback для маршрутов UI |
 
 HTTP вызывает service; бизнес-операции работают с domain, vault и index.
@@ -81,7 +81,7 @@ CodeMirror запланирован отдельно. API-типы поддер�
 Стили, темы и шрифты описаны в [дизайн-системе](../web/src/design/README.md).
 
 Авторизация допускает локальный режим, статический Bearer-токен и OIDC.
-Все допущенные пользователи видят общий vault; ACL по проектам пока нет.
+Роли пространства и закрытые проекты описаны в [ADR-0012](adr/0012-access-policy.md).
 Шифрование на диске не заменяет авторизацию API.
 
 ## Ограничения текущей поставки

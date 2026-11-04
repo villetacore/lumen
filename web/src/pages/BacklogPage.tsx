@@ -85,9 +85,9 @@ export default function BacklogPage() {
   };
 
   return <div className="page backlog-page" ref={root}>
-    <Crumbs items={[{ label: "Трекер", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
+    <Crumbs items={[{ label: "Проекты", to: "/tracker" }, { label: `${project.key} · ${project.title}` }]} />
     <div className="page-head">
-      <div><span className="kicker">Проект {project.key}</span><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
+      <div><h1>{project.title}</h1><ProjectTabs projectKey={project.key} /></div>
       <div className="head-actions">
         <Button onClick={() => createSprint.mutate()} loading={createSprint.isPending}><Icon name="plus" size={16} />Спринт</Button>
         <Button variant="primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} />Тикет</Button>
