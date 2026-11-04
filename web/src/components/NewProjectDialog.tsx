@@ -13,12 +13,12 @@ const VALID_KEY = /^[A-Z][A-Z0-9]{0,9}$/;
  * follows the name until the person edits it. A project that so far is only a
  * note can get a board here too.
  */
-export default function NewProjectDialog({ onClose }: { onClose: () => void }) {
+export default function NewProjectDialog({ initialNote = "", onClose }: { initialNote?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [typedKey, setTypedKey] = useState<string | null>(null);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialNote);
   const titleInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => titleInput.current?.focus());
@@ -39,7 +39,7 @@ export default function NewProjectDialog({ onClose }: { onClose: () => void }) {
   const validKey = VALID_KEY.test(key);
   const ready = validKey && (!!note || !!title.trim());
 
-  return <Dialog open onClose={() => !create.isPending && onClose()} title="Новый проект" footer={<>
+  return <Dialog open onClose={() => !create.isPending && onClose()} title={initialNote ? "Доска для проекта" : "Новый проект"} footer={<>
     <Button onClick={onClose} disabled={create.isPending}>Отмена</Button>
     <Button type="submit" form="new-project" variant="primary" loading={create.isPending} disabled={!ready}>Создать</Button>
   </>}>
@@ -48,7 +48,7 @@ export default function NewProjectDialog({ onClose }: { onClose: () => void }) {
       <Input label="Ключ" required value={key} maxLength={10} onChange={(e) => setTypedKey(e.target.value.toUpperCase())}
         hint={`Начало номеров тикетов: ${validKey ? key : "WEB"}-1, ${validKey ? key : "WEB"}-2…`}
         error={key && !validKey ? "Латиница и цифры, с буквы: WEB, LUM2" : undefined} />
-      {!!candidates.length && <Select label="Или добавить доску к существующему" value={note} onChange={(e) => setNote(e.target.value)}>
+      {!!candidates.length && !initialNote && <Select label="Или добавить доску к существующему" value={note} onChange={(e) => setNote(e.target.value)}>
         <option value="">Нет, новый проект</option>
         {candidates.map((n) => <option key={n.path} value={n.path}>{n.title}</option>)}
       </Select>}

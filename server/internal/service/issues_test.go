@@ -321,3 +321,53 @@ func TestCreateTrackerProject(t *testing.T) {
 		t.Errorf("existing fields lost:\n%s", data)
 	}
 }
+
+func TestPromoteTaskMakesATicketAndKeepsTheText(t *testing.T) {
+	s, dir := trackerVault(t)
+	ctx := context.Background()
+	notePath := filepath.Join(dir, "10-notes/план.md")
+	body := "# План\n\n  - [ ] Починить вход [due:: 2026-12-01] [prio:: A] #срочно ^abc123\n- [x] Готово ^abc124\nТекст\n"
+	if err := os.MkdirAll(filepath.Dir(notePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(notePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ix.ReindexPath(ctx, "10-notes/план.md"); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.store.Note(ctx, "10-notes/план.md")
+	if err != nil || len(n.Tasks) != 2 {
+		t.Fatalf("задачи: %+v, %v", n, err)
+	}
+	open, closed := n.Tasks[0], n.Tasks[1]
+
+	if _, err := s.PromoteTask(ctx, open.ID, "NOPE", "bob"); err == nil {
+		t.Fatal("неизвестный проект принят")
+	}
+	if data, _ := os.ReadFile(notePath); string(data) != body {
+		t.Fatalf("после отказа файл изменился:\n%s", data)
+	}
+	if _, err := s.PromoteTask(ctx, closed.ID, "WEB", "bob"); !errors.Is(err, ErrInvalid) {
+		t.Errorf("закрытая задача: %v", err)
+	}
+
+	is, err := s.PromoteTask(ctx, open.ID, "WEB", "bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if is.Key != "WEB-1" || is.Title != "Починить вход" || is.Priority != "highest" || is.Due.String() != "2026-12-01" || is.Reporter != "bob" {
+		t.Errorf("тикет: %+v", is)
+	}
+	data, _ := os.ReadFile(notePath)
+	want := "# План\n\n  - [[WEB-1]] Починить вход #срочно\n- [x] Готово ^abc124\nТекст\n"
+	if string(data) != want {
+		t.Errorf("файл:\n%s", data)
+	}
+	if _, err := s.store.Task(ctx, open.ID); err == nil {
+		t.Error("задача осталась задачей")
+	}
+	if _, err := s.PromoteTask(ctx, open.ID, "WEB", "bob"); err == nil {
+		t.Error("повтор создал второй тикет")
+	}
+}

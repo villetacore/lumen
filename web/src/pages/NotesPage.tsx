@@ -13,12 +13,32 @@ type Sort = "folder" | "updated";
 const KIND_LABEL: Record<string, string> = { document: "документ", entry: "запись" };
 const TYPE_LABEL: Record<string, string> = { project: "проект", daily: "день", meeting: "встреча", area: "область", event: "событие" };
 
+type View = "notes" | "meetings" | "imported" | "all";
+const VIEWS: { value: View; label: string }[] = [
+  { value: "notes", label: "Заметки" },
+  { value: "meetings", label: "Встречи и дни" },
+  { value: "imported", label: "Из сервисов" },
+  { value: "all", label: "Все файлы" },
+];
+const IMPORTED = "70-integrations/";
+
+/** Tickets, projects and documents have their own places; "Все файлы" still shows them. */
+function inView(n: NoteSummary, view: View): boolean {
+  if (view === "all") return true;
+  const imported = n.path.startsWith(IMPORTED);
+  if (view === "imported") return imported;
+  if (imported) return false;
+  if (view === "meetings") return n.type === "meeting" || n.type === "daily";
+  return (n.type === "note" || n.type === "area") && n.content_kind !== "document";
+}
+
 export default function NotesPage() {
   const [params, setParams] = useSearchParams();
   const tag = params.get("tag") ?? undefined;
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<Sort>("folder");
   const [creating, setCreating] = useState(false);
+  const view = (VIEWS.some((v) => v.value === params.get("view")) ? params.get("view") : "notes") as View;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["notes", { tag }],
@@ -30,7 +50,8 @@ export default function NotesPage() {
 
   const needle = filter.trim().toLowerCase();
   const items = (data?.items ?? []).filter((n) =>
-    n.content_kind !== "description" && (!needle || n.title.toLowerCase().includes(needle)),
+    // A tag asks for everything that carries it; the views sort out the rest.
+    n.content_kind !== "description" && (tag ? true : inView(n, view)) && (!needle || n.title.toLowerCase().includes(needle)),
   );
 
   return (
@@ -38,10 +59,10 @@ export default function NotesPage() {
       <div className="page-head">
         <div>
           <h1>{tag ? `#${tag}` : "Заметки"}</h1>
-          <span className="sub">Все проекты, документы, записи и заметки из Markdown.</span>
+          <span className="sub">Личные и рабочие записи. Тикеты живут в проектах, а документы — в документации.</span>
         </div>
         <div className="head-actions">
-          <Button variant="primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} />Новый документ</Button>
+          <Button variant="primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} />Новая заметка</Button>
         </div>
       </div>
 
@@ -49,6 +70,7 @@ export default function NotesPage() {
         <div className="grow">
           <Input label="Поиск" type="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Найти по названию" startAddon={<Icon name="search" size={16} />} />
         </div>
+        {!tag && <SegmentedControl label="Что показать" value={view} options={VIEWS} onChange={(v) => setParams(v === "notes" ? {} : { view: v }, { replace: true })} />}
         <SegmentedControl label="Порядок" value={sort} onChange={(v) => setSort(v as Sort)}
           options={[{ value: "folder", label: "По разделам" }, { value: "updated", label: "Недавние" }]} />
         {tag && <Tag onRemove={() => setParams({})} removeLabel={`Сбросить тег ${tag}`}>#{tag}</Tag>}
@@ -79,7 +101,7 @@ export default function NotesPage() {
         </div>
       ))}
 
-      {creating && <NewNoteDialog onClose={() => setCreating(false)} />}
+      {creating && <NewNoteDialog contentKind="entry" onClose={() => setCreating(false)} />}
     </div>
   );
 }
@@ -100,13 +122,13 @@ function NoteRow({ note: n }: { note: NoteSummary }) {
   );
 }
 
-const FOLDER_ORDER = ["Проекты", "Документация", "Рабочие записи", "Встречи", "Дневные заметки", "Другие материалы"];
+const FOLDER_ORDER = ["Проекты", "Документация", "Рабочие заметки", "Встречи", "Дневные заметки", "Другие заметки"];
 
 function groupByFolder(notes: NoteSummary[]): [string, NoteSummary[]][] {
   const groups = new Map<string, NoteSummary[]>();
   for (const n of notes) {
     const folder = n.type === "project" ? "Проекты" : n.content_kind === "document" ? "Документация"
-      : n.content_kind === "entry" ? "Рабочие записи" : n.type === "meeting" ? "Встречи" : n.type === "daily" ? "Дневные заметки" : "Другие материалы";
+      : n.content_kind === "entry" ? "Рабочие заметки" : n.type === "meeting" ? "Встречи" : n.type === "daily" ? "Дневные заметки" : "Другие заметки";
     const list = groups.get(folder) ?? [];
     list.push(n);
     groups.set(folder, list);

@@ -50,11 +50,13 @@ export function GettingStarted({ onProject }: { onProject: () => void }) {
   if (!projects || projects.items.length) return null;
   return <section className="card getting-started" aria-label="С чего начать">
     <h2>С чего начать</h2>
-    <ol>
-      <li><button className="link-button" onClick={onProject}>Создайте проект</button> — у него сразу будет доска.</li>
-      <li>Добавьте тикеты и назначьте исполнителей.</li>
-      <li>Подключите <Link to="/integrations">календарь и GitLab</Link>, если они нужны.</li>
-    </ol>
-    <p className="hint">Для личных дел есть задачи: поле ниже, без всякого проекта.</p>
+    <dl className="system-map">
+      <dt>Проект</dt><dd>Общая работа: доска, тикеты, спринты и документы. <button className="link-button" onClick={onProject}>Создать проект</button></dd>
+      <dt>Тикет</dt><dd>Работа внутри проекта: статус, исполнитель, срок, обсуждение.</dd>
+      <dt>Задача</dt><dd>Быстрое дело для себя: строка с галочкой в любой заметке. Выросла — сделайте её тикетом.</dd>
+      <dt>Документ</dt><dd>Знания, которые остаются: регламенты, описания, решения. В проекте или общие.</dd>
+      <dt>Заметка</dt><dd>Рабочие записи для себя: мысли, протоколы встреч, дневник.</dd>
+    </dl>
+    <p className="hint">Календари, GitLab и другие сервисы подключаются в разделе <Link to="/integrations">Интеграции</Link>.</p>
   </section>;
 }

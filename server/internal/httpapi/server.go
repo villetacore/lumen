@@ -146,6 +146,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tasks/{id}", a.handleGetTask)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", a.handlePatchTask)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", a.handleDeleteTask)
+	mux.HandleFunc("POST /api/v1/tasks/{id}/promote", a.handlePromoteTask)
 
 	mux.HandleFunc("GET /api/v1/tracker/projects", a.handleListTrackerProjects)
 	mux.HandleFunc("POST /api/v1/tracker/projects", a.handleCreateTrackerProject)

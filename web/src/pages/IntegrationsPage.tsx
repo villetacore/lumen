@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Dialog, EmptyState, Input, Select, Spinner, Switch } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import type { Integration, IntegrationKind, SyncResult } from "../api/types";
-import ConfigFields, { SECRET_HELP } from "../components/ConfigFields";
+import ConfigFields, { requiredFilled } from "../components/ConfigFields";
 import Icon from "../components/Icon";
 import { errorText } from "../lib/errors";
 
@@ -42,7 +42,8 @@ function AddDialog({ kinds, onClose }: { kinds: IntegrationKind[]; onClose: () =
       api.syncIntegration(added.id).catch(() => {}).finally(() => qc.invalidateQueries());
     },
   });
-  const ready = !!schema && schema.fields.every((f) => !f.required || values[f.key]?.trim());
+  const ready = !!schema && requiredFilled(schema.fields, values);
+  const groups = [...new Set(kinds.map((k) => k.group ?? "Другое"))];
 
   return <Dialog open onClose={() => !create.isPending && onClose()} title="Подключить сервис" footer={<>
     <Button onClick={onClose} disabled={create.isPending}>Отмена</Button>
@@ -50,21 +51,46 @@ function AddDialog({ kinds, onClose }: { kinds: IntegrationKind[]; onClose: () =
   </>}>
     <form id="new-integration" className="issue-form" onSubmit={(e) => { e.preventDefault(); if (ready) create.mutate(); }}>
       <Select label="Сервис" value={kind} onChange={(e) => { setKind(e.target.value); setValues({}); }}>
-        {kinds.map((k) => <option key={k.kind} value={k.kind}>{k.title}</option>)}
+        {groups.map((g) => <optgroup key={g} label={g}>
+          {kinds.filter((k) => (k.group ?? "Другое") === g).map((k) => <option key={k.kind} value={k.kind}>{k.title}</option>)}
+        </optgroup>)}
       </Select>
       <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} placeholder={schema?.title} />
       {schema && <ConfigFields fields={schema.fields} values={values} onChange={setValues} />}
       <Select label="Как часто обновлять" value={interval} onChange={(e) => setInterval(e.target.value)}>
         {INTERVALS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
       </Select>
-      <p className="hint">{SECRET_HELP}</p>
       {create.isError && <Alert tone="error" title="Не подключено">{errorText(create.error)}</Alert>}
     </form>
   </Dialog>;
 }
 
-function Row({ item, secretKeys }: { item: Integration; secretKeys: Set<string> }) {
+function EditDialog({ item, kind, onClose }: { item: Integration; kind?: IntegrationKind; onClose: () => void }) {
+  const [name, setName] = useState(item.name);
+  const [values, setValues] = useState<Record<string, string>>({});
   const qc = useQueryClient();
+  const fields = kind?.fields ?? [];
+  const save = useMutation({
+    // An empty secret field means "keep it"; the rest is sent as typed.
+    mutationFn: () => api.patchIntegration(item.id, { name, values: Object.fromEntries(Object.entries(values).filter(([k, v]) => v || fields.find((f) => f.key === k)?.type !== "secret")) }),
+    onSuccess: () => { qc.invalidateQueries(); onClose(); api.syncIntegration(item.id).catch(() => {}).finally(() => qc.invalidateQueries()); },
+  });
+  const ready = requiredFilled(fields, values, item.values);
+  return <Dialog open onClose={() => !save.isPending && onClose()} title={`Настройки: ${item.name}`} footer={<>
+    <Button onClick={onClose} disabled={save.isPending}>Отмена</Button>
+    <Button type="submit" form="edit-integration" variant="primary" loading={save.isPending} disabled={!ready}>Сохранить</Button>
+  </>}>
+    <form id="edit-integration" className="issue-form" onSubmit={(e) => { e.preventDefault(); if (ready) save.mutate(); }}>
+      <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} />
+      <ConfigFields fields={fields} values={values} saved={item.values} onChange={setValues} />
+      {save.isError && <Alert tone="error" title="Не сохранено">{errorText(save.error)}</Alert>}
+    </form>
+  </Dialog>;
+}
+
+function Row({ item, kind, secretKeys }: { item: Integration; kind?: IntegrationKind; secretKeys: Set<string> }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const [result, setResult] = useState<SyncResult | null>(null);
   const sync = useMutation({
     mutationFn: () => api.syncIntegration(item.id),
@@ -90,6 +116,7 @@ function Row({ item, secretKeys }: { item: Integration; secretKeys: Set<string> 
       <div className="service-actions">
         <Switch label="Включено" checked={item.enabled} onChange={(e) => toggle.mutate(e.target.checked)} />
         <Button size="sm" onClick={() => sync.mutate()} loading={sync.isPending}>Обновить</Button>
+        <Button size="sm" onClick={() => setEditing(true)}>Настроить</Button>
         <Button size="sm" onClick={() => { if (confirm(`Отключить «${item.name}»? Созданные заметки останутся.`)) remove.mutate(); }}>Отключить</Button>
       </div>
     </div>
@@ -97,6 +124,7 @@ function Row({ item, secretKeys }: { item: Integration; secretKeys: Set<string> 
     {!!facts.length && <p className="service-facts">{facts.map(([k, v]) => <span key={k} title={k}>{v}</span>)}</p>}
     {error && <Alert tone="error" title="Ошибка обновления">{error}</Alert>}
     {result && !result.error && <p className="service-meta">Создано {result.created} · обновлено {result.updated} · событий {result.events} · без изменений {result.skipped}</p>}
+    {editing && <EditDialog item={item} kind={kind} onClose={() => setEditing(false)} />}
   </article>;
 }
 
@@ -113,7 +141,7 @@ export default function IntegrationsPage() {
       <div>
         <span className="kicker">Настройка</span>
         <h1>Интеграции</h1>
-        <span className="sub">GitLab, календари и трекеры. Lumen только читает их: в сервисах ничего не меняется.</span>
+        <span className="sub">GitLab, GitHub, Jira, календари, ленты и любой сервис с JSON API. Lumen только читает их: в сервисах ничего не меняется.</span>
       </div>
       <div className="head-actions">
         <Button onClick={() => reindex.mutate()} loading={reindex.isPending} title="Заново прочитать файлы vault с диска">Перечитать файлы</Button>
@@ -123,9 +151,9 @@ export default function IntegrationsPage() {
     {isLoading && <Spinner label="Загрузка" />}
     {error && <Alert tone="error" title="Не загружено">{errorText(error)}</Alert>}
     {reindex.isError && <Alert tone="error" title="Файлы не перечитаны">{errorText(reindex.error)}</Alert>}
-    {data?.items.length === 0 && <EmptyState title="Ничего не подключено" description="Подключите GitLab или календарь: задачи и события появятся рядом с вашими."
+    {data?.items.length === 0 && <EmptyState title="Ничего не подключено" description="Подключите GitLab, GitHub, календарь или другой сервис: задачи и события появятся рядом с вашими."
       actions={<Button variant="primary" disabled={!kinds} onClick={() => setAdding(true)}>Подключить</Button>} />}
-    <div className="service-list">{data?.items.map((item) => <Row key={item.id} item={item} secretKeys={secretKeys} />)}</div>
+    <div className="service-list">{data?.items.map((item) => <Row key={item.id} item={item} kind={kinds?.items.find((k) => k.kind === item.kind)} secretKeys={secretKeys} />)}</div>
     {adding && kinds && <AddDialog kinds={kinds.items} onClose={() => setAdding(false)} />}
   </div>;
 }

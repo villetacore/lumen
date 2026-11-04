@@ -1,15 +1,18 @@
 import Icon from "../components/Icon";
 import { useEffect, useRef, useState } from "react";
-import { Link, useBeforeUnload, useBlocker, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useBeforeUnload, useBlocker, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { Note, NoteType, Task } from "../api/types";
+import NewProjectDialog from "../components/NewProjectDialog";
 import ParentLink from "../components/ParentLink";
+import ProjectTabs from "../components/ProjectTabs";
 import RelatedContent from "../components/RelatedContent";
 import TaskRow from "../components/TaskRow";
 import QuickAdd from "../components/QuickAdd";
 import Markdown from "../components/Markdown";
 import { errorText, isConflict, isNotFound } from "../lib/errors";
+import { issueUrl, projectUrl } from "../lib/tracker";
 
 /** Edit holds the draft together with the version it was started from. */
 type Edit = { draft: string; baseRevision: number; baseBody: string };
@@ -47,6 +50,7 @@ export default function NotePage() {
   // The draft lives apart from the query: a refetch after an SSE event or a
   // save elsewhere must never overwrite what the person is typing.
   const [edit, setEdit] = useState<Edit | null>(null);
+  const [addingBoard, setAddingBoard] = useState(false);
   const editPath = useRef(path);
   if (editPath.current !== path) {
     editPath.current = path;
@@ -125,18 +129,26 @@ export default function NotePage() {
     return <div className="error">Не удалось открыть материал: {errorText(error)}</div>;
   }
 
+  // A link to the file of a ticket or sprint means the ticket or the sprint.
+  if (note?.type === "issue") return <Navigate to={issueUrl(note.id)} replace />;
+  if (note?.type === "sprint" && note.frontmatter?.project) return <Navigate to={`${projectUrl(String(note.frontmatter.project))}/backlog`} replace />;
+
   const title = note?.title ?? path;
+  const projectKey = note?.type === "project" && note.frontmatter?.key ? String(note.frontmatter.key) : undefined;
   const kind = note?.type === "project" ? "project" : String(note?.frontmatter?.content_kind ?? note?.type ?? "note");
 
   return (
     <div className="note-view">
+      {addingBoard && note && <NewProjectDialog initialNote={note.path} onClose={() => setAddingBoard(false)} />}
       <ParentLink parent={note?.frontmatter?.parent} title={title} kind={kind} />
       <div className="page-head">
         <div>
           <span className="kicker">{KIND_LABEL[kind] ?? TYPE_LABEL[note?.type ?? "note"]}{note?.updated ? ` / изменено ${note.updated.slice(0, 10)}` : ""}</span>
           <h1>{title}</h1>
+          {projectKey && !edit && <ProjectTabs projectKey={projectKey} />}
         </div>
         <div className="head-actions">
+          {note?.type === "project" && !projectKey && !edit && <button className="btn" onClick={() => setAddingBoard(true)}><Icon name="board" size={16} /> Добавить доску</button>}
           {edit ? (
             <>
               <span className="hint">{dirty ? "изменено · Ctrl S — сохранить" : "без изменений"}</span>
