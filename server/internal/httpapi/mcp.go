@@ -55,14 +55,26 @@ func (a *API) mcpHandler() http.Handler {
 		// enough here: only an Authorization header proves the request comes
 		// from an MCP client and not from another site's page (ADR-0013 §3).
 		auth := a.oidc != nil || a.cfg.Token != ""
-		if auth && r.Header.Get("Authorization") == "" || policy.From(r.Context()) == nil {
+		noHeader := r.Header.Get("Authorization") == ""
+		if auth && noHeader || policy.From(r.Context()) == nil {
+			// The address was opened by hand: show how to connect, not an error.
+			if noHeader && a.cfg.ServeUI && opensInBrowser(r) {
+				http.Redirect(w, r, "/connect", http.StatusFound)
+				return
+			}
 			challenge := `Bearer realm="lumen"`
+			message := "Это адрес для MCP-клиента: нужен заголовок Authorization: Bearer"
+			if !noHeader {
+				// RFC 6750 §3.1: the client refreshes or signs in again.
+				challenge += `, error="invalid_token"`
+				message = "токен MCP недействителен или истёк"
+			}
 			if a.oauth != nil {
 				// Tells an MCP client where to start signing in (ADR-0019).
 				challenge += `, resource_metadata="` + a.baseURL(r) + `/.well-known/oauth-protected-resource"`
 			}
 			w.Header().Set("WWW-Authenticate", challenge)
-			writeError(w, http.StatusUnauthorized, "unauthorized", "MCP требует заголовок Authorization: Bearer", nil)
+			writeError(w, http.StatusUnauthorized, "unauthorized", message, nil)
 			return
 		}
 		if !auth {
@@ -71,6 +83,13 @@ func (a *API) mcpHandler() http.Handler {
 		}
 		verify.ServeHTTP(w, r)
 	})
+}
+
+// opensInBrowser tells a page navigation from an MCP client, whose GET asks for
+// an event stream.
+func opensInBrowser(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	return r.Method == http.MethodGet && strings.Contains(accept, "text/html") && !strings.Contains(accept, "text/event-stream")
 }
 
 // mcpContext restores the request's principal inside a tool handler.

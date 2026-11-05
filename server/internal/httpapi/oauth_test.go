@@ -134,6 +134,36 @@ func (f *oidcFixture) mcpStatus(access string) int {
 	return res.StatusCode
 }
 
+func TestMCPAnswersByWhoAsks(t *testing.T) {
+	f := newOIDCFixture(t, policyVault)
+	browser := map[string]string{"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+
+	// Without the web UI there is no page to send a person to.
+	res, _ := f.oauthDo("GET", "/mcp", "", "", "", browser)
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("browser, no UI: %d", res.StatusCode)
+	}
+	f.cfg.ServeUI = true
+	res, _ = f.oauthDo("GET", "/mcp", "", "", "", browser)
+	if res.StatusCode != http.StatusFound || res.Header.Get("Location") != "/connect" {
+		t.Fatalf("browser: %d %q", res.StatusCode, res.Header.Get("Location"))
+	}
+
+	// A client must still get the challenge that starts its sign-in.
+	for _, h := range []map[string]string{{"Accept": "text/event-stream"}, {"Accept": "text/event-stream, text/html"}} {
+		res, _ = f.oauthDo("GET", "/mcp", "", "", "", h)
+		if res.StatusCode != http.StatusUnauthorized || !strings.Contains(res.Header.Get("WWW-Authenticate"), "resource_metadata") {
+			t.Fatalf("client %v: %d %s", h, res.StatusCode, res.Header.Get("WWW-Authenticate"))
+		}
+	}
+
+	// A bad token is not a missing one, and a browser header does not hide it.
+	res, body := f.oauthDo("GET", "/mcp", "", "", "", map[string]string{"Accept": browser["Accept"], "Authorization": "Bearer lum_invalid"})
+	if res.StatusCode != http.StatusUnauthorized || !strings.Contains(res.Header.Get("WWW-Authenticate"), `error="invalid_token"`) || !strings.Contains(body, "недействителен") {
+		t.Fatalf("bad token: %d %s %s", res.StatusCode, res.Header.Get("WWW-Authenticate"), body)
+	}
+}
+
 func TestOAuthDiscovery(t *testing.T) {
 	f := newOIDCFixture(t, policyVault)
 	res, _ := f.oauthDo("POST", "/mcp", "", "application/json", `{}`, nil)

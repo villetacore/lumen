@@ -121,6 +121,9 @@ func (a *API) handleOAuthRegister(w http.ResponseWriter, r *http.Request) {
 		oauthError(w, http.StatusInternalServerError, "server_error", "не удалось зарегистрировать клиента")
 		return
 	}
+	// The next request from this client is /oauth/authorize in a browser: without
+	// it in the log, the sign-in stopped before reaching Lumen.
+	a.log.Info("клиент OAuth зарегистрирован", "client", c.ID, "name", c.Name, "redirects", redirectLabels(c.RedirectURIs))
 	w.Header().Set("Cache-Control", "no-store")
 	// Public clients with PKCE: no secret, whatever the request asked for.
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -131,6 +134,14 @@ func (a *API) handleOAuthRegister(w http.ResponseWriter, r *http.Request) {
 		"response_types":             []string{"code"},
 		"token_endpoint_auth_method": "none",
 	})
+}
+
+func redirectLabels(uris []string) []string {
+	labels := make([]string, len(uris))
+	for i, uri := range uris {
+		labels[i] = oauth.RedirectLabel(uri)
+	}
+	return labels
 }
 
 // authorizeParams is the authorization request, from the query string and again
