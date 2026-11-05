@@ -20,6 +20,8 @@ const (
 	Mentioned Kind = "mentioned" // @you in a description or comment
 	Commented Kind = "commented" // a comment on an issue you watch
 	Status    Kind = "status"    // an issue you watch changed status
+	// Automation: a rule asked to tell you about an issue; Ref is the rule id.
+	Automation Kind = "automation"
 )
 
 // Event is something that happened to an issue. Dedup must be the same for a

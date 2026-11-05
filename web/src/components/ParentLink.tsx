@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useNoteIndex, parentRef } from "../lib/notes";
 import Crumbs, { type Crumb } from "./Crumbs";
 
 /**
@@ -22,6 +23,18 @@ export default function ParentLink({ parent, title, kind }: { parent?: unknown; 
       return { label: note.title, to: `/note/${note.path}` };
     },
   });
+  // The whole way up, so a page deep in a tree shows where it sits.
+  const notes = useNoteIndex();
+  const chain: Crumb[] = [];
+  const seen = new Set<string>();
+  let up = parentRef(data && refKind === "note" ? notes.byPath.get(data.to?.slice("/note/".length) ?? "")?.parent : undefined);
+  while (up?.kind === "note" && !seen.has(up.id)) {
+    seen.add(up.id);
+    const n = notes.byId.get(up.id);
+    if (!n) break;
+    chain.unshift({ label: n.title, to: `/note/${n.path}` });
+    up = parentRef(n.parent);
+  }
   const section: Crumb = kind === "document" ? { label: "Документация", to: "/docs" } : kind === "project" ? { label: "Проекты", to: "/notes" } : { label: "Материалы", to: "/notes" };
-  return <Crumbs items={[section, ...(data ? [data] : []), { label: title }]} />;
+  return <Crumbs items={[section, ...chain, ...(data ? [data] : []), { label: title }]} />;
 }

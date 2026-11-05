@@ -170,7 +170,7 @@ export default function NotePage() {
                 className="btn danger"
                 disabled={remove.isPending}
                 onClick={() => {
-                  if (window.confirm(`Переместить «${title}» в корзину?`)) remove.mutate();
+                  if (window.confirm(`Переместить «${title}» в корзину? Подстраницы останутся и поднимутся на уровень выше.`)) remove.mutate();
                 }}
                 title="Переместить в корзину"
               >
@@ -255,7 +255,7 @@ export default function NotePage() {
               </div>
             )}
 
-            <RelatedContent parent={`note:${note.id}`} />
+            <RelatedContent parent={`note:${note.id}`} subpages={note.frontmatter?.content_kind === "document"} />
             <details className="technical-details"><summary>Дополнительные свойства</summary><Properties note={note} /></details>
           </>
         )

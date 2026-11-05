@@ -223,6 +223,7 @@ func serve(args []string, log *slog.Logger) error {
 	defer pwManager.LockAll()
 
 	api := httpapi.New(cfg, store, v, ix, bus, integrationsSvc, oidcProvider, pwManager, log).WithState(st).WithHistory(journal)
+	go api.RunAutomations(ctx)
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Handler(),

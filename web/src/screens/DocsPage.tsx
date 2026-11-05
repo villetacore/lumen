@@ -8,14 +8,32 @@ import { api } from "../api/client";
 import type { NoteSummary } from "../api/types";
 import Icon, { type IconName } from "../components/Icon";
 import NewNoteDialog from "../components/NewNoteDialog";
+import PageTree from "../components/PageTree";
 import { errorText } from "../lib/errors";
 import { parentRef, useNoteIndex } from "../lib/notes";
 
 type Group = { key: string; label: string; icon: IconName; to?: string; parent?: string; order: number; docs: NoteSummary[] };
-type Sort = "title" | "updated";
+type Sort = "tree" | "title" | "updated";
 
 /** Notes that read as knowledge, not as a journal or a calendar entry. */
 const KNOWLEDGE_TYPES = new Set(["note", "area"]);
+
+/** cycleMembers finds pages whose parents lead back to them: only a hand edit makes these. */
+function cycleMembers(pages: NoteSummary[]): Set<string> {
+  const byId = new Map(pages.map((p) => [p.id, p]));
+  const out = new Set<string>();
+  for (const p of pages) {
+    const seen = new Set<string>();
+    let cur: NoteSummary | undefined = p;
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      const ref = parentRef(cur.parent);
+      cur = ref?.kind === "note" ? byId.get(ref.id) : undefined;
+    }
+    if (cur?.id === p.id) out.add(p.id);
+  }
+  return out;
+}
 
 /**
  * DocsPage is the technical documentation section: every document grouped by
@@ -25,14 +43,23 @@ const KNOWLEDGE_TYPES = new Set(["note", "area"]);
 export default function DocsPage() {
   const notes = useNoteIndex();
   const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<Sort>("title");
+  const [sort, setSort] = useState<Sort>("tree");
   const [withNotes, setWithNotes] = useState(false);
   const [creating, setCreating] = useState<{ parent?: string } | null>(null);
 
   const needle = filter.trim().toLowerCase();
+  const allPages = notes.items.filter((n) => n.content_kind === "document");
+  // The tree shows order and nesting; a search or another order shows a flat list.
+  const asTree = sort === "tree" && !needle;
+  const pageIds = new Set(allPages.map((p) => p.id));
+  const inCycle = cycleMembers(allPages);
+  const nested = (n: NoteSummary) => {
+    const ref = parentRef(n.parent);
+    return asTree && n.content_kind === "document" && ref?.kind === "note" && pageIds.has(ref.id) && !inCycle.has(n.id);
+  };
   const docs = notes.items.filter((n) =>
     (n.content_kind === "document" || (withNotes && !n.content_kind && !n.parent && KNOWLEDGE_TYPES.has(n.type) && !n.path.startsWith("00-inbox/"))) &&
-    (!needle || n.title.toLowerCase().includes(needle) || n.tags.some((t) => t.toLowerCase().includes(needle))),
+    (!needle || n.title.toLowerCase().includes(needle) || n.tags.some((t) => t.toLowerCase().includes(needle))) && !nested(n),
   );
 
   // Documents attached to a task need the task text for their group title.
@@ -46,7 +73,7 @@ export default function DocsPage() {
   for (const d of docs) {
     const ref = parentRef(d.parent);
     let g: Omit<Group, "docs">;
-    if (!ref) {
+    if (!ref || inCycle.has(d.id)) {
       g = d.content_kind === "document"
         ? { key: "general", label: "Общая документация", icon: "book", order: 0 }
         : { key: "knowledge", label: "Заметки базы знаний", icon: "file", order: 3 };
@@ -70,7 +97,7 @@ export default function DocsPage() {
       ? (a, b) => (b.updated ?? "").localeCompare(a.updated ?? "")
       : (a, b) => a.title.localeCompare(b.title, "ru"));
   }
-  const total = notes.items.filter((n) => n.content_kind === "document").length;
+  const total = allPages.length;
 
   return (
     <div className="page">
@@ -90,7 +117,7 @@ export default function DocsPage() {
           <Input label="Поиск" type="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Название или тег" startAddon={<Icon name="search" size={16} />} />
         </div>
         <SegmentedControl label="Порядок" value={sort} onChange={(v) => setSort(v as Sort)}
-          options={[{ value: "title", label: "По алфавиту" }, { value: "updated", label: "Недавние" }]} />
+          options={[{ value: "tree", label: "Дерево" }, { value: "title", label: "По алфавиту" }, { value: "updated", label: "Недавние" }]} />
         <Switch label="Заметки базы знаний" checked={withNotes} onChange={(e) => setWithNotes(e.target.checked)} />
       </div>
 
@@ -129,7 +156,8 @@ export default function DocsPage() {
                     </IconButton>
                   )}
                 </div>
-                <div className="note-list">
+                {asTree && g.key !== "knowledge" && <PageTree pages={allPages} roots={g.docs} rootRef={g.parent} onCreate={(parent) => setCreating({ parent })} />}
+                {(!asTree || g.key === "knowledge") && <div className="note-list">
                   {g.docs.map((d) => (
                     <div key={d.id} className="note-row">
                       <Icon name={d.content_kind === "document" ? "book" : "file"} size={16} />
@@ -139,7 +167,7 @@ export default function DocsPage() {
                       <span className="path">{d.updated?.slice(0, 10)}</span>
                     </div>
                   ))}
-                </div>
+                </div>}
               </section>
             ))}
           </div>

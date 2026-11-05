@@ -39,7 +39,7 @@ type Event struct {
 	Old     string `json:"old,omitempty"`
 	New     string `json:"new,omitempty"`
 	Actor   string `json:"actor,omitempty"`
-	Source  string `json:"source"` // lumen | external
+	Source  string `json:"source"` // lumen | automation | external
 	At      string `json:"at"`
 }
 
@@ -100,10 +100,7 @@ func (j *Journal) Observe(ctx context.Context, n *domain.Note, baseline bool) er
 	if prevHash == n.Hash {
 		return nil // same file: a rescan, a restart, or our own write seen twice
 	}
-	actor, source := "", "external"
-	if p := policy.From(ctx); p != nil {
-		actor, source = p.Username, "lumen"
-	}
+	actor, source := actorSource(ctx)
 	now := nowFunc().UTC().Format(time.RFC3339Nano)
 	cur := Fields(is)
 
@@ -181,10 +178,7 @@ func (j *Journal) Removed(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	actor, source := "", "external"
-	if p := policy.From(ctx); p != nil {
-		actor, source = p.Username, "lumen"
-	}
+	actor, source := actorSource(ctx)
 	project, _, _ := markdown.SplitIssueKey(key)
 	tx, err := j.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -199,6 +193,33 @@ func (j *Journal) Removed(ctx context.Context, path string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// actorSource says who made a change: no principal means an edit outside Lumen.
+func actorSource(ctx context.Context) (actor, source string) {
+	p := policy.From(ctx)
+	switch {
+	case p == nil:
+		return "", "external"
+	case p.Via != "":
+		return p.Username, "automation"
+	}
+	return p.Username, "lumen"
+}
+
+// After returns events newer than id, oldest first: the feed automations read.
+func (j *Journal) After(ctx context.Context, id int64, limit int) ([]Event, error) {
+	return j.query(ctx, `WHERE id > ? ORDER BY id LIMIT ?`, id, limit)
+}
+
+// LastID is the newest event id, 0 for an empty journal.
+func (j *Journal) LastID(ctx context.Context) (int64, error) {
+	if j == nil {
+		return 0, nil
+	}
+	var id sql.NullInt64
+	err := j.db.QueryRowContext(ctx, `SELECT MAX(id) FROM issue_events`).Scan(&id)
+	return id.Int64, err
 }
 
 // Events returns an issue's history, oldest first.

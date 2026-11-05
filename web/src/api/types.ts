@@ -30,6 +30,7 @@ export interface Task {
 export interface NoteSummary {
   parent?: string;
   content_kind?: string;
+  rank?: string;
   id: string;
   path: string;
   title: string;
@@ -256,6 +257,7 @@ export interface WorkflowStatus {
 }
 
 export interface TrackerProject {
+  parent?: string;
   key: string;
   title: string;
   note_id: string;
@@ -312,6 +314,8 @@ export interface Issue {
 
 export interface IssueFilter {
   project?: string;
+  subprojects?: boolean;
+  parent?: string;
   status?: string[];
   category?: StatusCategory | "";
   assignee?: string;
@@ -391,9 +395,11 @@ export interface ProjectAccess {
   open: boolean;
   my_role: WorkspaceRole | "none";
   items: ProjectMember[];
+  /** The ancestor whose list applies; absent when the list is the project's own. */
+  inherited_from?: string;
 }
 
-export type NotificationKind = "assigned" | "mentioned" | "commented" | "status";
+export type NotificationKind = "assigned" | "mentioned" | "commented" | "status" | "automation";
 
 export interface AppNotification {
   id: number;
@@ -406,6 +412,8 @@ export interface AppNotification {
   title: string;
   project: string;
   status: string;
+  /** Name of the automation that sent it. */
+  rule?: string;
 }
 
 export interface Inbox {
@@ -422,7 +430,7 @@ export interface IssueEvent {
   old?: string;
   new?: string;
   actor?: string;
-  source: "lumen" | "external";
+  source: "lumen" | "automation" | "external";
   at: string;
 }
 
@@ -459,4 +467,66 @@ export interface Proposal {
   created_at: string;
   expires_at: string;
   decided_at?: string;
+}
+
+export type AutomationTriggerType = "issue_created" | "status_changed" | "field_changed" | "comment_added" | "schedule";
+
+export interface AutomationSchedule {
+  at: string;
+  weekdays?: number[];
+  tz: string;
+}
+
+export interface AutomationTrigger {
+  type: AutomationTriggerType;
+  from?: string;
+  to?: string;
+  field?: string;
+  schedule?: AutomationSchedule;
+}
+
+export interface AutomationCondition {
+  field: string;
+  op: string;
+  value?: string;
+}
+
+export interface AutomationAction {
+  type: string;
+  value?: string;
+}
+
+export interface AutomationDefinition {
+  name: string;
+  trigger: AutomationTrigger;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+}
+
+export interface AutomationRule extends AutomationDefinition {
+  id: string;
+  project: string;
+  enabled: boolean;
+  owner: string;
+  next_run?: string;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AutomationRunStatus = "running" | "done" | "failed" | "blocked" | "throttled" | "unknown";
+
+export interface AutomationRun {
+  id: number;
+  rule_id: string;
+  rule_name?: string;
+  project: string;
+  occurrence: string;
+  issue?: string;
+  status: AutomationRunStatus;
+  error?: string;
+  actions: number;
+  matched: number;
+  started_at: string;
+  finished_at?: string;
 }

@@ -117,6 +117,7 @@ type oidcFixture struct {
 	cfg    *config.Config
 	tokens map[string]string
 	t      *testing.T
+	api    *API
 }
 
 func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
@@ -151,9 +152,10 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}, OIDCPasswordLogin: true}
-	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).WithHistory(journal).Handler())
+	api := New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).WithHistory(journal)
+	srv := httptest.NewServer(api.Handler())
 	t.Cleanup(srv.Close)
-	return &oidcFixture{srv: srv, cfg: cfg, t: t, tokens: map[string]string{
+	return &oidcFixture{srv: srv, cfg: cfg, t: t, api: api, tokens: map[string]string{
 		"boss":  i.token(t, "boss", []string{"lumen-admin"}, nil),
 		"alice": i.token(t, "alice", nil, []string{"/designers"}),
 		"bob":   i.token(t, "bob", nil, nil),

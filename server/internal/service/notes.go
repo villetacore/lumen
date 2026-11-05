@@ -125,11 +125,18 @@ func (s *Notes) create(ctx context.Context, in CreateInput) (*domain.Note, error
 		}
 	}
 	if in.Parent != "" || in.ContentKind != "" {
-		extra := make(map[string]string, len(in.Extra)+2)
+		extra := make(map[string]string, len(in.Extra)+3)
 		for k, v := range in.Extra {
 			extra[k] = v
 		}
 		extra["parent"], extra["content_kind"] = in.Parent, in.ContentKind
+		if in.ContentKind == "document" {
+			rank, err := s.lastPageRank(ctx, in.Parent)
+			if err != nil {
+				return nil, err
+			}
+			extra["rank"] = rank
+		}
 		in.Extra = extra
 	}
 	rel := strings.TrimPrefix(strings.TrimSpace(in.Path), "/")
@@ -263,6 +270,17 @@ func (s *Notes) Delete(ctx context.Context, idOrPath string) error {
 		return err
 	}
 	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
+		return err
+	}
+	if n.Type == domain.TypeProject {
+		if err := s.checkNoSubprojects(ctx, n); err != nil {
+			return err
+		}
+	}
+	// Children keep their place in the tree and, through it, their project: an
+	// orphan would fall out of a closed project into the open workspace.
+	parent, _ := n.Frontmatter["parent"].(string)
+	if err := reparentChildren(ctx, s.vault, s.ix, s.store, n.ID, parent); err != nil {
 		return err
 	}
 	if err := s.vault.Trash(n.Path); err != nil {

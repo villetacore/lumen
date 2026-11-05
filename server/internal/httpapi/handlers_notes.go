@@ -12,6 +12,7 @@ import (
 type noteSummary struct {
 	Parent      string          `json:"parent,omitempty"`
 	ContentKind string          `json:"content_kind,omitempty"`
+	Rank        string          `json:"rank,omitempty"`
 	ID          string          `json:"id"`
 	Path        string          `json:"path"`
 	Title       string          `json:"title"`
@@ -36,6 +37,7 @@ func summarize(n *domain.Note) noteSummary {
 	}
 	s.Parent, _ = n.Frontmatter["parent"].(string)
 	s.ContentKind, _ = n.Frontmatter["content_kind"].(string)
+	s.Rank, _ = n.Frontmatter["rank"].(string)
 	if !n.Updated.IsZero() {
 		s.Updated = n.Updated.Format("2006-01-02T15:04:05Z07:00")
 	}
@@ -177,6 +179,32 @@ func (a *API) handleDeleteNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type movePageReq struct {
+	ID       string `json:"id"`
+	Parent   string `json:"parent"`
+	Before   string `json:"before"`
+	After    string `json:"after"`
+	Revision int64  `json:"revision"`
+}
+
+// handleMovePage places a page in the tree. The id travels in the body because
+// note routes end in a wildcard path.
+func (a *API) handleMovePage(w http.ResponseWriter, r *http.Request) {
+	var req movePageReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	n, err := a.notes.MovePage(r.Context(), req.ID, service.PageMove{
+		Parent: req.Parent, Before: req.Before, After: req.After, Revision: req.Revision,
+	})
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, summarize(n))
 }
 
 func (a *API) handleDaily(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useRouteParam, useQueryParams } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Badge, Button, EmptyState, Input, Select, Spinner, Table } from "@villetacore/velessoft-ui";
+import { Alert, Badge, Button, EmptyState, Input, Select, Spinner, Switch, Table } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import type { Issue, IssueFilter } from "../api/types";
 import Crumbs from "../components/Crumbs";
@@ -29,13 +29,22 @@ export default function IssuesPage() {
   const [saved, setSaved] = useState<SavedFilter[]>(() => loadSavedFilters(key));
 
   const { data: project, error: projectError } = useQuery({ queryKey: ["tracker", "project", key], queryFn: () => api.trackerProject(key) });
+  const { data: allProjects } = useQuery({ queryKey: ["tracker", "projects"], queryFn: api.trackerProjects });
+  const hasSubprojects = !!allProjects?.items.some((p) => p.parent === project?.key);
+  // Kept outside the filter: the board shares it, and one board cannot show several workflows.
+  const withSub = params.get("tree") === "1";
   const { data, error, isLoading } = useQuery({
-    queryKey: ["issues", key, filter],
+    queryKey: ["issues", key, filter, withSub],
     // "all" is the board's "every sprint" scope, not a sprint id.
-    queryFn: () => api.issues({ ...filter, sprint: filter.sprint === "all" ? undefined : filter.sprint, project: key }),
+    queryFn: () => api.issues({ ...filter, sprint: filter.sprint === "all" ? undefined : filter.sprint, project: key, subprojects: withSub || undefined }),
   });
 
-  const update = (patch: Partial<IssueFilter>) => setParams(filterToParams({ ...filter, ...patch }), { replace: true });
+  const toParams = (f: IssueFilter, tree: boolean) => {
+    const p = filterToParams(f);
+    if (tree) p.set("tree", "1");
+    return p;
+  };
+  const update = (patch: Partial<IssueFilter>) => setParams(toParams({ ...filter, ...patch }, withSub), { replace: true });
   const query = params.toString();
   const activeSaved = saved.find((s) => s.query === query)?.name ?? "";
   const saveCurrent = () => {
@@ -83,6 +92,7 @@ export default function IssuesPage() {
     </div>
 
     <div className="toolbar issue-filters" role="search" aria-label="Фильтр тикетов">
+      {hasSubprojects && <Switch label="С подпроектами" checked={withSub} onChange={(e) => setParams(toParams(filter, e.target.checked), { replace: true })} />}
       <div className="grow"><Input label="Поиск" placeholder="Название или ключ" value={filter.q ?? ""} onChange={(e) => update({ q: e.target.value })} /></div>
       <Select label="Статус" value={filter.category ? `c:${filter.category}` : filter.status?.[0] ?? ""}
         onChange={(e) => { const v = e.target.value; update(v.startsWith("c:") ? { category: v.slice(2) as IssueFilter["category"], status: [] } : { status: v ? [v] : [], category: "" }); }}>
