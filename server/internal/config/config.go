@@ -12,6 +12,8 @@ import (
 )
 
 type Config struct {
+	// Version is the build version (main.version); not a setting.
+	Version   string
 	Addr      string
 	VaultPath string
 	// StateDir holds the operational database (ADR-0011). It must be outside

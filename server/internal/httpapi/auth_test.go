@@ -45,7 +45,7 @@ func TestStaticTokenAlongsideOIDC(t *testing.T) {
 	store := index.NewMemory(v.Root)
 	bus := service.NewBus()
 	ix := service.NewIndexer(v, store, bus, log)
-	handler := New(&config.Config{Token: "s3cret"}, store, v, ix, bus, nil, provider, nil, log).Handler()
+	handler := New(&config.Config{Token: "s3cret", Version: "1.2.3"}, store, v, ix, bus, nil, provider, nil, log).Handler()
 
 	call := func(path, token string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -65,10 +65,10 @@ func TestStaticTokenAlongsideOIDC(t *testing.T) {
 		return id
 	}
 
-	if id := me("s3cret"); id.Mode != "oidc" || !id.Authenticated {
+	if id := me("s3cret"); id.Mode != "oidc" || !id.Authenticated || id.Version != "1.2.3" {
 		t.Fatalf("с токеном: %+v", id)
 	}
-	if id := me("wrong"); id.Authenticated {
+	if id := me("wrong"); id.Authenticated || id.Version != "" {
 		t.Fatalf("с чужим токеном: %+v", id)
 	}
 	if code := call("/api/v1/stats", "s3cret").Code; code != http.StatusOK {

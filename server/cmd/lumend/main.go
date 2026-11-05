@@ -116,6 +116,7 @@ func serve(args []string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	cfg.Version = version
 	if cfg.Verbose {
 		log = newLogger(true)
 	}

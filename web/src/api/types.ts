@@ -166,6 +166,8 @@ export interface Identity {
   logout_url?: string;
   /** Lumen's own sign-in form is available. */
   password_login?: boolean;
+  /** Server build version; only for signed-in users. */
+  version?: string;
 }
 
 export interface PasswordStore {

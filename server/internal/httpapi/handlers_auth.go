@@ -31,6 +31,8 @@ type identity struct {
 	// PasswordLogin says Lumen's own sign-in form is available.
 	PasswordLogin bool   `json:"password_login,omitempty"`
 	LogoutURL     string `json:"logout_url,omitempty"`
+	// Version of the server; only for signed-in users, /api/v1/me is public.
+	Version string `json:"version,omitempty"`
 }
 
 func (a *API) authMode() string {
@@ -76,6 +78,9 @@ func (a *API) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	if p := policy.From(r.Context()); p != nil && id.Authenticated {
 		id.Role = p.Role.String()
+	}
+	if id.Authenticated {
+		id.Version = a.cfg.Version
 	}
 	writeJSON(w, http.StatusOK, id)
 }

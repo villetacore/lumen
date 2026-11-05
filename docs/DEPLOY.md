@@ -76,6 +76,8 @@ PVC на `/vault`, Service на 8787 и Ingress. Для OIDC за внутрен
 | `make app`, `make build`, `make image` | из `git describe`: `lumend 1.2.3-4-gabcdef012`; без тегов — `0.1.0-dev` |
 | `make app VERSION=…` | заданное значение |
 
+Та же версия видна вошедшим мелкой подписью внизу боковой панели веб-клиента.
+
 Выпуск версии — обычный тег на коммите, который уже в `main`:
 
 ```bash

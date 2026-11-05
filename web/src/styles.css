@@ -68,6 +68,9 @@ h3 { font-size: 15px; line-height: 1.3; }
 .nav-item.placeholder:hover { background: transparent; }
 .nav-add { margin-left: auto; }
 .sidebar-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--vs-border); }
+/* Версия нужна при разборе проблем, а не в работе: почти не видна, пока не навести. */
+.sidebar-version { padding: 0 12px 4px; color: var(--vs-muted); font: 9px var(--vs-font-mono); opacity: .4; transition: opacity .15s; }
+.sidebar-version:hover { opacity: 1; }
 .signature { display: flex; align-items: center; gap: 6px; color: var(--vs-muted); font: 11px var(--vs-font-mono); }
 .signature svg { color: var(--vs-text); }
 .mobilebar, .mobile-only, .scrim { display: none !important; }

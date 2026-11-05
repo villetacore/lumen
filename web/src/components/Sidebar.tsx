@@ -117,6 +117,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           : <Signature />}
         <ThemeSwitch />
       </div>
+      {me?.version && <div className="sidebar-version">{me.version}</div>}
       {creating === "entry" && createPortal(<NewNoteDialog contentKind="entry" onClose={() => setCreating(null)} />, document.body)}
       {creating === "note" && createPortal(<NewNoteDialog onClose={() => setCreating(null)} />, document.body)}
       {creating === "issue" && createPortal(<NewIssueDialog onClose={() => setCreating(null)} />, document.body)}
