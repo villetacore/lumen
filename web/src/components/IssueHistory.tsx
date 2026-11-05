@@ -38,7 +38,7 @@ export default function IssueHistory({ issueKey, project }: { issueKey: string; 
   return <ol className="issue-history">
     {items.map((e) => <li key={e.id}>
       <time dateTime={e.at}>{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</time>
-      <span><strong>{e.source === "external" ? "Вне Lumen" : e.actor || "Lumen"}</strong> {what(e, project)}</span>
+      <span><strong>{e.source === "external" ? "Вне Lumen" : e.source === "automation" ? `Автоматизация (${e.actor || "Lumen"})` : e.actor || "Lumen"}</strong> {what(e, project)}</span>
     </li>)}
   </ol>;
 }

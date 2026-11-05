@@ -10,6 +10,7 @@ import NewNoteDialog from "./NewNoteDialog";
 import NewIssueDialog from "./NewIssueDialog";
 import NewProjectDialog from "./NewProjectDialog";
 import { projectUrl } from "../lib/tracker";
+import { buildTree, flattenTree, useCollapsed } from "../lib/tree";
 import { IconButton, Menu } from "@villetacore/velessoft-ui";
 
 const navClass = (active: boolean) => "nav-item" + (active ? " active" : "");
@@ -41,6 +42,8 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   const admin = !me?.role || me.role === "admin";
   const hasBoard = new Set(tracker?.items.map((p) => p.path));
   const notePlain = plain?.items.filter((n) => !hasBoard.has(n.path)) ?? [];
+  const { collapsed, toggle } = useCollapsed("lumen.projects.collapsed");
+  const visibleProjects = flattenTree(buildTree(tracker?.items ?? [], (p) => p.key, (p) => p.parent), collapsed, (p) => p.key);
   const create = (what: "note" | "entry" | "issue" | "project") => { setCreating(what); if (open) onClose(); };
 
   return (
@@ -71,11 +74,19 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
               <Icon name="plus" size={14} />
             </IconButton>
           </div>
-          {tracker?.items.map((p) => (
-            <NavLink key={p.key} href={`${projectUrl(p.key)}/board`} className={navClass(pathname.startsWith(projectUrl(p.key)))}>
-              <span className="icon nav-key">{p.key}</span>
-              {p.title}
-            </NavLink>
+          {visibleProjects.map(({ item: p, depth, children }) => (
+            <div key={p.key} className="nav-tree-row" style={{ paddingLeft: depth * 14 }}>
+              {children.length > 0
+                ? <button type="button" className="tree-toggle" aria-expanded={!collapsed.has(p.key)}
+                    aria-label={`${collapsed.has(p.key) ? "Развернуть" : "Свернуть"} ${p.title}`} onClick={() => toggle(p.key)}>
+                    <Icon name="chevron" size={14} className={collapsed.has(p.key) ? "" : "is-open"} />
+                  </button>
+                : <span className="tree-toggle-space" />}
+              <NavLink href={`${projectUrl(p.key)}/board`} className={navClass(pathname === projectUrl(p.key) || pathname.startsWith(`${projectUrl(p.key)}/`))}>
+                <span className="icon nav-key">{p.key}</span>
+                {p.title}
+              </NavLink>
+            </div>
           ))}
           {notePlain.map((p) => (
             <NavLink key={p.path} href={`/note/${p.path}`} className={({ isActive }) => navClass(isActive)}>

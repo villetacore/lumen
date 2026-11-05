@@ -54,6 +54,9 @@ type Principal struct {
 	Name     string   // for display
 	Groups   []string // without the leading "/"
 	Role     Role     // role in the workspace
+	// Via names what acts on the person's behalf ("automation:<rule>"). Access is
+	// decided by the person's rights; the journal records the difference.
+	Via string
 }
 
 type ctxKey struct{}

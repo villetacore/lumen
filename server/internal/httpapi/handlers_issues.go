@@ -44,9 +44,10 @@ func (a *API) handleGetTrackerProject(w http.ResponseWriter, r *http.Request) {
 }
 
 type createTrackerProjectReq struct {
-	Key   string `json:"key"`
-	Title string `json:"title"`
-	Note  string `json:"note"`
+	Key    string `json:"key"`
+	Title  string `json:"title"`
+	Note   string `json:"note"`
+	Parent string `json:"parent"`
 }
 
 func (a *API) handleCreateTrackerProject(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +56,7 @@ func (a *API) handleCreateTrackerProject(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
 		return
 	}
-	p, err := a.issues.CreateProject(r.Context(), service.ProjectInput{Key: req.Key, Title: req.Title, Note: req.Note})
+	p, err := a.issues.CreateProject(r.Context(), service.ProjectInput{Key: req.Key, Title: req.Title, Note: req.Note, Parent: req.Parent})
 	if err != nil {
 		fail(w, err)
 		return
@@ -63,21 +64,43 @@ func (a *API) handleCreateTrackerProject(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusCreated, p)
 }
 
+type patchTrackerProjectReq struct {
+	Title    *string `json:"title"`
+	Parent   *string `json:"parent"`
+	Revision int64   `json:"revision"`
+}
+
+func (a *API) handlePatchTrackerProject(w http.ResponseWriter, r *http.Request) {
+	var req patchTrackerProjectReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), nil)
+		return
+	}
+	p, err := a.issues.UpdateProject(r.Context(), r.PathValue("key"), service.ProjectUpdate(req))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
 func (a *API) handleListIssues(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	query := domain.IssueQuery{
-		Project:  q.Get("project"),
-		Status:   csvParam(r, "status"),
-		Category: domain.StatusCategory(q.Get("category")),
-		Assignee: meParam(r, q.Get("assignee")),
-		Watcher:  meParam(r, q.Get("watcher")),
-		Type:     q.Get("type"),
-		Labels:   csvParam(r, "label"),
-		Sprint:   q.Get("sprint"),
-		Epic:     q.Get("epic"),
-		Text:     q.Get("q"),
-		Limit:    intParam(r, "limit", 1000),
-		Offset:   intParam(r, "offset", 0),
+		Project:     q.Get("project"),
+		Subprojects: q.Get("subprojects") == "true",
+		Parent:      q.Get("parent"),
+		Status:      csvParam(r, "status"),
+		Category:    domain.StatusCategory(q.Get("category")),
+		Assignee:    meParam(r, q.Get("assignee")),
+		Watcher:     meParam(r, q.Get("watcher")),
+		Type:        q.Get("type"),
+		Labels:      csvParam(r, "label"),
+		Sprint:      q.Get("sprint"),
+		Epic:        q.Get("epic"),
+		Text:        q.Get("q"),
+		Limit:       intParam(r, "limit", 1000),
+		Offset:      intParam(r, "offset", 0),
 	}
 	list, total, err := a.issues.List(r.Context(), query)
 	if err != nil {

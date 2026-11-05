@@ -54,7 +54,7 @@ export default function AccessPage() {
     set.mutate({ kind, name: n, role });
   };
   const drop = (m: ProjectMember) => {
-    const last = access.items.length === 1;
+    const last = access.items.length === 1 && !access.inherited_from;
     const msg = last
       ? `Убрать последнего участника? Проект ${project.key} станет открытым для всего пространства.`
       : `Убрать ${m.kind === "group" ? "группу" : ""} ${m.name} из проекта?`;
@@ -70,9 +70,11 @@ export default function AccessPage() {
     <div className={`access-status ${access.open ? "is-open" : "is-closed"}`}>
       <Icon name={access.open ? "unlock" : "lock"} size={18} />
       <div>
-        <strong>{access.open ? "Открытый проект" : "Закрытый проект"}</strong>
+        <strong>{access.open ? "Открытый проект" : access.inherited_from ? `Доступ как у проекта ${access.inherited_from}` : "Закрытый проект"}</strong>
         <p>{access.open
           ? "Проект видят все в пространстве: читатели читают, участники и администраторы меняют. Добавьте участника, чтобы закрыть проект."
+          : access.inherited_from
+          ? `Подпроект закрыт вместе с ${access.inherited_from}: действует его список. Первое изменение здесь создаст отдельный список на его основе.`
           : "Проект видят только участники ниже и администраторы пространства. Для остальных его тикетов, документов и событий не существует."}</p>
       </div>
       <Badge tone={ROLE_TONE[access.my_role]}>Ваша роль: {ROLE_LABEL[access.my_role]}</Badge>

@@ -115,7 +115,84 @@ func (p *Policy) ofNote(ctx context.Context, ps *projects, n *domain.Note, depth
 	return ""
 }
 
-const parentDepth = 5
+// parentDepth bounds the walk up a page tree, so a cycle edited in by hand ends.
+// It must exceed the deepest tree the service allows (service.maxPageDepth): a page
+// beyond it would stop counting as part of its project.
+const parentDepth = 64
+
+// ProjectParents maps every tracker project to its parent's key, whatever the
+// caller may see: access and cycle checks need the whole chain.
+func (p *Policy) ProjectParents(ctx context.Context) (map[string]string, error) {
+	notes, _, err := p.raw.Notes(ctx, domain.NoteQuery{Type: domain.TypeProject})
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, n := range notes {
+		if tp, ok := markdown.ParseProject(n); ok {
+			out[tp.Key] = tp.Parent
+		}
+	}
+	return out, nil
+}
+
+// accessList finds the members that govern a project: its own, else those of the
+// nearest ancestor that has any, so a subproject of a closed project is closed
+// too (ADR-0020 §2). source is the project the list belongs to, "" when open.
+func (p *Policy) accessList(ctx context.Context, project string, parents map[string]string) ([]Member, string, error) {
+	list, err := p.members.List(ctx, project)
+	if err != nil || len(list) > 0 {
+		return list, project, err
+	}
+	if parents == nil {
+		if parents, err = p.ProjectParents(ctx); err != nil {
+			return nil, "", err
+		}
+	}
+	seen := map[string]bool{project: true}
+	for k := parents[project]; k != "" && !seen[k]; k = parents[k] {
+		seen[k] = true
+		list, err := p.members.List(ctx, k)
+		if err != nil {
+			return nil, "", err
+		}
+		if len(list) > 0 {
+			return list, k, nil
+		}
+	}
+	return nil, "", nil
+}
+
+// CheckReparent decides whether a project may move under newParent. Whoever moves
+// it needs write access there. When the move changes which list governs the
+// project, it changes who can see it, so that takes project admin.
+func (p *Policy) CheckReparent(ctx context.Context, project, newParent string) error {
+	if p == nil {
+		return nil
+	}
+	if newParent != "" {
+		if err := p.CheckProject(ctx, newParent, RoleMember); err != nil {
+			return err
+		}
+	}
+	parents, err := p.ProjectParents(ctx)
+	if err != nil {
+		return err
+	}
+	_, before, err := p.accessList(ctx, project, parents)
+	if err != nil {
+		return err
+	}
+	parents[project] = newParent
+	_, after, err := p.accessList(ctx, project, parents)
+	if err != nil {
+		return err
+	}
+	if before != after {
+		return p.CheckProject(ctx, project, RoleAdmin)
+	}
+	return p.CheckProject(ctx, project, RoleMember)
+}
 
 // roleIn is the principal's effective role in a project ("" — workspace).
 func (p *Policy) roleIn(ctx context.Context, pr *Principal, project string) (Role, error) {
@@ -125,7 +202,7 @@ func (p *Policy) roleIn(ctx context.Context, pr *Principal, project string) (Rol
 	if project == "" || pr.Role == RoleAdmin {
 		return pr.Role, nil
 	}
-	list, err := p.members.List(ctx, project)
+	list, _, err := p.accessList(ctx, project, nil)
 	if err != nil {
 		return RoleNone, err
 	}
@@ -311,6 +388,8 @@ type Access struct {
 	Open    bool     `json:"open"` // no members: the workspace role applies
 	MyRole  string   `json:"my_role"`
 	Members []Member `json:"items"`
+	// InheritedFrom is the ancestor whose list applies; empty for the project's own.
+	InheritedFrom string `json:"inherited_from,omitempty"`
 }
 
 // ProjectAccess lists members; any reader of the project may see who is in it.
@@ -318,11 +397,34 @@ func (p *Policy) ProjectAccess(ctx context.Context, project string) (Access, err
 	if err := p.CheckProject(ctx, project, RoleViewer); err != nil {
 		return Access{}, err
 	}
-	list, err := p.members.List(ctx, project)
+	list, source, err := p.accessList(ctx, project, nil)
 	if err != nil {
 		return Access{}, err
 	}
-	return Access{Open: len(list) == 0, MyRole: p.ProjectRole(ctx, project).String(), Members: list}, nil
+	acc := Access{Open: len(list) == 0, MyRole: p.ProjectRole(ctx, project).String(), Members: list}
+	if source != project {
+		acc.InheritedFrom = source
+	}
+	return acc, nil
+}
+
+// detach gives a project that inherits its access a list of its own, starting
+// from the inherited one, so a first edit cannot lock out everyone else.
+func (p *Policy) detach(ctx context.Context, project, by string) error {
+	list, source, err := p.accessList(ctx, project, nil)
+	if err != nil || source == project {
+		return err
+	}
+	for _, m := range list {
+		r, ok := ParseRole(m.Role)
+		if !ok {
+			continue
+		}
+		if _, err := p.members.Set(ctx, project, m.Kind, m.Name, r, by); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SetMember adds or changes a member; it needs admin in the project. An open
@@ -335,6 +437,9 @@ func (p *Policy) SetMember(ctx context.Context, project, kind, name string, role
 	if pr := From(ctx); pr != nil {
 		by = pr.Username
 	}
+	if err := p.detach(ctx, project, by); err != nil {
+		return Access{}, err
+	}
 	if _, err := p.members.Set(ctx, project, kind, name, role, by); err != nil {
 		return Access{}, err
 	}
@@ -344,6 +449,13 @@ func (p *Policy) SetMember(ctx context.Context, project, kind, name string, role
 // RemoveMember deletes a member; removing the last one reopens the project.
 func (p *Policy) RemoveMember(ctx context.Context, project, kind, name string) (Access, error) {
 	if err := p.CheckProject(ctx, project, RoleAdmin); err != nil {
+		return Access{}, err
+	}
+	by := ""
+	if pr := From(ctx); pr != nil {
+		by = pr.Username
+	}
+	if err := p.detach(ctx, project, by); err != nil {
 		return Access{}, err
 	}
 	if err := p.members.Remove(ctx, project, kind, name); err != nil {

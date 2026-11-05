@@ -65,6 +65,16 @@ func (s *Issues) Projects(ctx context.Context) ([]*domain.TrackerProject, error)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	// A parent the caller cannot see stays unnamed: the child shows as top-level.
+	visible := make(map[string]bool, len(out))
+	for _, p := range out {
+		visible[p.Key] = true
+	}
+	for _, p := range out {
+		if !visible[p.Parent] {
+			p.Parent = ""
+		}
+	}
 	return out, nil
 }
 
@@ -86,9 +96,10 @@ func (s *Issues) Project(ctx context.Context, key string) (*domain.TrackerProjec
 // ProjectInput creates a tracker project, or turns an existing project note
 // into one when Note is set.
 type ProjectInput struct {
-	Key   string
-	Title string
-	Note  string
+	Key    string
+	Title  string
+	Note   string
+	Parent string // key of the parent project
 }
 
 func (s *Issues) CreateProject(ctx context.Context, in ProjectInput) (*domain.TrackerProject, error) {
@@ -103,6 +114,18 @@ func (s *Issues) CreateProject(ctx context.Context, in ProjectInput) (*domain.Tr
 	}
 	if _, err := s.Project(ctx, key); err == nil {
 		return nil, fmt.Errorf("%w: project key %s", errAlreadyExists, key)
+	}
+	parent := strings.ToUpper(strings.TrimSpace(in.Parent))
+	if parent != "" {
+		if _, err := s.Project(ctx, parent); err != nil {
+			return nil, err
+		}
+		if err := s.policy.CheckProject(ctx, parent, policy.RoleMember); err != nil {
+			return nil, err
+		}
+		if err := s.checkProjectParent(ctx, key, parent); err != nil {
+			return nil, err
+		}
 	}
 
 	var rel string
@@ -145,10 +168,124 @@ func (s *Issues) CreateProject(ctx context.Context, in ProjectInput) (*domain.Tr
 		lines = markdown.SetFrontmatterValue(lines, "created", nowFunc().Format(time.RFC3339))
 		lines = markdown.SetFrontmatterValue(lines, "workflow", workflowYAML(domain.DefaultWorkflow()))
 	}
+	lines = markdown.SetFrontmatterValue(lines, "parent_project", parent)
 	if err := s.write(ctx, rel, eol, lines); err != nil {
 		return nil, err
 	}
 	return s.Project(ctx, key)
+}
+
+// maxProjectDepth keeps project trees readable in the menu.
+const maxProjectDepth = 8
+
+// projectParents is the whole project tree, hidden parts included: a cycle through
+// a project the caller cannot see is still a cycle.
+func (s *Issues) projectParents(ctx context.Context) (map[string]string, error) {
+	if s.policy != nil {
+		return s.policy.ProjectParents(ctx)
+	}
+	all, err := s.Projects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(all))
+	for _, p := range all {
+		out[p.Key] = p.Parent
+	}
+	return out, nil
+}
+
+// checkProjectParent refuses a parent that would make a cycle or too deep a tree.
+func (s *Issues) checkProjectParent(ctx context.Context, key, parent string) error {
+	if parent == key {
+		return fmt.Errorf("%w: проект не может быть своим родителем", ErrInvalid)
+	}
+	parents, err := s.projectParents(ctx)
+	if err != nil {
+		return err
+	}
+	depth := 1
+	seen := map[string]bool{}
+	for k := parent; k != "" && !seen[k]; k = parents[k] {
+		if k == key {
+			return fmt.Errorf("%w: %s уже вложен в %s", ErrInvalid, parent, key)
+		}
+		seen[k] = true
+		depth++
+	}
+	var height func(k string, visited map[string]bool) int
+	height = func(k string, visited map[string]bool) int {
+		best := 0
+		visited[k] = true
+		for child, up := range parents {
+			if up == k && !visited[child] {
+				if h := height(child, visited) + 1; h > best {
+					best = h
+				}
+			}
+		}
+		return best
+	}
+	if depth+height(key, map[string]bool{}) > maxProjectDepth {
+		return fmt.Errorf("%w: вложенность проектов — не больше %d уровней", ErrInvalid, maxProjectDepth)
+	}
+	return nil
+}
+
+// ProjectUpdate changes the named project fields; nil leaves a field alone and
+// an empty parent makes the project top-level.
+type ProjectUpdate struct {
+	Title    *string
+	Parent   *string
+	Revision int64
+}
+
+// UpdateProject renames a project or moves it in the tree. Files stay where they
+// are: the tree lives in the "parent_project" key, so no link or issue path changes.
+func (s *Issues) UpdateProject(ctx context.Context, key string, up ProjectUpdate) (*domain.TrackerProject, error) {
+	vaultWrites.Lock()
+	defer vaultWrites.Unlock()
+	p, err := s.Project(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	if up.Revision != 0 && up.Revision != p.Revision {
+		return nil, fmt.Errorf("%w: have %d, want %d", ErrConflict, p.Revision, up.Revision)
+	}
+	if err := s.policy.CheckProject(ctx, p.Key, policy.RoleMember); err != nil {
+		return nil, err
+	}
+	data, err := s.vault.Read(p.Path)
+	if err != nil {
+		return nil, err
+	}
+	eol, lines := splitLines(data)
+	if up.Title != nil {
+		t := strings.TrimSpace(*up.Title)
+		if t == "" {
+			return nil, fmt.Errorf("%w: title is required", ErrInvalid)
+		}
+		lines = markdown.SetFrontmatterValue(lines, "title", t)
+	}
+	if up.Parent != nil {
+		parent := strings.ToUpper(strings.TrimSpace(*up.Parent))
+		if parent != "" {
+			if _, err := s.Project(ctx, parent); err != nil {
+				return nil, err
+			}
+			if err := s.checkProjectParent(ctx, p.Key, parent); err != nil {
+				return nil, err
+			}
+		}
+		if err := s.policy.CheckReparent(ctx, p.Key, parent); err != nil {
+			return nil, err
+		}
+		lines = markdown.SetFrontmatterValue(lines, "parent_project", parent)
+	}
+	if err := s.write(ctx, p.Path, eol, lines); err != nil {
+		return nil, err
+	}
+	return s.Project(ctx, p.Key)
 }
 
 // workflowItem keeps the YAML keys in reading order: id, name, category.
@@ -179,12 +316,20 @@ func (s *Issues) List(ctx context.Context, q domain.IssueQuery) ([]*domain.Issue
 			projects[p.Key] = p
 		}
 	}
+	var inTree map[string]bool
+	if q.Subprojects && q.Project != "" {
+		inTree = subtree(projects, strings.ToUpper(q.Project))
+		q.Project = ""
+	}
 	var out []*domain.Issue
 	for _, is := range all {
 		if p := projects[is.Project]; p != nil {
 			if st, ok := p.Status(is.Status); ok {
 				is.StatusCategory = st.Category
 			}
+		}
+		if inTree != nil && !inTree[is.Project] {
+			continue
 		}
 		if matchIssue(is, q) {
 			out = append(out, is)
@@ -203,6 +348,20 @@ func (s *Issues) List(ctx context.Context, q domain.IssueQuery) ([]*domain.Issue
 		out = out[:q.Limit]
 	}
 	return out, total, nil
+}
+
+// subtree is a project and everything nested under it.
+func subtree(projects map[string]*domain.TrackerProject, root string) map[string]bool {
+	out := map[string]bool{root: true}
+	for grew := true; grew; {
+		grew = false
+		for k, p := range projects {
+			if out[p.Parent] && !out[k] {
+				out[k], grew = true, true
+			}
+		}
+	}
+	return out
 }
 
 func (s *Issues) all(ctx context.Context) ([]*domain.Issue, error) {
@@ -242,6 +401,9 @@ func matchIssue(is *domain.Issue, q domain.IssueQuery) bool {
 		return false
 	}
 	if q.Epic != "" && is.Epic != q.Epic {
+		return false
+	}
+	if q.Parent != "" && is.Parent != q.Parent {
 		return false
 	}
 	for _, l := range q.Labels {
@@ -355,6 +517,10 @@ func (s *Issues) Create(ctx context.Context, in IssueInput, actor string) (*doma
 		return nil, fmt.Errorf("%w: unknown status %q", ErrInvalid, in.Status)
 	}
 	if err := s.checkSprint(ctx, p, strings.TrimSpace(in.Sprint)); err != nil {
+		return nil, err
+	}
+	in.Parent = strings.TrimSpace(in.Parent)
+	if err := s.checkIssueParent(ctx, p, "", in.Parent); err != nil {
 		return nil, err
 	}
 
@@ -496,9 +662,15 @@ func (s *Issues) Update(ctx context.Context, key string, up IssueUpdate) (*domai
 			}
 			set("sprint", strings.TrimSpace(*up.Sprint))
 		}
+		if up.Parent != nil && strings.TrimSpace(*up.Parent) != is.Parent {
+			parent := strings.TrimSpace(*up.Parent)
+			if err := s.checkIssueParent(ctx, p, is.Key, parent); err != nil {
+				return nil, err
+			}
+			set("parent", parent)
+		}
 		for k, v := range map[string]*string{
-			"priority": up.Priority, "assignee": up.Assignee, "epic": up.Epic,
-			"parent": up.Parent, "estimate": up.Estimate,
+			"priority": up.Priority, "assignee": up.Assignee, "epic": up.Epic, "estimate": up.Estimate,
 		} {
 			if v != nil {
 				set(k, strings.TrimSpace(*v))
@@ -538,6 +710,34 @@ func (s *Issues) Update(ctx context.Context, key string, up IssueUpdate) (*domai
 		}
 		return lines, nil
 	})
+}
+
+// checkIssueParent accepts no parent or an issue of the same project that is not
+// the issue itself or nested under it. key is "" for an issue not created yet.
+func (s *Issues) checkIssueParent(ctx context.Context, p *domain.TrackerProject, key, parent string) error {
+	if parent == "" {
+		return nil
+	}
+	seen := map[string]bool{}
+	for k := parent; k != "" && !seen[k]; {
+		if k == key {
+			return fmt.Errorf("%w: подзадача не может быть родителем своего тикета", ErrInvalid)
+		}
+		seen[k] = true
+		n, err := s.note(ctx, k)
+		if err != nil {
+			if k == parent {
+				return err
+			}
+			break // a dangling link further up cannot make a cycle
+		}
+		up := markdown.ParseIssue(n)
+		if k == parent && up.Project != p.Key {
+			return fmt.Errorf("%w: родитель %s из другого проекта", ErrInvalid, parent)
+		}
+		k = up.Parent
+	}
+	return nil
 }
 
 // checkSprint accepts the backlog ("") or an open sprint of the same project.
@@ -695,6 +895,29 @@ func (s *Issues) Delete(ctx context.Context, key string) error {
 	if err := s.policy.CheckNote(ctx, n, policy.RoleMember); err != nil {
 		return err
 	}
+	// What hung on this issue stays in the same place of the tree and the same
+	// project: sub-issues move up, documents go to the project.
+	is := markdown.ParseIssue(n)
+	children, err := s.all(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range children {
+		if c.Parent != is.Key {
+			continue
+		}
+		parent := is.Parent
+		if _, err := s.edit(ctx, c.Key, 0, func(_ *domain.Issue, _ *domain.TrackerProject, lines []string, _ int) ([]string, error) {
+			return markdown.SetFrontmatterValue(lines, "parent", parent), nil
+		}); err != nil {
+			return err
+		}
+	}
+	if p, err := s.Project(ctx, is.Project); err == nil {
+		if err := reparentChildren(ctx, s.vault, s.ix, s.store, n.ID, "note:"+p.NoteID); err != nil {
+			return err
+		}
+	}
 	if err := s.vault.Trash(n.Path); err != nil {
 		return err
 	}
@@ -766,10 +989,17 @@ func (s *Issues) write(ctx context.Context, rel, eol string, lines []string) err
 // actorOf is the username of the caller, "" for background work.
 func actorOf(ctx context.Context) string {
 	if p := policy.From(ctx); p != nil {
+		if p.Via != "" {
+			return AutomationActor
+		}
 		return p.Username
 	}
 	return ""
 }
+
+// AutomationActor signs what a rule writes, so the rule's owner still hears about
+// an assignment or comment a person would otherwise be told of.
+const AutomationActor = "automation"
 
 // watchersOf are the people who follow an issue: its reporter, assignee and
 // explicit watchers.

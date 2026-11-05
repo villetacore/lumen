@@ -17,6 +17,7 @@ type notificationView struct {
 	Title   string `json:"title"`
 	Project string `json:"project"`
 	Status  string `json:"status"`
+	Rule    string `json:"rule,omitempty"` // name of the automation that sent it
 }
 
 func (a *API) handleListNotifications(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +47,9 @@ func (a *API) handleListNotifications(w http.ResponseWriter, r *http.Request) {
 		}
 		item := *v
 		item.Notification = n
+		if n.Kind == notify.Automation && a.automations != nil {
+			item.Rule = a.automations.RuleName(r.Context(), n.Ref)
+		}
 		out = append(out, item)
 		if !n.Read {
 			unread++

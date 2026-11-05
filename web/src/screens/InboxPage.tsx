@@ -15,6 +15,7 @@ const VERB: Record<AppNotification["kind"], string> = {
   mentioned: "упомянул(а) вас в",
   commented: "прокомментировал(а)",
   status: "сменил(а) статус",
+  automation: "сообщает о",
 };
 
 function when(at: string): string {
@@ -37,7 +38,7 @@ export default function InboxPage() {
   });
   const open = (n: AppNotification) => {
     if (!n.read) read.mutate([n.id]);
-    navigate(issueUrl(n.issue) + (n.ref && n.kind !== "status" ? `#${n.ref}` : ""));
+    navigate(issueUrl(n.issue) + (n.ref && n.kind !== "status" && n.kind !== "automation" ? `#${n.ref}` : ""));
   };
 
   return <div className="page">
@@ -62,7 +63,7 @@ export default function InboxPage() {
         <button className="inbox-open" onClick={() => open(n)}>
           <span className="inbox-dot" aria-hidden="true" />
           <span className="inbox-text">
-            <strong>{n.actor || "Кто-то"}</strong> {VERB[n.kind]} <span className="issue-key">{n.issue}</span> «{n.title}»
+            <strong>{n.kind === "automation" ? `Автоматизация «${n.rule ?? "удалена"}»` : n.actor || "Кто-то"}</strong> {VERB[n.kind]} <span className="issue-key">{n.issue}</span> «{n.title}»
             {n.kind === "status" && n.ref && <> → {n.ref}</>}
           </span>
           <time dateTime={n.created_at}>{when(n.created_at)}</time>

@@ -54,6 +54,7 @@ func ParseProject(n *domain.Note) (*domain.TrackerProject, bool) {
 	}
 	p := &domain.TrackerProject{
 		Key: key, Title: n.Title, NoteID: n.ID, Path: n.Path,
+		Parent:     strings.ToUpper(fm.Str("parent_project")),
 		IssueTypes: fm.Strings("issue_types"), Revision: n.Revision,
 	}
 	p.Seq, _ = strconv.Atoi(fm.Str("issue_seq"))

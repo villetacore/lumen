@@ -10,6 +10,7 @@ import type { Issue, IssuePatch, Task, TrackerProject } from "../api/types";
 import Crumbs from "../components/Crumbs";
 import Icon from "../components/Icon";
 import Markdown from "../components/Markdown";
+import SubIssues from "../components/SubIssues";
 import RelatedContent from "../components/RelatedContent";
 import IssueHistory from "../components/IssueHistory";
 import { longDate } from "../lib/date";
@@ -157,6 +158,8 @@ export default function IssuePage() {
             : <p className="hint">Описания нет.</p>}
         </section>
 
+        <SubIssues issue={issue} project={project} />
+
         <RelatedContent parent={`note:${issue.key}`} />
 
         {!!issue.links?.length && <section aria-labelledby="links-title">
@@ -220,6 +223,7 @@ function IssueProps({ issue, project, onPatch, busy }: { issue: Issue; project?:
     <PropText label="Метки" value={issue.labels?.join(", ") ?? ""} onCommit={(v) => onPatch({ labels: splitList(v) })} />
     <PropText label="Спринт" value={issue.sprint ?? ""} onCommit={(v) => onPatch({ sprint: v })} />
     <PropText label="Эпик" value={issue.epic ?? ""} onCommit={(v) => onPatch({ epic: v })} />
+    <PropText label="Родитель" value={issue.parent ?? ""} placeholder="WEB-1" onCommit={(v) => onPatch({ parent: v.toUpperCase() })} />
     <PropText label="Оценка" value={issue.estimate ?? ""} onCommit={(v) => onPatch({ estimate: v })} />
     <PropText label="Story points" type="number" value={issue.points ? String(issue.points) : ""} onCommit={(v) => onPatch({ points: Number(v) || 0 })} />
     <PropText label="Наблюдатели" value={issue.watchers?.join(", ") ?? ""} onCommit={(v) => onPatch({ watchers: splitList(v) })} />

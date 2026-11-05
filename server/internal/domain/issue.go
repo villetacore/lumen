@@ -36,6 +36,7 @@ func DefaultIssueTypes() []string { return []string{"task", "bug", "story", "epi
 type TrackerProject struct {
 	Key         string              `json:"key"`
 	Title       string              `json:"title"`
+	Parent      string              `json:"parent,omitempty"` // key of the parent project
 	NoteID      string              `json:"note_id"`
 	Path        string              `json:"path"`
 	Workflow    []WorkflowStatus    `json:"workflow"`
@@ -120,18 +121,21 @@ type Issue struct {
 }
 
 type IssueQuery struct {
-	Project  string
-	Status   []string
-	Category StatusCategory
-	Assignee string
-	Watcher  string // reporter, assignee or explicit watcher
-	Type     string
-	Labels   []string
-	Sprint   string
-	Epic     string
-	Text     string
-	Limit    int
-	Offset   int
+	Project string
+	// Subprojects widens Project to the projects nested under it.
+	Subprojects bool
+	Parent      string // issues whose parent is this key
+	Status      []string
+	Category    StatusCategory
+	Assignee    string
+	Watcher     string // reporter, assignee or explicit watcher
+	Type        string
+	Labels      []string
+	Sprint      string
+	Epic        string
+	Text        string
+	Limit       int
+	Offset      int
 }
 
 type SprintState string

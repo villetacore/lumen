@@ -3,10 +3,12 @@
 package httpapi
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
 	"github.com/villetacore/lumen/server/internal/auth"
+	"github.com/villetacore/lumen/server/internal/automation"
 	"github.com/villetacore/lumen/server/internal/config"
 	"github.com/villetacore/lumen/server/internal/history"
 	"github.com/villetacore/lumen/server/internal/index"
@@ -38,11 +40,12 @@ type API struct {
 	log    *slog.Logger
 
 	state        *state.Store
-	people       *people.Directory // nil without a state store
-	notify       *notify.Store     // nil without a state store
-	history      *history.Journal  // nil: no issue history
-	proposals    *proposals.Store  // nil without a state store
-	oauth        *oauth.Store      // nil unless people sign in through OIDC
+	people       *people.Directory   // nil without a state store
+	notify       *notify.Store       // nil without a state store
+	history      *history.Journal    // nil: no issue history
+	proposals    *proposals.Store    // nil without a state store
+	oauth        *oauth.Store        // nil unless people sign in through OIDC
+	automations  *automation.Manager // nil without a state store
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -82,6 +85,9 @@ func (a *API) wire(p *policy.Policy) {
 // WithHistory serves the issue journal the indexer writes (LUM-068).
 func (a *API) WithHistory(j *history.Journal) *API {
 	a.history = j
+	if a.automations != nil {
+		a.automations.UseJournal(j)
+	}
 	return a
 }
 
@@ -100,7 +106,16 @@ func (a *API) WithState(st *state.Store) *API {
 		a.bus.Publish(service.Event{Type: "notification", User: recipient})
 	})
 	a.wire(policy.New(a.raw, policy.NewMembers(st.DB())))
+	a.automations = automation.NewManager(automation.NewStore(st.DB(), st), a.issues, a.policy, a.people, a.notify, a.bus, a.log)
+	a.automations.UseJournal(a.history)
 	return a
+}
+
+// RunAutomations works rules off until ctx ends.
+func (a *API) RunAutomations(ctx context.Context) {
+	if a.automations != nil {
+		a.automations.Run(ctx)
+	}
 }
 
 // Handler builds the router with its middleware chain.
@@ -158,6 +173,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PATCH /api/v1/notes/{id...}", a.handlePatchNote)
 	mux.HandleFunc("DELETE /api/v1/notes/{id...}", a.handleDeleteNote)
 	mux.HandleFunc("GET /api/v1/backlinks/{id...}", a.handleBacklinks)
+	mux.HandleFunc("POST /api/v1/pages/move", a.handleMovePage)
 
 	mux.HandleFunc("GET /api/v1/tasks", a.handleListTasks)
 	mux.HandleFunc("POST /api/v1/tasks", a.handleCreateTask)
@@ -169,6 +185,13 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tracker/projects", a.handleListTrackerProjects)
 	mux.HandleFunc("POST /api/v1/tracker/projects", a.handleCreateTrackerProject)
 	mux.HandleFunc("GET /api/v1/tracker/projects/{key}", a.handleGetTrackerProject)
+	mux.HandleFunc("PATCH /api/v1/tracker/projects/{key}", a.handlePatchTrackerProject)
+	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/automations", a.handleListAutomations)
+	mux.HandleFunc("POST /api/v1/tracker/projects/{key}/automations", a.handleCreateAutomation)
+	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/automation-runs", a.handleAutomationRuns)
+	mux.HandleFunc("PATCH /api/v1/automations/{id}", a.handlePatchAutomation)
+	mux.HandleFunc("DELETE /api/v1/automations/{id}", a.handleDeleteAutomation)
+	mux.HandleFunc("POST /api/v1/automations/{id}/run", a.handleRunAutomation)
 	mux.HandleFunc("GET /api/v1/tracker/projects/{key}/sprints", a.handleListSprints)
 	mux.HandleFunc("POST /api/v1/tracker/projects/{key}/sprints", a.handleCreateSprint)
 	mux.HandleFunc("GET /api/v1/sprints/{id}", a.handleGetSprint)

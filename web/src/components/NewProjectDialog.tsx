@@ -13,12 +13,13 @@ const VALID_KEY = /^[A-Z][A-Z0-9]{0,9}$/;
  * follows the name until the person edits it. A project that so far is only a
  * note can get a board here too.
  */
-export default function NewProjectDialog({ initialNote = "", onClose }: { initialNote?: string; onClose: () => void }) {
+export default function NewProjectDialog({ initialNote = "", parent: initialParent = "", onClose }: { initialNote?: string; parent?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [typedKey, setTypedKey] = useState<string | null>(null);
   const [note, setNote] = useState(initialNote);
+  const [parent, setParent] = useState(initialParent);
   const titleInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => titleInput.current?.focus());
@@ -33,13 +34,13 @@ export default function NewProjectDialog({ initialNote = "", onClose }: { initia
   const key = typedKey ?? suggestKey(note ? noteTitle : title);
 
   const create = useMutation({
-    mutationFn: () => api.createTrackerProject({ key, title: note ? undefined : title.trim(), note: note || undefined }),
+    mutationFn: () => api.createTrackerProject({ key, title: note ? undefined : title.trim(), note: note || undefined, parent: parent || undefined }),
     onSuccess: (p) => { qc.invalidateQueries(); onClose(); navigate(`${projectUrl(p.key)}/board`); },
   });
   const validKey = VALID_KEY.test(key);
   const ready = validKey && (!!note || !!title.trim());
 
-  return <Dialog open onClose={() => !create.isPending && onClose()} title={initialNote ? "Доска для проекта" : "Новый проект"} footer={<>
+  return <Dialog open onClose={() => !create.isPending && onClose()} title={initialNote ? "Доска для проекта" : initialParent ? "Новый подпроект" : "Новый проект"} footer={<>
     <Button onClick={onClose} disabled={create.isPending}>Отмена</Button>
     <Button type="submit" form="new-project" variant="primary" loading={create.isPending} disabled={!ready}>Создать</Button>
   </>}>
@@ -51,6 +52,11 @@ export default function NewProjectDialog({ initialNote = "", onClose }: { initia
       {!!candidates.length && !initialNote && <Select label="Или добавить доску к существующему" value={note} onChange={(e) => setNote(e.target.value)}>
         <option value="">Нет, новый проект</option>
         {candidates.map((n) => <option key={n.path} value={n.path}>{n.title}</option>)}
+      </Select>}
+      {!!tracked?.items.length && <Select label="Входит в проект" value={parent} onChange={(e) => setParent(e.target.value)}
+        hint="Подпроект наследует доступ родителя, пока у него нет своего списка участников">
+        <option value="">Нет, самостоятельный</option>
+        {tracked.items.map((p) => <option key={p.key} value={p.key}>{p.key} · {p.title}</option>)}
       </Select>}
       {create.isError && <Alert tone="error" title="Проект не создан">{errorText(create.error)}</Alert>}
     </form>

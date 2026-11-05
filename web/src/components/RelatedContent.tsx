@@ -5,20 +5,21 @@ import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import { errorText } from "../lib/errors";
+import { comparePages } from "../lib/tree";
 import NewNoteDialog from "./NewNoteDialog";
 
 /** RelatedContent lists documents and working entries attached to a project, note or task. */
-export default function RelatedContent({ parent }: { parent: string }) {
+export default function RelatedContent({ parent, subpages = false }: { parent: string; subpages?: boolean }) {
   const [creating, setCreating] = useState<"entry" | "document" | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["notes", { parent }], queryFn: () => api.notes({ parent, limit: 2000 }),
   });
   const entries = (data?.items.filter((n) => n.content_kind !== "description") ?? [])
-    .sort((a, b) => (a.content_kind === b.content_kind ? a.title.localeCompare(b.title, "ru") : a.content_kind === "document" ? -1 : 1));
+    .sort((a, b) => (a.content_kind === b.content_kind ? comparePages(a, b) : a.content_kind === "document" ? -1 : 1));
   return <section className="related-content">
-    <div className="section-head">Документы и записи {entries.length > 0 && <span>{entries.length}</span>}
+    <div className="section-head">{subpages ? "Подстраницы и записи" : "Документы и записи"} {entries.length > 0 && <span>{entries.length}</span>}
       <div className="head-actions">
-        <Button size="sm" onClick={() => setCreating("document")}><Icon name="plus" size={14} />Документ</Button>
+        <Button size="sm" onClick={() => setCreating("document")}><Icon name="plus" size={14} />{subpages ? "Подстраница" : "Документ"}</Button>
         <Button size="sm" onClick={() => setCreating("entry")}><Icon name="plus" size={14} />Заметка</Button>
       </div>
     </div>

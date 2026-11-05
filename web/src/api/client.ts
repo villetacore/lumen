@@ -1,5 +1,8 @@
 import type {
   Agenda,
+  AutomationDefinition,
+  AutomationRule,
+  AutomationRun,
   Identity,
   Inbox,
   Integration,
@@ -167,8 +170,22 @@ export const api = {
 
   trackerProjects: () => request<ListResponse<TrackerProject>>("/tracker/projects"),
   trackerProject: (key: string) => request<TrackerProject>(`/tracker/projects/${encodeURIComponent(key)}`),
-  createTrackerProject: (input: { key: string; title?: string; note?: string }) =>
+  createTrackerProject: (input: { key: string; title?: string; note?: string; parent?: string }) =>
     request<TrackerProject>("/tracker/projects", { method: "POST", body: JSON.stringify(input) }),
+  patchTrackerProject: (key: string, patch: { title?: string; parent?: string; revision?: number }) =>
+    request<TrackerProject>(`/tracker/projects/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  movePage: (move: { id: string; parent?: string; before?: string; after?: string; revision?: number }) =>
+    request<NoteSummary>("/pages/move", { method: "POST", body: JSON.stringify(move) }),
+  automations: (project: string) =>
+    request<ListResponse<AutomationRule> & { can_edit: boolean }>(`/tracker/projects/${encodeURIComponent(project)}/automations`),
+  createAutomation: (project: string, d: AutomationDefinition) =>
+    request<AutomationRule>(`/tracker/projects/${encodeURIComponent(project)}/automations`, { method: "POST", body: JSON.stringify(d) }),
+  patchAutomation: (id: string, patch: { definition?: AutomationDefinition; enabled?: boolean; revision: number }) =>
+    request<AutomationRule>(`/automations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteAutomation: (id: string) => request<void>(`/automations/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  runAutomation: (id: string) => request<void>(`/automations/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  automationRuns: (project: string) =>
+    request<ListResponse<AutomationRun>>(`/tracker/projects/${encodeURIComponent(project)}/automation-runs`),
   issues: (filter: IssueFilter = {}) => request<ListResponse<Issue>>("/issues" + query({ ...filter })),
   issue: (key: string) => request<Issue>(`/issues/${encodeURIComponent(key)}`),
   createIssue: (input: IssueInput) =>
