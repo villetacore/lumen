@@ -1,0 +1,7 @@
+# Разделы автоматических заметок GitHub Release (задача release в workflows/ci.yml).
+changelog:
+  categories:
+    - title: Зависимости
+      labels: [dependencies]
+    - title: Изменения
+      labels: ["*"]

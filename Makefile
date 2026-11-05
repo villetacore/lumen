@@ -2,7 +2,8 @@
 
 VAULT   ?= ./vault-example
 ADDR    ?= 127.0.0.1:8787
-VERSION ?= 0.1.0-dev
+# Из git: на теге v1.2.3 — 1.2.3, между релизами — 1.2.3-4-gabcdef012, без тегов — 0.1.0-dev.
+VERSION ?= $(or $(shell git describe --tags --match 'v[0-9]*' --dirty 2>/dev/null | sed 's/^v//'),0.1.0-dev)
 UI_DIST := server/internal/webui/dist
 IMAGE   ?= lumen:dev
 # make dev работает с копией vault-example, чтобы не портить примеры в git.
@@ -82,7 +83,7 @@ image:
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
 
 build:
-	cd server && go build -o ../dist/lumend ./cmd/lumend
+	cd server && go build -ldflags "-X main.version=$(VERSION)" -o ../dist/lumend ./cmd/lumend
 	cd web && npm run build
 
 fmt:
