@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { navigateTo, startAt, TestRoutes } from "../test/routes";
 import { api, ApiError } from "../api/client";
 import type { Note, NoteSummary } from "../api/types";
 import TaskDescription from "./TaskDescription";
@@ -14,12 +14,12 @@ async function setup(existing = true) {
   vi.spyOn(api, "notes").mockResolvedValue({ items: existing ? [summary] : [], total: existing ? 1 : 0, limit: 200, offset: 0 });
   vi.spyOn(api, "note").mockResolvedValue(note);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([{ path: "/task", element: <TaskDescription parent="task:stable" /> }, { path: "/away", element: <p>Другой экран</p> }], { initialEntries: ["/task"] });
-  render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+  startAt("/task");
+  render(<QueryClientProvider client={client}><TestRoutes routes={{ "/task": <TaskDescription parent="task:stable" />, "/away": <p>Другой экран</p> }} /></QueryClientProvider>);
   fireEvent.click(await screen.findByText(existing ? "Изменить описание" : "Добавить описание"));
   const editor = screen.getByRole("textbox", { name: "Описание задачи" }) as HTMLTextAreaElement;
   fireEvent.change(editor, { target: { value: "Мой черновик" } });
-  return { client, router, editor };
+  return { client, editor };
 }
 
 test("new description is bound to its task and persists", async () => {
@@ -42,12 +42,12 @@ test("external refetch preserves draft and blocks a stale write", async () => {
 
 test("409 keeps text and declining navigation preserves the editor", async () => {
   const put = vi.spyOn(api, "putNoteBody").mockRejectedValue(new ApiError(409, "conflict", "version changed"));
-  const { router, editor } = await setup();
+  const { editor } = await setup();
   fireEvent.click(screen.getByText("Сохранить описание"));
   await screen.findByText(/Описание изменилось/);
   expect(put).toHaveBeenCalledWith("description.md", "Мой черновик", 1);
   vi.spyOn(window, "confirm").mockReturnValue(false);
-  await act(async () => { await router.navigate("/away"); });
-  expect(router.state.location.pathname).toBe("/task");
+  act(() => navigateTo("/away"));
+  expect(window.location.pathname).toBe("/task");
   expect(editor.value).toBe("Мой черновик");
 });

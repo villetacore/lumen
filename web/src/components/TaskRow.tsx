@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "../lib/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { Task, TaskPatch, TaskStatus } from "../api/types";
@@ -76,7 +76,7 @@ export default function TaskRow({ task, noteTitle }: { task: Task; noteTitle?: s
           {due && <Badge tone={dueTone(due)}>{relativeDue(due)}</Badge>}
           {task.estimate && <Badge>{task.estimate}</Badge>}
           {task.project && <Badge tone="info">{task.project}</Badge>}
-          {noteTitle && <Link className="vs-badge vs-neutral" to={`/note/${task.note_path}`} title="Открыть запись с задачей">{noteTitle}</Link>}
+          {noteTitle && <Link className="vs-badge vs-neutral" href={`/note/${task.note_path}`} title="Открыть запись с задачей">{noteTitle}</Link>}
           {open.isError && <span className="hint" role="alert">{errorText(open.error)}</span>}
           {patch.isError && <span className="hint" role="alert">{errorText(patch.error)}</span>}
         </div>

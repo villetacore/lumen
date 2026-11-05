@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import Markdown from "./Markdown";
 
 const mermaid = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
@@ -14,7 +13,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function show(body: string) {
-  return render(<MemoryRouter><Markdown body={body} /></MemoryRouter>);
+  return render(<Markdown body={body} />);
 }
 
 test("mermaid fence is drawn in strict mode", async () => {

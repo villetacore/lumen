@@ -29,7 +29,7 @@
 
 ## Переиспользуемые части
 
-Сохранить React Router и TanStack Query. Разделять код по features, постепенно
+Сохранить Next.js App Router (ADR-0018) и TanStack Query. Разделять код по features, постепенно
 выделить компоненты карточки ресурса, source badge, freshness, списка заданий,
 diff/approval, ошибки запроса и empty state. Единые tokens цветов/отступов и
 компоненты форм нужны до новых экранов; новая state-библиотека сама по себе не нужна.

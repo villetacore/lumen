@@ -13,7 +13,7 @@ npm ci --prefix web
 make dev
 ```
 
-API слушает `127.0.0.1:8787`, Vite — `http://localhost:5173`. При первом запуске
+API слушает `127.0.0.1:8787`, Next — `http://localhost:5173`. При первом запуске
 `vault-example` копируется в `.dev-vault`; повторный запуск сохраняет эту копию.
 `Ctrl+C` останавливает оба процесса. Frontend обновляется автоматически;
 изменения Go требуют перезапуска команды.
@@ -32,7 +32,7 @@ cd web
 npm run dev
 ```
 
-Прокси Vite направляет `/api` на backend. Другой адрес задаётся через
+Dev-сервер Next направляет `/api` на backend. Другой адрес задаётся через
 `LUMEN_API=http://127.0.0.1:8788 npm run dev`.
 `make dev-prod` подключает **боевые данные** и отправляет туда изменения;
 для тестов и скриншотов используйте локальный vault.
@@ -69,7 +69,7 @@ curl -fsS http://127.0.0.1:8788/healthz
 | `server/internal/vault`, `markdown`, `index` | Файлы, формат и индекс в памяти |
 | `server/internal/integrations` | Коннекторы и состояние подключений |
 | `web/src/api`, `hooks` | API-клиент, запросы и live-обновления |
-| `web/src/pages`, `components` | Экраны и общие компоненты |
+| `web/src/screens`, `components` | Экраны и общие компоненты |
 | `web/src/design`, `web/vendor`, `web/public/fonts` | правила Velessoft UI, архивы пакетов, шрифты и лицензии |
 | `spec/testdata` | Golden-фикстуры формата |
 

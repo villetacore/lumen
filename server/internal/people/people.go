@@ -5,6 +5,7 @@ package people
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -122,6 +123,35 @@ func normalize(groups []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// Principal rebuilds a person from the directory, for access that does not carry
+// Keycloak's claims (ADR-0019).
+func (d *Directory) Principal(ctx context.Context, id string) (*policy.Principal, error) {
+	p := &policy.Principal{ID: id}
+	var role string
+	if err := d.db.QueryRowContext(ctx, `SELECT username, name, role FROM users WHERE id = ?`, id).
+		Scan(&p.Username, &p.Name, &role); err != nil {
+		return nil, err
+	}
+	parsed, ok := policy.ParseRole(role)
+	if !ok {
+		return nil, fmt.Errorf("неизвестная роль %q", role)
+	}
+	p.Role = parsed
+	rows, err := d.db.QueryContext(ctx, `SELECT group_name FROM user_groups WHERE user_id = ? ORDER BY group_name`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			return nil, err
+		}
+		p.Groups = append(p.Groups, g)
+	}
+	return p, rows.Err()
 }
 
 // Users lists people, matching q against username, name and email. The

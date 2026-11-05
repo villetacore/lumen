@@ -7,6 +7,7 @@ scripts
 vault-example
 **/node_modules
 web/dist
+web/.next
 server/internal/webui/dist/*
 !server/internal/webui/dist/.gitkeep
 **/.DS_Store

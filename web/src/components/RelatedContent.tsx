@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, Spinner } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
@@ -28,7 +28,7 @@ export default function RelatedContent({ parent }: { parent: string }) {
     {entries.length > 0 && <div className="note-list">
       {entries.map((n) => <div className="note-row" key={n.id}>
         <Icon name={n.content_kind === "document" ? "book" : "file"} size={16} />
-        <Link to={`/note/${n.path}`}>{n.title}</Link>
+        <Link href={`/note/${n.path}`}>{n.title}</Link>
         <Badge tone={n.content_kind === "document" ? "info" : "neutral"}>{n.content_kind === "document" ? "документ" : "заметка"}</Badge>
         {n.open_tasks > 0 && <Badge>{n.open_tasks} задач</Badge>}
         <span className="path">{n.updated?.slice(0, 10)}</span>

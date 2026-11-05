@@ -114,6 +114,7 @@ var policyVault = map[string]string{
 // state store; call makes a request as one of the named users.
 type oidcFixture struct {
 	srv    *httptest.Server
+	cfg    *config.Config
 	tokens map[string]string
 	t      *testing.T
 }
@@ -152,7 +153,7 @@ func newOIDCFixture(t *testing.T, files map[string]string) *oidcFixture {
 	cfg := &config.Config{AdminRoles: []string{"lumen-admin"}, ViewerRoles: []string{"guests"}, OIDCPasswordLogin: true}
 	srv := httptest.NewServer(New(cfg, store, v, ix, bus, nil, provider, nil, log).WithState(st).WithHistory(journal).Handler())
 	t.Cleanup(srv.Close)
-	return &oidcFixture{srv: srv, t: t, tokens: map[string]string{
+	return &oidcFixture{srv: srv, cfg: cfg, t: t, tokens: map[string]string{
 		"boss":  i.token(t, "boss", []string{"lumen-admin"}, nil),
 		"alice": i.token(t, "alice", nil, []string{"/designers"}),
 		"bob":   i.token(t, "bob", nil, nil),

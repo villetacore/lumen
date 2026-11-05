@@ -5,15 +5,26 @@
 package webui
 
 import (
+	"bytes"
 	"embed"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 //go:embed all:dist
 var embedded embed.FS
+
+// placeholder is the param the static export is prebuilt with (see the
+// generateStaticParams of web/src/app). A real address such as /tracker/WEB/board
+// is served from tracker/_/board.html, and the browser reads the real params from
+// the URL.
+const placeholder = "_"
+
+// catchAll lists routes whose last param spans the rest of the path.
+var catchAll = []string{"note"}
 
 // Assets is the dist directory, rooted so paths look like "index.html".
 func Assets() fs.FS {
@@ -30,66 +41,143 @@ func Available() bool {
 	return err == nil
 }
 
-// Handler serves the single-page app: real files when they exist, index.html
-// for client-side routes such as /view/today, and a placeholder when the UI was
+// Handler serves the embedded web client, or a placeholder page when the UI was
 // never built.
 func Handler() http.Handler {
-	assets := Assets()
-	files := http.FileServer(http.FS(assets))
+	if !Available() {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { writePlaceholderPage(w) })
+	}
+	return handlerFor(Assets())
+}
 
+func handlerFor(assets fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !Available() {
-			writePlaceholder(w)
-			return
-		}
 		clean := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-		if clean == "" || clean == "." {
-			clean = "index.html"
-		}
-
-		if _, err := fs.Stat(assets, clean); err != nil {
-			// Unknown path: a deep link belongs to the router, a missing asset
-			// should stay a 404 rather than silently return HTML.
-			// Note routes end in ".md" (/note/20-projects/x.md) but are routes too.
-			if path.Ext(clean) != "" && !strings.HasPrefix(clean, "note/") {
+		name, ok := resolve(assets, clean, r.URL.Query().Has("_rsc"))
+		if !ok {
+			// A missing asset stays a bare 404; an unknown address gets the page.
+			if path.Ext(clean) != "" {
 				http.NotFound(w, r)
 				return
 			}
-			serveIndex(w, assets)
+			serveFile(w, r, assets, "404.html", http.StatusNotFound)
 			return
 		}
-
-		if clean == "index.html" {
-			serveIndex(w, assets)
-			return
-		}
-		// Vite emits content-hashed asset names, so they can be cached hard.
-		if strings.HasPrefix(clean, "assets/") {
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		}
-		files.ServeHTTP(w, r)
+		serveFile(w, r, assets, name, http.StatusOK)
 	})
 }
 
-func serveIndex(w http.ResponseWriter, assets fs.FS) {
-	data, err := fs.ReadFile(assets, "index.html")
-	if err != nil {
-		writePlaceholder(w)
-		return
+// resolve finds the embedded file for a request path. Client-side navigation asks
+// for a page's data next to its address (flagged by _rsc): /calendar.txt or
+// /calendar/__next._tree.txt.
+func resolve(assets fs.FS, clean string, data bool) (string, bool) {
+	if clean == "" || clean == "." {
+		clean = "index"
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	if isFile(assets, clean) {
+		return clean, true
+	}
+	if data {
+		dir, file := path.Split(clean)
+		dir = strings.TrimSuffix(dir, "/")
+		if strings.HasPrefix(file, "__next") {
+			if dir == "" {
+				return clean, isFile(assets, clean)
+			}
+			if prebuilt, ok := prebuiltRoute(assets, dir); ok {
+				name := path.Join(prebuilt, file)
+				return name, isFile(assets, name)
+			}
+			return "", false
+		}
+		if route, isData := strings.CutSuffix(clean, ".txt"); isData {
+			if prebuilt, ok := prebuiltRoute(assets, route); ok {
+				return prebuilt + ".txt", true
+			}
+		}
+		return "", false
+	}
+	if prebuilt, ok := prebuiltRoute(assets, clean); ok {
+		return prebuilt + ".html", true
+	}
+	return "", false
 }
 
-func writePlaceholder(w http.ResponseWriter) {
+// prebuiltRoute maps a page address to the name it was exported under, with the
+// placeholder in place of params. It reports false when no such page exists.
+func prebuiltRoute(assets fs.FS, route string) (string, bool) {
+	if isFile(assets, route+".html") {
+		return route, true
+	}
+	segments := strings.Split(route, "/")
+	for _, root := range catchAll {
+		if segments[0] == root && len(segments) > 1 {
+			prebuilt := root + "/" + placeholder
+			return prebuilt, isFile(assets, prebuilt+".html")
+		}
+	}
+	// Static segments win over params, so walk the tree one level at a time.
+	prebuilt := ""
+	for i, segment := range segments {
+		exact := path.Join(prebuilt, segment)
+		param := path.Join(prebuilt, placeholder)
+		switch {
+		case i == len(segments)-1 && isFile(assets, exact+".html"):
+			prebuilt = exact
+		case i == len(segments)-1:
+			prebuilt = param
+		case isDir(assets, exact):
+			prebuilt = exact
+		case isDir(assets, param):
+			prebuilt = param
+		default:
+			return "", false
+		}
+	}
+	return prebuilt, isFile(assets, prebuilt+".html")
+}
+
+func isFile(assets fs.FS, name string) bool {
+	info, err := fs.Stat(assets, name)
+	return err == nil && !info.IsDir()
+}
+
+func isDir(assets fs.FS, name string) bool {
+	info, err := fs.Stat(assets, name)
+	return err == nil && info.IsDir()
+}
+
+func serveFile(w http.ResponseWriter, r *http.Request, assets fs.FS, name string, status int) {
+	data, err := fs.ReadFile(assets, name)
+	if err != nil {
+		writePlaceholderPage(w)
+		return
+	}
+	// Next emits content-hashed asset names, so they can be cached hard. Pages and
+	// their data must follow a new build at once.
+	switch {
+	case strings.HasPrefix(name, "_next/static/"):
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	case strings.HasSuffix(name, ".html"), strings.HasSuffix(name, ".txt"):
+		w.Header().Set("Cache-Control", "no-store")
+	}
+	if status != http.StatusOK {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(status)
+		_, _ = w.Write(data)
+		return
+	}
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(data))
+}
+
+func writePlaceholderPage(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(placeholder))
+	_, _ = w.Write([]byte(placeholderPage))
 }
 
-const placeholder = `<!doctype html>
+const placeholderPage = `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><title>Lumen</title>
 <style>
  body{font:14px/1.6 system-ui,sans-serif;max-width:640px;margin:12vh auto;padding:0 24px;

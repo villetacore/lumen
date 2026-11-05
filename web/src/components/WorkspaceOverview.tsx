@@ -1,10 +1,10 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "../lib/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import Icon from "./Icon";
 import { iso, longDate, today } from "../lib/date";
-import { IssueList, byDue } from "../pages/MyIssuesPage";
+import { IssueList, byDue } from "../screens/MyIssuesPage";
 
 /** The head of the home page: the date and the two things people start a day with. */
 export default function WorkspaceOverview({ onAdd }: { onAdd: () => void }) {
@@ -39,7 +39,7 @@ export function MyTickets() {
   if (!mine.length) return null;
   const statusName = (key: string, id: string) => projects?.items.find((p) => p.key === key)?.workflow.find((s) => s.id === id)?.name ?? id;
   return <section className="today-tickets" aria-label="Мои тикеты">
-    <div className="section-title"><h2>Мои тикеты</h2>{mine.length > SHOWN && <Link to="/my">Все {mine.length} <Icon name="chevron" size={14} /></Link>}</div>
+    <div className="section-title"><h2>Мои тикеты</h2>{mine.length > SHOWN && <Link href="/my">Все {mine.length} <Icon name="chevron" size={14} /></Link>}</div>
     <IssueList items={mine.slice(0, SHOWN)} empty="" statusName={(i) => statusName(i.project, i.status)} />
   </section>;
 }
@@ -57,6 +57,6 @@ export function GettingStarted({ onProject }: { onProject: () => void }) {
       <dt>Документ</dt><dd>Знания, которые остаются: регламенты, описания, решения. В проекте или общие.</dd>
       <dt>Заметка</dt><dd>Рабочие записи для себя: мысли, протоколы встреч, дневник.</dd>
     </dl>
-    <p className="hint">Календари, GitLab и другие сервисы подключаются в разделе <Link to="/integrations">Интеграции</Link>.</p>
+    <p className="hint">Календари, GitLab и другие сервисы подключаются в разделе <Link href="/integrations">Интеграции</Link>.</p>
   </section>;
 }

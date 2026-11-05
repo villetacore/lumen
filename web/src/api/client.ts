@@ -12,6 +12,8 @@ import type {
   IssuePatch,
   Person,
   PersonGroup,
+  McpConnection,
+  McpConnectionInfo,
   Proposal,
   ProjectAccess,
   WorkspaceRole,
@@ -201,6 +203,13 @@ export const api = {
   notifications: (unread = false) => request<Inbox>("/notifications" + query({ unread: unread || undefined })),
   readNotifications: (ids?: number[]) =>
     request<void>("/notifications/read", { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
+  mcpConnection: () => request<McpConnectionInfo>("/mcp/connection"),
+  mcpConnections: () => request<{ items: McpConnection[] }>("/mcp/connections"),
+  mcpDisconnect: (id: string) => request<void>(`/mcp/connections/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  consentInfo: (clientId: string, redirectUri: string) =>
+    request<{ client_name: string; redirect_host: string }>("/oauth/consent" + query({ client_id: clientId, redirect_uri: redirectUri })),
+  consent: (body: Record<string, string | boolean>) =>
+    request<{ redirect_to: string }>("/oauth/consent", { method: "POST", body: JSON.stringify(body) }),
   proposals: (pending = false) => request<ListResponse<Proposal>>("/proposals" + query({ pending: pending || undefined })),
   approveProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/approve`, { method: "POST" }),
   rejectProposal: (id: string) => request<Proposal>(`/proposals/${encodeURIComponent(id)}/reject`, { method: "POST" }),

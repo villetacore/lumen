@@ -34,8 +34,8 @@ dev: web/node_modules
 	  wait
 
 # Локальный веб-клиент против боевого сервера: удобно править интерфейс на
-# настоящих данных. Изменения уходят в боевой vault. Токен добавляет прокси Vite
-# (web/vite.config.ts), в браузер он не попадает.
+# настоящих данных. Изменения уходят в боевой vault. Токен добавляет dev-сервер
+# Next (web/src/proxy.dev.ts), в браузер он не попадает.
 dev-prod: web/node_modules
 	@token="$${LUMEN_TOKEN:-$$(cat $(TOKEN_FILE) 2>/dev/null)}"; \
 	  test -n "$$token" || { echo "нет токена: LUMEN_TOKEN или $(TOKEN_FILE)"; exit 1; }; \
@@ -90,6 +90,6 @@ fmt:
 	cd desktop/core && cargo fmt
 
 clean:
-	rm -rf dist web/dist $(UI_DIST)
+	rm -rf dist web/dist web/.next $(UI_DIST)
 	mkdir -p $(UI_DIST)
 	printf '%s\n' 'Сюда make app копирует собранный веб-клиент из web/dist.' > $(UI_DIST)/.gitkeep

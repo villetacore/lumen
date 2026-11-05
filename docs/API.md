@@ -30,6 +30,24 @@
 | `GET` | `/api/v1/stats` | Кол-во заметок, задач, время индексации, режим сервера |
 | `POST` | `/api/v1/reindex` | Полная переиндексация vault |
 
+## Подключение MCP-клиентов
+
+Решение — [ADR-0019](adr/0019-oauth-for-mcp.md). Работает при входе через OIDC, иначе
+эндпоинты OAuth отвечают 404.
+
+| Метод и путь | Назначение |
+|---|---|
+| `GET /.well-known/oauth-protected-resource[/mcp]` | Метаданные ресурса (RFC 9728), без входа |
+| `GET /.well-known/oauth-authorization-server` | Метаданные сервера авторизации (RFC 8414), без входа |
+| `POST /oauth/register` | Регистрация публичного клиента (RFC 7591), без входа |
+| `GET /oauth/authorize` | Проверка запроса и переход на экран разрешения |
+| `POST /oauth/token` | Обмен кода с PKCE и обновление токена |
+| `GET /api/v1/oauth/consent` | Что показать на экране разрешения |
+| `POST /api/v1/oauth/consent` | Ответ человека; только с этого же сайта, возвращает `redirect_to` |
+| `GET /api/v1/mcp/connection` | Адрес `/mcp` и способ входа: `oauth`, `token`, `none` |
+| `GET /api/v1/mcp/connections` | Мои подключённые клиенты |
+| `DELETE /api/v1/mcp/connections/{id}` | Отключить своего клиента; чужой — 404 |
+
 ## Заметки
 
 | Метод | Путь | Описание |

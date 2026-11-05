@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { useBeforeUnload, useBlocker } from "react-router-dom";
+import { useState } from "react";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useLeaveGuard } from "../lib/navigationGuard";
 import { errorText, isConflict } from "../lib/errors";
 import Markdown from "./Markdown";
 import { Alert, Button, Spinner } from "@villetacore/velessoft-ui";
@@ -14,14 +15,7 @@ export default function TaskDescription({ parent, externalDirty = false }: { par
   const content = useQuery({ queryKey: ["note", summary?.path], queryFn: () => api.note(summary!.path), enabled: !!summary });
   const [edit, setEdit] = useState<{ body: string; base: string; revision: number; path?: string } | null>(null);
   const dirty = !!edit && edit.body !== edit.base;
-  useBeforeUnload((e) => { if (dirty || externalDirty) e.preventDefault(); });
-  const blocker = useBlocker(() => dirty || externalDirty);
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      if (window.confirm("Есть несохранённые изменения. Уйти без сохранения?")) blocker.proceed();
-      else blocker.reset();
-    }
-  }, [blocker.state]);
+  useLeaveGuard(dirty || externalDirty, "Есть несохранённые изменения. Уйти без сохранения?");
   const save = useMutation({
     mutationFn: () => edit!.path
       ? api.putNoteBody(edit!.path, edit!.body, edit!.revision)

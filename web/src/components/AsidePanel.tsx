@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DOW_SHORT, addDays, iso, monthTitle, startOfWeek, today } from "../lib/date";
@@ -59,7 +59,7 @@ export default function AsidePanel() {
       {todayEvents.map((e) => (
         <div key={e.id} className="agenda-item">
           <time>{e.all_day ? "весь день" : e.start.slice(11, 16)}</time>
-          {e.path ? <Link to={`/note/${e.path}`}>{e.title}</Link> : <span>{e.title}</span>}
+          {e.path ? <Link href={`/note/${e.path}`}>{e.title}</Link> : <span>{e.title}</span>}
         </div>
       ))}
     </aside>

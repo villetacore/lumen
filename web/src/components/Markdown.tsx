@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../lib/navigation";
 import type { Task } from "../api/types";
 import { isOverdue, isToday, relativeDue } from "../lib/date";
 import MermaidBlock from "./MermaidBlock";
@@ -262,7 +262,7 @@ function inline(text: string): ReactNode[] {
       const target = m[3].trim();
       const label = m[5] || target + (m[4] && m[4] !== "#" ? ` › ${m[4].slice(1)}` : "") || m[4];
       out.push(
-        <Link key={k} className="wikilink" to={target ? `/note/${notePath(target)}` : "#"}>
+        <Link key={k} className="wikilink" href={target ? `/note/${notePath(target)}` : "#"}>
           {label}
         </Link>,
       );
@@ -279,7 +279,7 @@ function inline(text: string): ReactNode[] {
     } else if (m[15] !== undefined) {
       out.push(m[14]);
       out.push(
-        <Link key={k} className="md-tag" to={`/notes?tag=${encodeURIComponent(m[15])}`}>
+        <Link key={k} className="md-tag" href={`/notes?tag=${encodeURIComponent(m[15])}`}>
           #{m[15]}
         </Link>,
       );
@@ -308,7 +308,7 @@ function link(key: number, label: string, href: string): ReactNode {
   if (!/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("//")) {
     const path = decodeURIComponentSafe(href.split("#")[0]);
     return (
-      <Link key={key} className="wikilink" to={`/note/${notePath(path)}`}>
+      <Link key={key} className="wikilink" href={`/note/${notePath(path)}`}>
         {inline(label)}
       </Link>
     );

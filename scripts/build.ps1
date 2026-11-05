@@ -2,7 +2,7 @@
 .SYNOPSIS
     Собирает Lumen в один бинарник со вшитым веб-интерфейсом.
 .DESCRIPTION
-    Веб-клиент компилируется Vite, копируется в server/internal/webui/dist и
+    Веб-клиент собирается статическим экспортом Next.js, копируется в server/internal/webui/dist и
     вшивается в бинарник через go:embed. Результат — dist/lumend(.exe),
     которому не нужны ни node, ни отдельный фронтенд.
 .EXAMPLE
