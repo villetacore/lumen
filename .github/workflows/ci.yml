@@ -1,5 +1,5 @@
-# Открытый CI: проверки на каждый push и pull request, с main — образ в ghcr.io,
-# с тега версии — образ с тегами версии и GitHub Release.
+# Открытый CI: проверки на каждый push и pull request. Коммит в main после проверок
+# получает следующую версию: git-тег, образ в ghcr.io и GitHub Release.
 # Деплоя здесь нет: тег образа подхватывает пайплайн зеркала (docs/DEPLOY.md).
 name: ci
 
@@ -81,14 +81,11 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-  # Какую версию вшить и какими тегами публиковать образ.
+  # Какую версию вшить в проверочную сборку; номер релиза выдаёт publish.
   version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
-      tags: ${{ steps.meta.outputs.tags }}
-      prerelease: ${{ steps.meta.outputs.prerelease }}
-      latest: ${{ steps.meta.outputs.latest }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -98,9 +95,7 @@ jobs:
       - id: meta
         run: |
           if [ "$GITHUB_REF_TYPE" != tag ]; then
-            # <sha12> — контракт с выкаткой: mirror:sync считает тот же тег из SHA.
-            sha12=${GITHUB_SHA::12}
-            printf 'version=%s\ntags=%s main\n' "$sha12" "$sha12" >> "$GITHUB_OUTPUT"
+            echo "version=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Релиз только из main: версия не должна содержать непроверенный код.
@@ -136,41 +131,89 @@ jobs:
           docker logs lumen
           exit 1
 
-  # Образ для всех. С main — ghcr.io/villetacore/lumen:<12 символов SHA> и :main,
-  # с тега версии — :X.Y.Z и плавающие :X.Y, :X, :latest; <sha12> и :main тег не
-  # трогает, у этого коммита они уже есть и в них вшит SHA.
-  # Выкатку этот CI не делает — тег подхватывает пайплайн зеркала (docs/DEPLOY.md).
+  # Образ для всех. Каждый коммит в main получает следующую patch-версию и один образ
+  # с тегами <12 символов SHA>, main, X.Y.Z и плавающими X.Y, X, latest. Git-тег версии,
+  # отправленный вручную, — только теги версии: так выпускают minor, major и pre-release.
+  # Выкатку этот CI не делает — тег <sha12> подхватывает пайплайн зеркала (docs/DEPLOY.md).
   publish:
     # push бывает только в main и в тег версии, см. on: выше.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [version, image, public-only]
+    needs: [image, public-only]
     permissions:
-      contents: read
+      contents: write
       packages: write
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-      TAGS: ${{ needs.version.outputs.tags }}
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+      latest: ${{ steps.release.outputs.latest }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Нужны все теги и origin/main.
+          fetch-depth: 0
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Тег создаётся здесь, после всех проверок: у упавшего коммита версии нет. Тег от
+      # GITHUB_TOKEN нового прогона не запускает, поэтому образ собирается в этом же.
+      # Сбой здесь не должен мешать выкатке: <sha12> и main публикуются в любом случае.
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha12=${GITHUB_SHA::12}
+          stable='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag=$GITHUB_REF_NAME
+            prefix=
+          else
+            prefix="$sha12 main "
+            # Повторный запуск берёт уже выданную версию.
+            tag=$(git tag --points-at "$GITHUB_SHA" | grep -E "$stable" | sort -V | tail -n 1)
+            # Старый коммит новую версию не получает: latest ушёл бы назад.
+            if [ -z "$tag" ] && [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+              next=$(git tag -l | bash scripts/release-next.sh)
+              if gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$next" -f "sha=$GITHUB_SHA" >/dev/null; then
+                tag=$next
+              else
+                echo "::warning::не удалось создать тег $next: образ только с тегами $sha12 и main"
+              fi
+            fi
+          fi
+          if [ -z "$tag" ]; then
+            printf 'released=false\nversion=%s\ntags=%s main\n' "$sha12" "$sha12" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'released=true\ntag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+          git tag -l | bash scripts/release-meta.sh "$tag" | sed "s/^tags=/tags=$prefix/" >> "$GITHUB_OUTPUT"
       - name: build and push
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAGS: ${{ steps.release.outputs.tags }}
+          RELEASED: ${{ steps.release.outputs.released }}
         run: |
           img=ghcr.io/${GITHUB_REPOSITORY,,}
           # Опубликованная версия неизменна: повторный запуск ничего не пересобирает,
           # а перенесённый на другой коммит тег не заменит уже выпущенный образ.
-          if [ "$GITHUB_REF_TYPE" = tag ] && docker pull -q "$img:$VERSION" >/dev/null 2>&1; then
+          if [ "$RELEASED" = true ] && docker pull -q "$img:$VERSION" >/dev/null 2>&1; then
             built=$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$img:$VERSION")
-            if [ "$built" != "$GITHUB_SHA" ]; then
+            if [ "$built" = "$GITHUB_SHA" ]; then
+              echo "образ $VERSION уже опубликован"
+              exit 0
+            fi
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
               echo "::error::образ $VERSION уже выпущен из $built, тег сейчас на $GITHUB_SHA: выпустите следующую версию"
               exit 1
             fi
-            echo "образ $VERSION уже опубликован"
-            exit 0
+            # С main конфликт версии не должен останавливать выкатку.
+            echo "::warning::образ $VERSION уже выпущен из $built: публикую только SHA и main"
+            VERSION=${GITHUB_SHA::12}
+            TAGS="$VERSION main"
           fi
           docker build --build-arg VERSION="$VERSION" \
             --label org.opencontainers.image.source="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
@@ -183,6 +226,7 @@ jobs:
             echo "::error::lumend version показывает «$got», ждали «lumend $VERSION»"
             exit 1
           fi
+          # Точная версия последней: её наличие значит, что опубликованы и остальные.
           for t in $TAGS; do
             docker tag lumen:publish "$img:$t"
             docker push "$img:$t"
@@ -190,26 +234,27 @@ jobs:
 
   # Заметки собирает GitHub из PR с прошлого релиза (разделы — .github/release.yml).
   release:
-    if: github.ref_type == 'tag'
+    if: needs.publish.outputs.released == 'true'
     runs-on: ubuntu-latest
-    needs: [version, publish]
+    needs: [publish]
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      VERSION: ${{ needs.version.outputs.version }}
-      PRERELEASE: ${{ needs.version.outputs.prerelease }}
-      LATEST: ${{ needs.version.outputs.latest }}
+      TAG: ${{ needs.publish.outputs.tag }}
+      VERSION: ${{ needs.publish.outputs.version }}
+      PRERELEASE: ${{ needs.publish.outputs.prerelease }}
+      LATEST: ${{ needs.publish.outputs.latest }}
     steps:
       - name: github release
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "релиз $GITHUB_REF_NAME уже есть"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "релиз $TAG уже есть"
             exit 0
           fi
-          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
-            --title "$GITHUB_REF_NAME" \
+          gh release create "$TAG" --verify-tag --generate-notes \
+            --title "$TAG" \
             --notes "Образ: \`ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION\`" \
             --prerelease="$PRERELEASE" --latest="$LATEST"
 

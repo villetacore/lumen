@@ -47,5 +47,24 @@ for bad in "" 1.2.3 v1 v1.2 v1.2.3.4 v01.2.3 v1.02.3 v1.2.03 v1.2.3- v1.2.3+buil
   rejects "$bad"
 done
 
+# next <существующие теги через пробел> <ожидаемый тег>
+next() {
+  local got
+  got=$(tr ' ' '\n' <<<"$1" | bash "$(dirname "$0")/release-next.sh")
+  if [ "$got" != "$2" ]; then
+    printf 'FAIL следующий при тегах [%s]: ждали %s, вышло %s\n' "$1" "$2" "$got"
+    failed=1
+  fi
+}
+
+next "" v0.1.0
+next "foo v9 v9.9 v0.2.0-rc.1" v0.1.0
+next "v0.1.0" v0.1.1
+next "v0.1.9 v0.1.10" v0.1.11
+next "v0.1.5 v0.2.0" v0.2.1
+next "v1.9.0 v1.10.0 v0.9.9" v1.10.1
+# Предварительная версия и посторонний тег номер не занимают.
+next "v0.1.5 v0.2.0-rc.1 v99.0.0.1 v01.0.0" v0.1.6
+
 [ "$failed" = 0 ] && echo "release-meta: ok"
 exit "$failed"
