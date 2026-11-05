@@ -317,3 +317,52 @@ ResourceRef остаются отдельной задачей LUM-023 с её �
 | `POST` | `/api/v1/proposals/{id}/reject` | Отклонить |
 
 Чужое предложение отвечает `404`. SSE-событие `proposal` приходит только автору.
+
+## Деревья и автоматизации
+
+[ADR-0020](adr/0020-trees-and-automations.md). Правила доступа те же, что у тикетов: скрытое отвечает 404.
+
+### Проекты и подзадачи
+
+| Запрос | Что делает |
+|---|---|
+| `POST /tracker/projects` с `parent` | Создаёт подпроект |
+| `PATCH /tracker/projects/{key}` `{title?, parent?, revision?}` | Переименовывает или переносит; `parent: ""` — верхний уровень. Если меняется действующий список участников, нужна роль admin в проекте |
+| `GET /issues?project=KEY&subprojects=true` | Тикеты проекта и всего, что вложено |
+| `GET /issues?parent=KEY` | Подзадачи тикета |
+| `GET /tracker/projects/{key}/members` | В ответе `inherited_from`, если действует список родителя |
+
+### Страницы
+
+`POST /pages/move` `{id, parent?, before?, after?, revision?}` переносит документ. `parent`: пусто, `note:<id>`
+или `task:<id>`. `before` — сосед сверху, `after` — сосед снизу; без них страница встаёт последней. Сводки заметок
+содержат `rank`. Удаление заметки поднимает её детей на уровень выше; проект с подпроектами не удаляется (422).
+
+### Автоматизации
+
+| Запрос | Что делает | Роль в проекте |
+|---|---|---|
+| `GET /tracker/projects/{key}/automations` | Правила и `can_edit` | viewer |
+| `POST /tracker/projects/{key}/automations` | Создаёт правило, включённым | admin |
+| `PATCH /automations/{id}` `{definition?, enabled?, revision}` | Меняет; сохранивший становится владельцем; устаревшая ревизия — 409 | admin |
+| `DELETE /automations/{id}` | Удаляет правило и журнал | admin |
+| `POST /automations/{id}/run` | Запускает правило по расписанию сейчас, 202 | admin |
+| `GET /tracker/projects/{key}/automation-runs?limit=` | Журнал, новые сверху | viewer |
+
+```json
+{
+  "name": "Просроченные",
+  "trigger": {"type": "schedule", "schedule": {"at": "09:00", "weekdays": [1, 2, 3, 4, 5], "tz": "Europe/Moscow"}},
+  "conditions": [{"field": "due", "op": "overdue"}],
+  "actions": [{"type": "notify", "value": "assignee"}]
+}
+```
+
+- `trigger.type`: `issue_created`, `status_changed` (`from`, `to`), `field_changed` (`field`, `to`), `comment_added`, `schedule`.
+- `conditions[].field`: `status`, `category`, `priority`, `assignee`, `issue_type`, `label`, `sprint`, `epic`, `parent`, `due`.
+  `op`: `is`, `is_not`, `empty`, `not_empty`; для `due` — `overdue`, `within` (дней), `empty`, `not_empty`.
+- `actions[].type`: `set_status`, `set_priority`, `set_assignee` (логин или `@reporter`), `add_label`, `remove_label`,
+  `set_due` (дней от сегодня), `add_comment`, `notify` (`assignee`, `reporter`, `watchers`, `@логин`), `create_subissue`.
+  В текстах подставляются `{{key}}`, `{{title}}`, `{{status}}`, `{{assignee}}`, `{{reporter}}`, `{{project}}`.
+- Статус запуска: `done`, `failed`, `blocked` (нет прав), `throttled` (сработал предохранитель), `unknown` (прервано рестартом, не повторяется).
+- SSE: `automation.run`. В журнале тикета такие правки имеют `source: automation`, в уведомлениях `kind: automation`.

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Dialog, IconButton, Select } from "@villetacore/velessoft-ui";
 import { api } from "../api/client";
 import type { NoteSummary } from "../api/types";
@@ -149,21 +149,27 @@ function MovePageDialog({ page, pages, onClose }: { page: NoteSummary; pages: No
     onSuccess: () => { qc.invalidateQueries(); onClose(); },
   });
   const options = pages.filter((p) => !blocked.has(p.id)).sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  const { data: projects } = useQuery({ queryKey: ["notes", { type: "project" }], queryFn: () => api.notes({ type: "project" }) });
   return <Dialog open onClose={() => !move.isPending && onClose()} title={`Переместить «${page.title}»`} footer={<>
     <Button onClick={onClose} disabled={move.isPending}>Отмена</Button>
     <Button variant="primary" loading={move.isPending} onClick={() => move.mutate()}>Переместить</Button>
   </>}>
-    <ParentOptions value={parent} onChange={setParent} pages={options} />
+    <ParentOptions value={parent} onChange={setParent} pages={options} projects={projects?.items ?? []} />
     <p className="hint">Подстраницы переедут вместе со страницей. В закрытом проекте её увидят только его участники.</p>
     {move.isError && <Alert tone="error" title="Страница не перемещена">{errorText(move.error)}</Alert>}
   </Dialog>;
 }
 
-function ParentOptions({ value, onChange, pages }: { value: string; onChange: (v: string) => void; pages: NoteSummary[] }) {
-  const keep = value && !pages.some((p) => `note:${p.id}` === value);
+function ParentOptions({ value, onChange, pages, projects }: { value: string; onChange: (v: string) => void; pages: NoteSummary[]; projects: NoteSummary[] }) {
+  const keep = value && ![...pages, ...projects].some((p) => `note:${p.id}` === value);
   return <Select label="Куда" value={value} onChange={(e) => onChange(e.target.value)}>
     <option value="">Общая документация, верхний уровень</option>
     {keep && <option value={value}>Текущее место</option>}
-    {pages.map((p) => <option key={p.id} value={`note:${p.id}`}>{p.title}</option>)}
+    {projects.length > 0 && <optgroup label="Проекты">
+      {projects.map((p) => <option key={p.id} value={`note:${p.id}`}>{p.title}</option>)}
+    </optgroup>}
+    <optgroup label="Страницы">
+      {pages.map((p) => <option key={p.id} value={`note:${p.id}`}>{p.title}</option>)}
+    </optgroup>
   </Select>;
 }

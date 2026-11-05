@@ -655,6 +655,29 @@ func TestComment(t *testing.T) {
 	}
 }
 
+// Without the guard this rule would make a sub-issue of every sub-issue, forever.
+func TestRuleWritesDoNotFireRules(t *testing.T) {
+	r := newRig(t)
+	ann := r.person("ann", policy.RoleAdmin)
+	if _, err := r.m.Create(ann, "WEB", Definition{
+		Name: "Размножение", Trigger: Trigger{Type: TriggerIssueCreated},
+		Actions: []Action{{Type: ActionCreateSubissue, Value: "Часть {{key}}"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r.issue(ann, "Начало")
+	for i := 0; i < 3; i++ {
+		r.step()
+	}
+	all, _, err := r.issues.List(ann, domain.IssueQuery{Project: "WEB"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("issues = %d, want the original and one sub-issue", len(all))
+	}
+}
+
 func TestFuseStopsARunawayRule(t *testing.T) {
 	r := newRig(t)
 	ann := r.person("ann", policy.RoleAdmin)
