@@ -426,6 +426,22 @@ export interface IssueEvent {
 
 export type ProposalState = "pending" | "applying" | "applied" | "rejected" | "expired" | "stale" | "failed";
 
+/** How to connect an MCP client to this server (ADR-0019). */
+export interface McpConnectionInfo {
+  url: string;
+  auth: "oauth" | "token" | "none";
+}
+
+/** A client the person allowed. */
+export interface McpConnection {
+  id: string;
+  client_name: string;
+  redirect_host: string;
+  connected_at: string;
+  last_used_at?: string;
+  expires_at: string;
+}
+
 /** A change an AI client asked for through MCP, waiting for the person (ADR-0013). */
 export interface Proposal {
   id: string;

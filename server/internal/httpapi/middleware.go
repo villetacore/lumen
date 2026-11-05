@@ -171,7 +171,11 @@ func (a *API) principal(r *http.Request, authenticated bool) *policy.Principal {
 func (a *API) withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r, authenticated := a.identify(r)
-		if p := a.principal(r, authenticated); p != nil {
+		p := a.principal(r, authenticated)
+		if p == nil {
+			p = a.oauthPrincipal(r)
+		}
+		if p != nil {
 			r = r.WithContext(policy.With(r.Context(), p))
 			if authenticated {
 				// The directory follows Keycloak: name, groups and role as of now.

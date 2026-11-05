@@ -56,7 +56,12 @@ func (a *API) mcpHandler() http.Handler {
 		// from an MCP client and not from another site's page (ADR-0013 §3).
 		auth := a.oidc != nil || a.cfg.Token != ""
 		if auth && r.Header.Get("Authorization") == "" || policy.From(r.Context()) == nil {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="lumen"`)
+			challenge := `Bearer realm="lumen"`
+			if a.oauth != nil {
+				// Tells an MCP client where to start signing in (ADR-0019).
+				challenge += `, resource_metadata="` + a.baseURL(r) + `/.well-known/oauth-protected-resource"`
+			}
+			w.Header().Set("WWW-Authenticate", challenge)
 			writeError(w, http.StatusUnauthorized, "unauthorized", "MCP требует заголовок Authorization: Bearer", nil)
 			return
 		}

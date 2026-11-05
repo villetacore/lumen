@@ -73,7 +73,7 @@ export default function ApprovalsPage() {
     <section aria-labelledby="pending-title">
       <h2 id="pending-title" className="nav-title">Ждут решения · {pending.length}</h2>
       {pending.length ? <ul className="proposals">{pending.map(card)}</ul>
-        : <EmptyState title="Нечего подтверждать" description="Когда AI-клиент предложит изменение через MCP-инструменты propose_*, оно появится здесь." />}
+        : <EmptyState title="Нечего подтверждать" description="Когда AI-клиент предложит изменение через MCP-инструменты propose_*, оно появится здесь." actions={<Link href="/connect">Подключить AI-клиент</Link>} />}
     </section>
     {!!decided.length && <section aria-labelledby="decided-title">
       <h2 id="decided-title" className="nav-title">Недавние решения</h2>

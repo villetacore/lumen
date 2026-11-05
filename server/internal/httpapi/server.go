@@ -11,6 +11,7 @@ import (
 	"github.com/villetacore/lumen/server/internal/history"
 	"github.com/villetacore/lumen/server/internal/index"
 	"github.com/villetacore/lumen/server/internal/notify"
+	"github.com/villetacore/lumen/server/internal/oauth"
 	"github.com/villetacore/lumen/server/internal/passwords"
 	"github.com/villetacore/lumen/server/internal/people"
 	"github.com/villetacore/lumen/server/internal/policy"
@@ -41,6 +42,7 @@ type API struct {
 	notify       *notify.Store     // nil without a state store
 	history      *history.Journal  // nil: no issue history
 	proposals    *proposals.Store  // nil without a state store
+	oauth        *oauth.Store      // nil unless people sign in through OIDC
 	integrations *service.Integrations
 	oidc         *auth.Provider
 	passwords    *passwords.Manager
@@ -89,6 +91,9 @@ func (a *API) WithState(st *state.Store) *API {
 	a.state = st
 	a.people = people.New(st.DB())
 	a.proposals = proposals.New(st.DB(), st)
+	if a.oidc != nil {
+		a.oauth = oauth.New(st.DB())
+	}
 	// The SSE nudge names no issue: the client refetches the list, which is
 	// filtered by what the recipient may see.
 	a.notify = notify.New(st.DB(), func(recipient, _ string) {
@@ -124,6 +129,19 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("POST /mcp", mcpHandler)
 	mux.Handle("GET /mcp", mcpHandler)
 	mux.Handle("DELETE /mcp", mcpHandler)
+
+	// OAuth for MCP clients (ADR-0019).
+	mux.HandleFunc("GET /.well-known/oauth-protected-resource", a.handleProtectedResource)
+	mux.HandleFunc("GET /.well-known/oauth-protected-resource/mcp", a.handleProtectedResource)
+	mux.HandleFunc("GET /.well-known/oauth-authorization-server", a.handleAuthServerMetadata)
+	mux.HandleFunc("POST /oauth/register", a.handleOAuthRegister)
+	mux.HandleFunc("GET /oauth/authorize", a.handleOAuthAuthorize)
+	mux.HandleFunc("POST /oauth/token", a.handleOAuthToken)
+	mux.HandleFunc("GET /api/v1/oauth/consent", a.handleConsentInfo)
+	mux.HandleFunc("POST /api/v1/oauth/consent", a.handleConsent)
+	mux.HandleFunc("GET /api/v1/mcp/connection", a.handleMCPConnection)
+	mux.HandleFunc("GET /api/v1/mcp/connections", a.handleListConnections)
+	mux.HandleFunc("DELETE /api/v1/mcp/connections/{id}", a.handleDisconnect)
 
 	mux.HandleFunc("GET /api/v1/proposals", a.handleListProposals)
 	mux.HandleFunc("POST /api/v1/proposals/{id}/approve", a.handleDecideProposal(true))
@@ -202,6 +220,7 @@ func (a *API) Handler() http.Handler {
 	// above still wins.
 	if a.cfg.ServeUI {
 		mux.Handle("GET /", webui.Handler())
+		mux.Handle("GET /connect/authorize", noFraming(webui.Handler()))
 	}
 
 	var h http.Handler = mux

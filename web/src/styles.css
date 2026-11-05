@@ -496,6 +496,20 @@ kbd { padding: 1px 5px; font: 11px var(--vs-font-mono); white-space: nowrap; bor
 .issue-history ins { text-decoration: none; font-weight: 600; }
 @media (max-width: 640px) { .issue-history li { grid-template-columns: 1fr; gap: 0; } }
 
+/* Connecting AI clients (ADR-0019) */
+.connect-copy { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; }
+.connect-copy code { flex: 1; min-width: 0; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 var(--vs-font-mono); background: var(--vs-surface-muted); border: 1px solid var(--vs-border); max-height: 240px; overflow: auto; }
+.connect-copy button { flex: none; }
+.connect-clients { display: grid; gap: 16px; margin-top: 16px; }
+.connect-clients h3 { margin: 0 0 6px; font-size: 14px; }
+.connect-clients ol { margin: 0; padding-left: 20px; }
+.connections { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.connection { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--vs-border); }
+.consent { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+.consent h1, .consent p { margin: 0; }
+.consent-scope { margin: 0; padding-left: 20px; }
+.consent-actions { display: flex; gap: 8px; }
+
 /* MCP confirmations (ADR-0013) */
 .proposals { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .proposal { padding: 12px 14px; border: 1px solid var(--vs-border); border-left: 3px solid var(--vs-accent); background: var(--vs-surface); display: flex; flex-direction: column; gap: 8px; }

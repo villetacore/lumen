@@ -103,6 +103,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         <div className="nav-group">
           <div className="nav-title">Настройка</div>
           <Item to="/people" icon="users" label="Команда" />
+          <Item to="/connect" icon="spark" label="AI-клиенты" />
           {admin && <Item to="/integrations" icon="plug" label="Интеграции" />}
           {admin && <Item to="/passwords" icon="key" label="Пароли" />}
         </div>
